@@ -1,0 +1,111 @@
+/* Primitive: raw values are allowed only in this section. */
+:root {
+  --primitive-space-0: 0;
+  --primitive-color-neutral-0: 0 0% 100%;
+  --primitive-color-neutral-50: 220 33% 98%;
+  --primitive-color-neutral-100: 220 24% 96%;
+  --primitive-color-neutral-200: 220 17% 90%;
+  --primitive-color-neutral-400: 220 10% 55%;
+  --primitive-color-neutral-600: 222 15% 36%;
+  --primitive-color-neutral-800: 224 25% 16%;
+  --primitive-color-neutral-900: 225 31% 10%;
+  --primitive-color-indigo-300: 234 89% 74%;
+  --primitive-color-indigo-400: 237 82% 69%;
+  --primitive-color-indigo-500: 239 75% 60%;
+  --primitive-color-indigo-600: 242 66% 52%;
+  --primitive-color-indigo-700: 243 65% 43%;
+  --primitive-color-cyan-400: 187 78% 48%;
+  --primitive-color-green-500: 151 63% 40%;
+  --primitive-color-amber-500: 38 92% 45%;
+  --primitive-color-red-400: 0 91% 71%;
+  --primitive-color-red-500: 0 72% 51%;
+  --primitive-color-red-600: 0 68% 44%;
+  --primitive-space-1: 0.25rem;
+  --primitive-space-2: 0.5rem;
+  --primitive-space-3: 0.75rem;
+  --primitive-space-4: 1rem;
+  --primitive-space-6: 1.5rem;
+  --primitive-space-8: 2rem;
+  --primitive-space-12: 3rem;
+  --primitive-radius-sm: 0.375rem;
+  --primitive-radius-md: 0.625rem;
+  --primitive-radius-lg: 0.875rem;
+  --primitive-duration-fast: 150ms;
+  --primitive-duration-normal: 220ms;
+  --primitive-duration-reduced: 1ms;
+  --primitive-size-control: 2.75rem;
+  --primitive-size-content-max: 47.5rem;
+  --primitive-size-focus-ring: 0.125rem;
+  --primitive-size-border: 0.0625rem;
+  --primitive-font-family-body: Vazirmatn, system-ui, sans-serif;
+  --primitive-font-weight-heading: 700;
+  --primitive-font-weight-label: 500;
+  --primitive-line-height-body: 1.5;
+  --primitive-text-measure-body: 70ch;
+  --primitive-z-index-skip-link: 1000;
+
+  /* Semantic: purpose aliases. */
+  --color-background: var(--primitive-color-neutral-50);
+  --color-surface: var(--primitive-color-neutral-0);
+  --color-surface-muted: var(--primitive-color-neutral-100);
+  --color-text: var(--primitive-color-neutral-900);
+  --color-text-muted: var(--primitive-color-neutral-600);
+  --color-border: var(--primitive-color-neutral-200);
+  --color-primary: var(--primitive-color-indigo-600);
+  --color-primary-on-dark: var(--primitive-color-indigo-300);
+  --color-primary-strong: var(--primitive-color-indigo-600);
+  --color-primary-hover: var(--primitive-color-indigo-700);
+  --color-focus: var(--primitive-color-cyan-400);
+  --color-success: var(--primitive-color-green-500);
+  --color-warning: var(--primitive-color-amber-500);
+  --color-danger: var(--primitive-color-red-600);
+  --color-danger-on-dark: var(--primitive-color-red-400);
+  --responsive-gutter: var(--primitive-space-4);
+  --content-max-width: var(--primitive-size-content-max);
+  --text-measure: var(--primitive-text-measure-body);
+  --focus-ring-width: var(--primitive-size-focus-ring);
+  --focus-ring-offset: var(--primitive-size-focus-ring);
+  --font-family-body: var(--primitive-font-family-body);
+  --font-weight-heading: var(--primitive-font-weight-heading);
+  --font-weight-label: var(--primitive-font-weight-label);
+  --line-height-body: var(--primitive-line-height-body);
+  --z-index-skip-link: var(--primitive-z-index-skip-link);
+
+  /* Component: component-specific aliases. */
+  --button-primary-background: var(--color-primary-strong);
+  --button-primary-background-hover: var(--color-primary-hover);
+  --button-primary-text: var(--primitive-color-neutral-0);
+  --button-focus-ring: var(--color-focus);
+  --button-height: var(--primitive-size-control);
+  --button-radius: var(--primitive-radius-md);
+  --field-background: var(--color-surface);
+  --field-border: var(--color-border);
+  --field-text: var(--color-text);
+  --field-error: var(--color-danger);
+  --field-height: var(--primitive-size-control);
+  --card-background: var(--color-surface);
+  --card-border: var(--color-border);
+  --card-radius: var(--primitive-radius-lg);
+  --border-width-default: var(--primitive-size-border);
+}
+
+[data-theme="dark"] {
+  --color-background: var(--primitive-color-neutral-900);
+  --color-surface: var(--primitive-color-neutral-800);
+  --color-surface-muted: var(--primitive-color-neutral-600);
+  --color-text: var(--primitive-color-neutral-50);
+  --color-text-muted: var(--primitive-color-neutral-200);
+  --color-border: var(--primitive-color-neutral-600);
+  --color-primary: var(--color-primary-on-dark);
+  --color-primary-hover: var(--primitive-color-indigo-500);
+  --color-danger: var(--color-danger-on-dark);
+  --button-primary-background: var(--color-primary-strong);
+  --button-primary-background-hover: var(--primitive-color-indigo-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --primitive-duration-fast: 1ms;
+    --primitive-duration-normal: 1ms;
+  }
+}

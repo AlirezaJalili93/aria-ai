@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: Aria AI API
+  version: 1.0.0-bootstrap
+  description: >-
+    Sprint 1 contract baseline. Product paths are added only with their approved
+    story, authorization rules, implementation, and contract tests.
+servers:
+  - url: /api/v1
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, meta]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }
+            retryable: { type: boolean }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
+

@@ -1,0 +1,35 @@
+{
+  "name": "aria-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "npm run build:web && npm run build:api && npm run build:worker",
+    "build:web": "npm run build --workspace @aria/web",
+    "build:api": "node scripts/run-uv.mjs --project apps/api run python -m compileall -q apps/api/app",
+    "build:worker": "node scripts/run-uv.mjs --project apps/worker run python -m compileall -q apps/worker/app",
+    "lint": "npm run lint:web && npm run lint:api && npm run lint:worker",
+    "lint:web": "npm run lint --workspace @aria/web",
+    "lint:api": "node scripts/run-uv.mjs --project apps/api run ruff check apps/api/app apps/api/tests",
+    "lint:worker": "node scripts/run-uv.mjs --project apps/worker run ruff check apps/worker/app apps/worker/tests",
+    "typecheck": "npm run typecheck:web && npm run typecheck:api && npm run typecheck:worker",
+    "typecheck:web": "npm run typecheck --workspace @aria/web",
+    "typecheck:api": "node scripts/run-uv.mjs --project apps/api run mypy apps/api/app",
+    "typecheck:worker": "node scripts/run-uv.mjs --project apps/worker run mypy apps/worker/app",
+    "test": "npm run test:records && npm run test:web && npm run test:api && npm run test:worker",
+    "test:records": "node --test scripts/test/development-records.test.js",
+    "test:web": "npm test --workspace @aria/web",
+    "test:api": "node scripts/run-uv.mjs --project apps/api run pytest -q apps/api/tests",
+    "test:worker": "node scripts/run-uv.mjs --project apps/worker run pytest -q apps/worker/tests",
+    "validate": "node scripts/validate-architecture.mjs",
+    "quality": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate"
+  }
+}

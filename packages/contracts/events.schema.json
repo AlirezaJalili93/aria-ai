@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aria.local/events/v1.json",
+  "title": "Aria domain event envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "specVersion",
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "accountId",
+    "aggregateId",
+    "correlationId",
+    "data"
+  ],
+  "properties": {
+    "specVersion": { "const": "1.0" },
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": {
+      "enum": [
+        "project_created.v1",
+        "context_added.v1",
+        "context_structuring_started.v1",
+        "context_structured.v1",
+        "requirements_generated.v1",
+        "gap_detected.v1",
+        "gap_resolved.v1",
+        "scope_generated.v1",
+        "scope_version_saved.v1"
+      ]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "accountId": { "type": "string", "format": "uuid" },
+    "aggregateId": { "type": "string", "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "actorId": { "type": ["string", "null"], "format": "uuid" },
+    "data": {
+      "type": "object",
+      "description": "Event-specific versioned data; raw project content, secrets and unnecessary PII are forbidden."
+    }
+  }
+}
+
