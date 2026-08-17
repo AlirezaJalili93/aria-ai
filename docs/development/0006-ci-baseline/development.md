@@ -90,6 +90,7 @@ Establish the documented pull-request CI baseline for the existing GitHub reposi
 - Secret scan inspected 90 publishable text files with zero findings before final evidence files were added.
 - npm reported 0 vulnerabilities across 428 dependencies; pip-audit reported no known vulnerabilities in the API or worker lockfile exports.
 - GitHub reported `PUBLIC` visibility and strict required contexts `Quality` and `Security baseline`, enforced for administrators.
+- GitHub Actions run `32025711754` passed both required jobs and retained non-expired quality/security artifacts.
 - Final command and hosted-CI evidence is recorded in [test-report.md](./test-report.md).
 
 ## Remaining Risks

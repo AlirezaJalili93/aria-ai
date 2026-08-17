@@ -27,6 +27,7 @@
 | TC-0606 | Contract | Pull-request template and CODEOWNERS | Required evidence headings and risk-owner paths are present |
 | TC-0607 | External/Integration | Repository visibility and `main` branch protection | Repository is public; PR, strict green checks, administrator enforcement, linear history, and code-owner review are enabled; force-push/delete are disabled |
 | TC-0608 | Architecture | Development evidence and CI fitness validation | Records link and pass; runtime/action pins, triggers, scans, caches, and artifacts validate |
+| TC-0609 | Hosted CI | Implementation pull request on GitHub-hosted Ubuntu | Both required jobs pass and produce non-expired, run-specific artifacts |
 
 ## Execution Results
 
@@ -40,6 +41,7 @@
 | TC-0606 | `scripts/test/ci-config.test.js` | Required PR headings and CODEOWNERS paths verified | PASS |
 | TC-0607 | GitHub API update and readback | `PUBLIC`; strict contexts `Quality` and `Security baseline`; admins/code owners/linear history enforced; force-push/delete disabled | PASS |
 | TC-0608 | `npm run validate` and final `npm run quality` | Architecture/documentation checks and the complete local gate passed | PASS |
+| TC-0609 | GitHub Actions run `32025711754` | `Security baseline` passed in 28s; `Quality` passed in 50s; `ci-security-32025711754` (14,957 bytes) and `ci-quality-32025711754` (2,433 bytes) exist and are not expired | PASS |
 
 ## Failures and Corrections
 
