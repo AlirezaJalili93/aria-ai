@@ -24,11 +24,14 @@
     "typecheck:web": "npm run typecheck --workspace @aria/web",
     "typecheck:api": "node scripts/run-uv.mjs --project apps/api run mypy apps/api/app",
     "typecheck:worker": "node scripts/run-uv.mjs --project apps/worker run mypy apps/worker/app",
-    "test": "npm run test:records && npm run test:web && npm run test:api && npm run test:worker",
+    "test": "npm run test:records && npm run test:ci && npm run test:web && npm run test:api && npm run test:worker",
     "test:records": "node --test scripts/test/development-records.test.js",
+    "test:ci": "node --test scripts/test/ci-config.test.js scripts/test/secret-scan.test.js",
     "test:web": "npm test --workspace @aria/web",
     "test:api": "node scripts/run-uv.mjs --project apps/api run pytest -q apps/api/tests",
     "test:worker": "node scripts/run-uv.mjs --project apps/worker run pytest -q apps/worker/tests",
+    "scan:dependencies": "node scripts/scan-dependencies.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "validate": "node scripts/validate-architecture.mjs",
     "quality": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate"
   }

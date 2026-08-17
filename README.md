@@ -4,14 +4,15 @@ Aria یک فضای کاری هوشمند برای آژانس‌ها و فریل�
 
 ## وضعیت فعلی
 
-Increment `0004-repository-bootstrap` فقط Foundation مخزن را تحویل می‌دهد:
+Foundation مخزن و CI baseline استوری `S1-A02` اکنون تحویل شده‌اند:
 
 - Next.js App Router + TypeScript Strict برای `apps/web`؛
 - Python 3.12+ + FastAPI برای `apps/api`؛
 - Python Worker خنثی نسبت به Queue در `apps/worker`؛
 - npm workspaces و uv lockfileهای مستقل؛
 - Design Tokenهای سه‌لایه و پوسته‌ی RTL-first؛
-- Architecture Fitness، تست و مستندات توسعه.
+- Architecture Fitness، تست و مستندات توسعه؛
+- PR gateهای `Quality` و `Security baseline` با cache و artifactهای قابل بازیابی.
 
 Auth، Database Migration، Queue، Storage، AI و Endpointهای محصول هنوز پیاده‌سازی نشده‌اند و فقط در Story/ADR مربوط به خود اضافه می‌شوند.
 
@@ -29,6 +30,13 @@ npm ci
 uv sync --project apps/api --locked
 uv sync --project apps/worker --locked
 npm run quality
+```
+
+برای اجرای کنترل‌های امنیتی همان CI در محیط محلی:
+
+```powershell
+npm run scan:secrets
+npm run scan:dependencies
 ```
 
 برای اجرای پوسته‌ی Web:
@@ -77,4 +85,3 @@ API در این Increment عمداً هیچ Endpoint محصولی ندارد.
 4. AI assumption را Fact معرفی نمی‌کند و Human Review در نقاط critical الزامی است.
 5. هر Increment دارای `development.md` و `test-report.md` نهایی و PASS است.
 6. توسعه فقط براساس Requirement مستند انجام می‌شود؛ ابهام با سؤال از کاربر حل می‌شود.
-

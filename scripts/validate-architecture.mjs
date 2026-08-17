@@ -56,7 +56,11 @@ async function walk(directory) {
 
 const requiredPaths = [
   ".env.example",
+  ".node-version",
   ".python-version",
+  ".github/CODEOWNERS",
+  ".github/pull_request_template.md",
+  ".github/workflows/ci.yml",
   "README.md",
   "AGENTS.md",
   "apps/web/package.json",
@@ -81,6 +85,9 @@ const requiredPaths = [
   "docs/governance/document-driven-development.md",
   "docs/development/README.md",
   "docs/adr/ADR-004-stack-and-repository-bootstrap.md",
+  "docs/adr/ADR-005-ci-baseline.md",
+  "scripts/scan-dependencies.mjs",
+  "scripts/scan-secrets.mjs",
   "design-system/MASTER.md"
 ];
 
@@ -143,6 +150,39 @@ for (const pyprojectPath of ["apps/api/pyproject.toml", "apps/worker/pyproject.t
 }
 if (!failures.some((item) => item.includes("pyproject.toml"))) {
   pass("Python projects preserve 3.12 and exact direct dependency pins");
+}
+
+const nodeVersion = (await read(".node-version")).trim();
+if (nodeVersion !== "24.11.1") {
+  fail(`Node runtime must use the documented 24.11.1 pin, found ${nodeVersion}`);
+} else {
+  pass("Node runtime uses the documented exact pin");
+}
+
+const ciWorkflow = await read(".github/workflows/ci.yml");
+for (const [name, pattern] of [
+  ["pull request trigger", /pull_request:\s*\n\s+branches: \[main\]/],
+  ["main push trigger", /push:\s*\n\s+branches: \[main\]/],
+  ["quality gate", /npm run quality/],
+  ["secret scan", /node scripts\/scan-secrets\.mjs/],
+  ["dependency scan", /node scripts\/scan-dependencies\.mjs/],
+  ["npm cache", /cache: npm/],
+  ["uv cache", /enable-cache: true/]
+]) {
+  if (!pattern.test(ciWorkflow)) fail(`CI workflow is missing ${name}`);
+}
+const actionReferences = [...ciWorkflow.matchAll(/uses:\s+([^\s]+)@([^\s]+)/g)];
+if (actionReferences.length === 0) fail("CI workflow contains no third-party action references");
+for (const [, action, reference] of actionReferences) {
+  if (!/^[a-f0-9]{40}$/.test(reference)) {
+    fail(`CI third-party action ${action} must use an immutable commit SHA`);
+  }
+}
+if ((ciWorkflow.match(/if: always\(\)/g) ?? []).length !== 2) {
+  fail("CI workflow must preserve both quality and security artifacts on failure");
+}
+if (!failures.some((item) => item.startsWith("CI "))) {
+  pass("CI workflow enforces pinned quality/security gates, caches, and failure artifacts");
 }
 
 const tokens = JSON.parse(await read("packages/design-tokens/tokens.json"));
