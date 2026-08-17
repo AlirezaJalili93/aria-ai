@@ -3,9 +3,7 @@ from typing import Literal, Self
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-STAGING_REQUIRED_SETTINGS = (
-    "public_app_url",
-    "api_base_url",
+WORKER_STAGING_REQUIRED_SETTINGS = (
     "database_url",
     "queue_broker_url",
     "storage_endpoint",
@@ -13,18 +11,14 @@ STAGING_REQUIRED_SETTINGS = (
     "storage_access_key",
     "storage_secret_key",
     "auth_provider_url",
-    "auth_jwks_url",
-    "auth_audience",
     "release_commit_sha",
 )
 
 
-class ApiSettings(BaseSettings):
+class WorkerSettings(BaseSettings):
     app_env: Literal["local", "test", "staging", "production"]
     app_version: str
     log_level: str
-    public_app_url: str | None = None
-    api_base_url: str | None = None
     database_url: str | None = None
     queue_broker_url: str | None = None
     storage_endpoint: str | None = None
@@ -32,8 +26,6 @@ class ApiSettings(BaseSettings):
     storage_access_key: str | None = None
     storage_secret_key: str | None = None
     auth_provider_url: str | None = None
-    auth_jwks_url: str | None = None
-    auth_audience: str | None = None
     release_commit_sha: str | None = None
 
     model_config = SettingsConfigDict(
@@ -49,16 +41,15 @@ class ApiSettings(BaseSettings):
 
         missing = [
             setting
-            for setting in STAGING_REQUIRED_SETTINGS
+            for setting in WORKER_STAGING_REQUIRED_SETTINGS
             if not (value := getattr(self, setting)) or not value.strip()
         ]
         if missing:
             raise ValueError(
-                "Missing required hosted runtime configuration: " + ", ".join(sorted(missing))
+                "Missing required hosted worker configuration: " + ", ".join(sorted(missing))
             )
         return self
 
 
-def load_api_settings() -> ApiSettings:
-    # Required values are supplied by the environment at runtime; mypy cannot model BaseSettings IO.
-    return ApiSettings()  # type: ignore[call-arg]
+def load_worker_settings() -> WorkerSettings:
+    return WorkerSettings()  # type: ignore[call-arg]
