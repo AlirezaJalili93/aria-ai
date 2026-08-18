@@ -16,10 +16,9 @@ export default function HomePage() {
         </p>
         <section className="status-card" aria-labelledby="status-title">
           <h2 id="status-title">وضعیت این Increment</h2>
-          <p>Web، API و Worker در مرحله‌ی Repository Bootstrap قرار دارند.</p>
+          <p>Web، API و Worker در حال آماده‌سازی محیط مستقل Staging هستند.</p>
         </section>
       </main>
     </div>
   );
 }
-

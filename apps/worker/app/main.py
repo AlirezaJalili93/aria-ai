@@ -31,8 +31,9 @@ def run_worker(
 ) -> None:
     worker = bootstrap_worker(settings)
     print(
-        f"{worker.service_name}: runtime-ready "
-        f"environment={worker.environment} version={worker.app_version}",
+        f"{worker.service_name}: runtime-started "
+        f"environment={worker.environment} version={worker.app_version} "
+        f"queue_adapter_configured={str(worker.queue_adapter_configured).lower()}",
         flush=True,
     )
     wait()

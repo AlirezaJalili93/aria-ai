@@ -1,41 +1,54 @@
 # Test Report: 0007 Staging Runtime
 
 - Increment ID: `0007-staging-runtime`
-- Date: 2026-08-17
+- Date: 2026-08-18
 - [Development record](./development.md)
 
 ## Environment
 
 - Local OS: Windows
-- Hosted target: Vercel Web, Render API/Worker/Queue, Supabase PostgreSQL/Auth/Storage
 - Branch: `agent/staging-runtime`
+- Node.js: 24.x repository pin
+- Python: 3.12 repository pin
+- uv: 0.12.5
+- Hosted target: Vercel Web, Render API/Worker/Key Value, Supabase PostgreSQL/Auth/Storage
+- Supabase staging: `hqgfqlvfwflbazsuhazs`, Frankfurt `eu-central-1`, `ACTIVE_HEALTHY`
 - Secret values: never recorded in this report
 
 ## Test Cases
 
 | ID | Type | Scenario | Expected result |
 |---|---|---|---|
-| TC-0701 | Build/Runtime | Build all three deployables with staging configuration contract | Web, API, and Worker build; staging startup rejects missing critical configuration |
-| TC-0702 | API/Contract | Call the approved liveness endpoint | Stable non-sensitive 200 response matches OpenAPI contract |
-| TC-0703 | API/Runtime | Call the approved readiness endpoint with valid and invalid runtime state | Ready returns 200; invalid/unready state returns 503 without leaking configuration |
-| TC-0704 | Security/Config | Inspect frontend env allowlist, committed files, and secret placeholders | No backend/provider secret is bundled or committed; staging-only keys are classified |
-| TC-0705 | Hosted smoke | Open staging Web URL and call hosted API health/readiness | Web and API are reachable over TLS and report the expected version/environment |
-| TC-0706 | Isolation | Inspect staging Supabase and Queue bindings against production identifiers | Staging resources and credentials are independent; no production data or secret is referenced |
-| TC-0707 | Deployment | Validate Render/Vercel configuration and rollback metadata | Deployment configuration is valid, gated by CI, and identifies the rollback artifact/commit |
-| TC-0708 | Quality/Architecture | Run repository test and validation gates | Tests, build, architecture, documentation, and secret checks pass |
+| TC-0701 | Build/Runtime | Build all three deployables and validate staging fail-fast settings | Web, API, and Worker build; staging rejects missing critical configuration |
+| TC-0702 | API/Contract | Call `/health/live` while the database probe is unavailable | Stable non-sensitive 200 response; database probe is not called |
+| TC-0703 | API/Runtime | Call `/health/ready` with available/unavailable database and queue probes | Both bindings ready returns 200; either unavailable returns sanitized 503; no AI check occurs |
+| TC-0704 | Security/Config | Inspect frontend allowlist, committed files, Blueprint placeholders, and secret scanner | No backend/provider secret is bundled or committed |
+| TC-0705 | Hosted smoke | Open staging Web URL and call hosted API liveness/readiness | Web and API are reachable over TLS and report staging/version metadata |
+| TC-0706 | Isolation | Read back Supabase project/bucket and Render queue bindings | Staging resources are independent, private where required, and reference no production identifier |
+| TC-0707 | Deployment | Validate Render/Vercel configuration and rollback metadata | Deployment is CI-gated, same-region, within the confirmed ceiling, and identifies the commit |
+| TC-0708 | Quality/Architecture | Run repository tests, builds, validation, and senior review | All gates pass with no unresolved implementation finding |
 
 ## Execution Results
 
 | ID | Command or steps | Actual result | Status |
 |---|---|---|---|
-| TC-0701 | Pending | Not executed | PENDING |
-| TC-0702 | Pending | Not executed | PENDING |
-| TC-0703 | Pending | Not executed | PENDING |
-| TC-0704 | Pending | Not executed | PENDING |
-| TC-0705 | Pending | Not executed | PENDING |
-| TC-0706 | Pending | Not executed | PENDING |
-| TC-0707 | Pending | Not executed | PENDING |
-| TC-0708 | Pending | Not executed | PENDING |
+| TC-0701 | `npm run build`; hosted-settings tests | Web/API/Worker builds passed; configuration fail-fast tests passed | PASS |
+| TC-0702 | `npm run test:api` | Liveness returned exact 200 metadata and made zero dependency calls | PASS |
+| TC-0703 | `npm run test:api` | DB/queue readiness returned 200/503 as specified; real loopback RESP `PING` passed; response was sanitized; 24 API tests passed | PASS |
+| TC-0704 | `npm run test:ci`; `npm run scan:secrets` | Typed/secret-safe config and 12 CI/deployment tests passed; 109 publishable files scanned with zero findings | PASS |
+| TC-0705 | Hosted Web/API smoke | Deployment not yet completed | PENDING |
+| TC-0706 | Supabase project and SQL readback; hosted Render inspection | Supabase is healthy in `eu-central-1`; bucket exists with `public=false`; Render readback pending | PARTIAL |
+| TC-0707 | `scripts/test/deployment-config.test.js`; hosted deployment readback | Blueprint contract passes; hosted price, URLs, CI gate, and release SHA pending | PARTIAL |
+| TC-0708 | `npm run lint`; `npm run typecheck`; `npm run build`; final `npm test`; `npm run validate` | Lint/type-check/build passed; validation has only the intentionally pending hosted-evidence status | PARTIAL |
+
+## Failures and Corrections
+
+1. Contract-first health tests initially failed before the routes existed, confirming the tests exercised new behavior. The implementation then made all cases pass.
+2. A FastAPI 0.141 lazy-router change made direct `app.routes` introspection unreliable. The bootstrap test was corrected to assert behavior through HTTP without weakening coverage.
+3. The initial database readiness adapter could wait indefinitely. A bounded three-second async timeout and translated unavailable result were added.
+4. The secret scanner detected a credential-shaped database URL in a unit-test fixture. The fixture now assembles representative values at runtime; the scanner remains strict and passes.
+5. The first Vercel deployment request was rejected before execution because its file payload was ambiguous. No project or deployment was created; a precisely scoped deployment requires explicit source/destination confirmation.
+6. Mandatory review found presence-only config, plaintext secret representation, incomplete release metadata, missing Queue readiness, and inaccurate Worker readiness semantics. Contract-first tests reproduced all gaps; typed/secret-safe settings, DB+Queue readiness, OpenAPI metadata, and truthful Worker startup semantics now pass.
 
 ## Final Status
 
