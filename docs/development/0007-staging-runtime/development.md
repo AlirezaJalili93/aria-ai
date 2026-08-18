@@ -59,6 +59,8 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Removed explicit `branch: main` overrides from the Render services. The linked Blueprint branch remains the base deployment source while Render PR previews are free to use the pull request branch; smoke evidence is invalid unless the deployed commit matches the current PR HEAD.
 - Added deployment configuration tests and included them in the CI contract suite.
 - Updated the API README and staging shell copy without adding a product feature.
+- Connected Vercel to GitHub with repository-scoped visibility: the import picker exposed only `AlirezaJalili93/aria-ai`.
+- Created the required Vercel project shell `aria-ai-web` with root directory `apps/web`; its initial `main` deployment is the production baseline only and is not counted as PR smoke evidence.
 - Hosted Vercel and Render deployment plus remote smoke evidence remain pending.
 
 ## Structure Preservation
@@ -82,7 +84,8 @@ Establish the documented staging runtime for the existing three deployables: Web
 - **Resolved — contract drift:** OpenAPI retains the documented `/api/v1` product base while overriding the two root operational routes; response schemas include environment, version, release SHA, DB/queue checks, and 503.
 - **Verified — architecture:** operational transport and infrastructure concerns preserve modular-monolith dependency direction and add no deployable boundary.
 - Hosted configuration, remote smoke, and final review remain open until the deployment actions complete.
-- Render GitHub OAuth authorization completed with the requested repository-scoping intent, but Render account creation and repository installation verification remain pending user completion in the dashboard. No Render resource has been created.
+- Vercel project creation was independently read back as Ready on `main` commit `a9cf7cb9b21afee35e30ad400a484b9bd1bc994b`. It is deliberately excluded from TC-0705 because it is not the approved PR SHA.
+- Render GitHub OAuth authorization completed with the requested repository-scoping intent, but the Render card-verification dialog still blocks repository readback and resource creation. No Render resource has been created.
 
 ## Verification
 
@@ -98,6 +101,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 ## Remaining Risks
 
 - Render resources do not yet exist. Actual paid instance prices must be confirmed in the dashboard and remain at or below the approved target ceiling before creation.
+- The Vercel project is connected after the current PR branch was last pushed, so a documented branch update is required to trigger its first branch Preview; that Preview remains invalid until its deployment metadata matches the new PR HEAD exactly.
 - Supabase Free may pause after inactivity and does not provide production-grade backup/PITR; this is accepted only for Sprint 1 staging.
 - Database and S3 credentials must be generated only at the action point and transmitted directly to the Render secret store; they must never enter source control, command output, or this evidence record.
 - Hosted TLS, cross-platform connectivity, Vercel/Render URLs, deployment logs, and rollback SHA are not yet verified.
