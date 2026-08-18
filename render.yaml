@@ -14,7 +14,6 @@ services:
     runtime: python
     plan: starter
     region: frankfurt
-    branch: main
     autoDeployTrigger: checksPass
     buildCommand: pip install uv==0.12.5 && uv sync --project apps/api --locked --no-dev
     startCommand: uv run --project apps/api --no-sync uvicorn app.main:create_app --factory --app-dir apps/api --host 0.0.0.0 --port $PORT
@@ -62,7 +61,6 @@ services:
     runtime: python
     plan: starter
     region: frankfurt
-    branch: main
     autoDeployTrigger: checksPass
     buildCommand: pip install uv==0.12.5 && uv sync --project apps/worker --locked --no-dev
     startCommand: cd apps/worker && uv run --no-sync python -m app.main

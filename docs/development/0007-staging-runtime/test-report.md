@@ -38,7 +38,7 @@
 | TC-0704 | `npm run test:ci`; `npm run scan:secrets` | Typed/secret-safe config and 12 CI/deployment tests passed; 109 publishable files scanned with zero findings | PASS |
 | TC-0705 | Hosted Web/API smoke | Deployment not yet completed | PENDING |
 | TC-0706 | Supabase project and SQL readback; hosted Render inspection | Supabase is healthy in `eu-central-1`; bucket exists with `public=false`; Render readback pending | PARTIAL |
-| TC-0707 | `scripts/test/deployment-config.test.js`; hosted deployment readback | Blueprint contract passes; hosted price, URLs, CI gate, and release SHA pending | PARTIAL |
+| TC-0707 | `node --test scripts/test/deployment-config.test.js`; hosted deployment readback | Five Blueprint contract tests pass, including rejection of explicit service branch overrides; hosted price, URLs, CI gate, and release SHA remain pending | PARTIAL |
 | TC-0708 | `npm run lint`; `npm run typecheck`; `npm run build`; final `npm test`; `npm run validate` | Lint/type-check/build passed; validation has only the intentionally pending hosted-evidence status | PARTIAL |
 
 ## Failures and Corrections
@@ -49,6 +49,8 @@
 4. The secret scanner detected a credential-shaped database URL in a unit-test fixture. The fixture now assembles representative values at runtime; the scanner remains strict and passes.
 5. The first Vercel deployment request was rejected before execution because its file payload was ambiguous. No project or deployment was created; a precisely scoped deployment requires explicit source/destination confirmation.
 6. Mandatory review found presence-only config, plaintext secret representation, incomplete release metadata, missing Queue readiness, and inaccurate Worker readiness semantics. Contract-first tests reproduced all gaps; typed/secret-safe settings, DB+Queue readiness, OpenAPI metadata, and truthful Worker startup semantics now pass.
+7. The original Blueprint pinned API and Worker to `main`, which could make a PR preview deploy the wrong commit. A contract test now rejects any explicit service branch override, and both pins were removed before hosted verification.
+8. The first precisely intended Vercel Preview call was rejected because the connector action accepts no source-project, commit, or root-scope arguments. No deployment was created; the next attempt must originate from the GitHub branch after its new HEAD is published and must prove the deployed SHA.
 
 ## Final Status
 

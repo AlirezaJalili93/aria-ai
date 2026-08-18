@@ -21,6 +21,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Google Drive `Aria AI — API Contract`, `Test Strategy`, `Security Baseline`, and `Definition of Ready / Definition of Done`.
 - Repository `AGENTS.md`, [system architecture](../../architecture/system-architecture.md), and [document-driven development policy](../../governance/document-driven-development.md).
 - User approvals on 2026-08-18: Supabase Free in Frankfurt (`eu-central-1`), Render API/Worker/Persistent Key Value in Frankfurt, target budget ceiling of USD 24/month subject to the selected instance types, root `/health/live` and `/health/ready`, and exclusion of AI providers from readiness.
+- User approval on 2026-08-18 for repository-scoped Render GitHub authorization and a SHA-verified hosted preview of `agent/staging-runtime`; a Render Preview Environment may be used only if the workspace plan supports it, otherwise a temporary branch-bound staging deployment must be removed after smoke verification.
 - User-provided `ui-ux-pro-max.md` and `design-system.md`, plus repository `design-system/MASTER.md`, as unchanged UI quality guardrails.
 
 ## Requirement Traceability
@@ -55,6 +56,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Replaced presence-only runtime strings with typed HTTP URLs, supported PostgreSQL/Redis DSNs, enumerated log levels, and a 40-hex release SHA. Credential-bearing values now use `SecretStr`, and validation errors hide inputs.
 - Removed the undocumented Worker dependency on `AUTH_PROVIDER_URL`. Worker startup now reports `runtime-started queue_adapter_configured=false` and never claims job-processing readiness before a queue consumer exists.
 - Added the repository-owned Render Blueprint for Frankfurt API, Worker, and Persistent Key Value, using Starter candidates, private-only queue access, `noeviction`, Journal + Snapshot persistence, locked builds, CI-gated deployment, and secret placeholders.
+- Removed explicit `branch: main` overrides from the Render services. The linked Blueprint branch remains the base deployment source while Render PR previews are free to use the pull request branch; smoke evidence is invalid unless the deployed commit matches the current PR HEAD.
 - Added deployment configuration tests and included them in the CI contract suite.
 - Updated the API README and staging shell copy without adding a product feature.
 - Hosted Vercel and Render deployment plus remote smoke evidence remain pending.
@@ -72,6 +74,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - **Resolved — readiness isolation:** liveness has no probe call; readiness checks the critical database and queue bindings concurrently and never calls an AI provider.
 - **Resolved — bounded failure:** the first database probe had no deadline; it now returns sanitized `503` after a three-second timeout instead of allowing a health request to hang indefinitely.
 - **Resolved — deploy safety:** API and Worker now use `autoDeployTrigger: checksPass`, locked dependency sync, and `--no-sync` startup to prevent runtime dependency drift.
+- **Resolved — preview source integrity:** API and Worker no longer pin `branch: main` in `render.yaml`; the deployment contract test rejects any explicit branch override that could make a PR preview silently deploy the base branch.
 - **Resolved — queue durability:** the Key Value resource is private-only, persistent, and uses `noeviction`, matching durable queue semantics.
 - **Resolved — source-control confidentiality:** all credentials and runtime-derived URLs remain outside Git; the repository secret scanner also caught and removed a credential-shaped test fixture.
 - **Resolved — typed configuration:** malformed HTTP URLs, unsupported PostgreSQL driver schemes, malformed Redis DSNs/database selectors, invalid log levels, and non-40-character release SHAs now fail before startup without echoing their values.
@@ -79,6 +82,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - **Resolved — contract drift:** OpenAPI retains the documented `/api/v1` product base while overriding the two root operational routes; response schemas include environment, version, release SHA, DB/queue checks, and 503.
 - **Verified — architecture:** operational transport and infrastructure concerns preserve modular-monolith dependency direction and add no deployable boundary.
 - Hosted configuration, remote smoke, and final review remain open until the deployment actions complete.
+- Render GitHub OAuth authorization completed with the requested repository-scoping intent, but Render account creation and repository installation verification remain pending user completion in the dashboard. No Render resource has been created.
 
 ## Verification
 
@@ -89,6 +93,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Secret scan inspected 109 publishable text files with zero findings after the fixture correction.
 - Supabase project URL, region, health status, and private bucket state were independently read back.
 - Hosted smoke and final full `npm test` / `npm run validate` evidence remain pending and will be recorded in [test-report.md](./test-report.md).
+- The focused Render deployment contract suite passes after the branch-integrity correction. Vercel's unscoped deployment action was safely rejected before execution; no Vercel project or deployment exists yet.
 
 ## Remaining Risks
 

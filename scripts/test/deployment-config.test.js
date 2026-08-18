@@ -16,8 +16,8 @@ test("Render staging services share the approved Frankfurt region and starter ce
   assert.match(blueprint, /type: keyvalue\s+name: aria-staging-queue/);
 });
 
-test("Render deploys API and Worker from main only after CI checks pass", () => {
-  assert.equal((blueprint.match(/branch: main/g) ?? []).length, 2);
+test("Render leaves Git branches unpinned so PR previews deploy the verified PR commit", () => {
+  assert.doesNotMatch(blueprint, /^\s*branch:/m);
   assert.equal((blueprint.match(/autoDeployTrigger: checksPass/g) ?? []).length, 2);
   assert.equal((blueprint.match(/uv run .*--no-sync/g) ?? []).length, 2);
 });
