@@ -1,8 +1,10 @@
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 
+from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
 
+from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.health import create_health_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_database_probe
@@ -13,6 +15,7 @@ def create_app(
     settings: ApiSettings | None = None,
     database_probe: Callable[[], Awaitable[bool]] | None = None,
     queue_probe: Callable[[], Awaitable[bool]] | None = None,
+    event_logger: StructuredEventLogger | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     owned_database_probe = (
@@ -41,6 +44,14 @@ def create_app(
         openapi_url=None,
         lifespan=lifespan,
     )
+    resolved_event_logger = event_logger or create_event_logger(
+        service="aria-api",
+        environment=resolved_settings.app_env,
+        app_version=resolved_settings.app_version,
+        release_commit_sha=resolved_settings.release_commit_sha,
+        level=resolved_settings.log_level,
+    )
+    app.add_middleware(ObservabilityMiddleware, event_logger=resolved_event_logger)
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )

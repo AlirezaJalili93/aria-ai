@@ -3,8 +3,12 @@ name = "aria-worker"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
+  "aria-observability",
   "pydantic-settings==2.15.0",
 ]
+
+[tool.uv.sources]
+aria-observability = { path = "../../packages/observability" }
 
 [dependency-groups]
 dev = [

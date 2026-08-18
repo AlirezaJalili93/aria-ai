@@ -12,10 +12,16 @@ wheels = [
 ]
 
 [[package]]
+name = "aria-observability"
+version = "0.1.0"
+source = { directory = "../../packages/observability" }
+
+[[package]]
 name = "aria-worker"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aria-observability" },
     { name = "pydantic-settings" },
 ]
 
@@ -27,7 +33,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic-settings", specifier = "==2.15.0" }]
+requires-dist = [
+    { name = "aria-observability", directory = "../../packages/observability" },
+    { name = "pydantic-settings", specifier = "==2.15.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [

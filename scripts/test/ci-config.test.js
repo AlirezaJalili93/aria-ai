@@ -11,6 +11,10 @@ const pullRequestTemplate = await readFile(
   "utf8"
 );
 const codeowners = await readFile(path.join(root, ".github", "CODEOWNERS"), "utf8");
+const dependencyScanner = await readFile(
+  path.join(root, "scripts", "scan-dependencies.mjs"),
+  "utf8"
+);
 
 test("CI runs documented quality and security gates on pull requests and main", () => {
   assert.match(workflow, /pull_request:\s*\n\s+branches: \[main\]/);
@@ -37,6 +41,13 @@ test("CI preserves quality and security evidence even after a failed gate", () =
   assert.match(workflow, /ci-quality-\$\{\{ github\.run_id \}\}/);
   assert.match(workflow, /ci-security-\$\{\{ github\.run_id \}\}/);
   assert.equal((workflow.match(/if-no-files-found: error/g) ?? []).length, 2);
+});
+
+test("dependency audit excludes unhashed local packages but scans locked external dependencies", () => {
+  assert.match(dependencyScanner, /"--locked"/);
+  assert.match(dependencyScanner, /"--all-groups"/);
+  assert.match(dependencyScanner, /"--no-emit-local"/);
+  assert.match(dependencyScanner, /"--strict"/);
 });
 
 test("pull request governance captures required review evidence and ownership", () => {

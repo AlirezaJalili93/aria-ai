@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -58,10 +60,11 @@ def test_worker_runtime_stays_alive_after_successful_bootstrap(
     run_worker(settings, wait=record_wait)
 
     assert wait_calls == 1
-    output = capsys.readouterr().out
-    assert "aria-worker: runtime-started" in output
-    assert "queue_adapter_configured=false" in output
-    assert "runtime-ready" not in output
+    event = json.loads(capsys.readouterr().out)
+    assert event["event_name"] == "worker.runtime_started"
+    assert event["service"] == "aria-worker"
+    assert event["queue_adapter_configured"] is False
+    assert event["status"] == "started"
 
 
 @pytest.mark.parametrize(

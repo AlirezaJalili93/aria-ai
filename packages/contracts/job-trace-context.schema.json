@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aria.local/job-trace-context/v1.json",
+  "title": "Aria asynchronous job trace context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "taskType",
+    "payloadVersion",
+    "accountId",
+    "projectId",
+    "correlationId"
+  ],
+  "properties": {
+    "jobId": { "type": "string", "format": "uuid" },
+    "taskType": { "type": "string", "minLength": 1 },
+    "payloadVersion": { "type": "string", "minLength": 1 },
+    "accountId": { "type": "string", "format": "uuid" },
+    "projectId": { "type": ["string", "null"], "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" }
+  }
+}

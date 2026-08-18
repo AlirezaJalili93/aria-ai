@@ -2,6 +2,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Event
 
+from aria_observability import StructuredEventLogger, create_event_logger
+
 from app.core.config import WorkerSettings, load_worker_settings
 
 
@@ -28,13 +30,21 @@ def wait_forever() -> None:
 def run_worker(
     settings: WorkerSettings | None = None,
     wait: Callable[[], None] = wait_forever,
+    event_logger: StructuredEventLogger | None = None,
 ) -> None:
-    worker = bootstrap_worker(settings)
-    print(
-        f"{worker.service_name}: runtime-started "
-        f"environment={worker.environment} version={worker.app_version} "
-        f"queue_adapter_configured={str(worker.queue_adapter_configured).lower()}",
-        flush=True,
+    resolved_settings = settings or load_worker_settings()
+    worker = bootstrap_worker(resolved_settings)
+    resolved_event_logger = event_logger or create_event_logger(
+        service=worker.service_name,
+        environment=worker.environment,
+        app_version=worker.app_version,
+        release_commit_sha=resolved_settings.release_commit_sha,
+        level=resolved_settings.log_level,
+    )
+    resolved_event_logger.emit(
+        "worker.runtime_started",
+        status="started",
+        queue_adapter_configured=worker.queue_adapter_configured,
     )
     wait()
 
