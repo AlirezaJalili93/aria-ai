@@ -11,4 +11,11 @@ The bootstrap exposes only two unauthenticated operational endpoints:
 
 Every request receives safe UUID `X-Request-ID` and `X-Correlation-ID` response headers. Safe client values are preserved; malformed values are replaced. Request completion/failure events use the shared JSON logger and never include headers, query values or raw content.
 
-Auth, Tenant Context, product persistence and async jobs remain separate documented stories.
+S1-B01 adds a provider-neutral access-token verification contract. Hosted API instances bind it
+to the Supabase JWKS adapter, which accepts only ES256, verifies issuer/audience/expiry/subject,
+uses the approved 30-second clock skew, and refreshes cached JWKS when a new `kid` appears.
+Missing, malformed, expired, or otherwise invalid bearer tokens map to the stable `AUTH_REQUIRED`
+401 envelope. Health routes remain public.
+
+Account bootstrap, membership resolution, Tenant Context, product persistence and async jobs
+remain separate documented stories.

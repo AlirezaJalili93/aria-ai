@@ -4,11 +4,17 @@ from contextlib import asynccontextmanager
 from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
 
+from app.api.errors import AuthenticationRequiredError, authentication_required_handler
 from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.health import create_health_router
 from app.core.config import ApiSettings, load_api_settings
+from app.infrastructure.auth.supabase_jwt import (
+    RejectingAccessTokenVerifier,
+    SupabaseJwtVerifier,
+)
 from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_database_probe
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
+from app.modules.identity.application.ports import AccessTokenVerifier
 
 
 def create_app(
@@ -16,6 +22,7 @@ def create_app(
     database_probe: Callable[[], Awaitable[bool]] | None = None,
     queue_probe: Callable[[], Awaitable[bool]] | None = None,
     event_logger: StructuredEventLogger | None = None,
+    access_token_verifier: AccessTokenVerifier | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     owned_database_probe = (
@@ -52,7 +59,22 @@ def create_app(
         level=resolved_settings.log_level,
     )
     app.add_middleware(ObservabilityMiddleware, event_logger=resolved_event_logger)
+    app.add_exception_handler(AuthenticationRequiredError, authentication_required_handler)
+    app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
+        resolved_settings
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
     return app
+
+
+def _create_access_token_verifier(settings: ApiSettings) -> AccessTokenVerifier:
+    if settings.auth_provider_url and settings.auth_jwks_url and settings.auth_audience:
+        return SupabaseJwtVerifier(
+            jwks_url=str(settings.auth_jwks_url),
+            issuer=str(settings.auth_provider_url),
+            audience=settings.auth_audience,
+            clock_skew_seconds=30,
+        )
+    return RejectingAccessTokenVerifier()

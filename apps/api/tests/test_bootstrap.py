@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.core.config import ApiSettings
+from app.infrastructure.auth.supabase_jwt import SupabaseJwtVerifier
 from app.main import create_app
 
 FULL_COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -48,8 +49,8 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
         storage_bucket="aria-staging-artifacts",
         storage_access_key="test-access-key",
         storage_secret_key="test-secret-key",
-        auth_provider_url="https://auth-staging.example.test",
-        auth_jwks_url="https://auth-staging.example.test/.well-known/jwks.json",
+        auth_provider_url="https://auth-staging.example.test/auth/v1",
+        auth_jwks_url="https://auth-staging.example.test/auth/v1/.well-known/jwks.json",
         auth_audience="authenticated",
         release_commit_sha=FULL_COMMIT_SHA,
     )
@@ -58,6 +59,13 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
     assert settings.storage_bucket == "aria-staging-artifacts"
     assert "test-secret-key" not in repr(settings)
     assert "postgresql://staging.example.test/aria" not in repr(settings)
+
+    app = create_app(settings)
+
+    assert isinstance(app.state.access_token_verifier, SupabaseJwtVerifier)
+    assert app.state.access_token_verifier._issuer == (  # noqa: SLF001 - wiring contract
+        "https://auth-staging.example.test/auth/v1"
+    )
 
 
 @pytest.mark.parametrize(
@@ -89,8 +97,8 @@ def test_staging_settings_reject_malformed_typed_values(field: str, value: str) 
         "storage_bucket": "aria-staging-artifacts",
         "storage_access_key": "test-access-key",
         "storage_secret_key": "test-secret-key",
-        "auth_provider_url": "https://auth-staging.example.test",
-        "auth_jwks_url": "https://auth-staging.example.test/.well-known/jwks.json",
+        "auth_provider_url": "https://auth-staging.example.test/auth/v1",
+        "auth_jwks_url": "https://auth-staging.example.test/auth/v1/.well-known/jwks.json",
         "auth_audience": "authenticated",
         "release_commit_sha": FULL_COMMIT_SHA,
     }
