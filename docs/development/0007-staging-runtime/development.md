@@ -61,7 +61,8 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Updated the API README and staging shell copy without adding a product feature.
 - Connected Vercel to GitHub with repository-scoped visibility: the import picker exposed only `AlirezaJalili93/aria-ai`.
 - Created the required Vercel project shell `aria-ai-web` with root directory `apps/web`; its initial `main` deployment is the production baseline only and is not counted as PR smoke evidence.
-- Hosted Vercel and Render deployment plus remote smoke evidence remain pending.
+- Vercel produced a Ready Preview for `agent/staging-runtime` deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` from exact commit `b590f6cbdc878353af72fa81879cb6e99790b6b3`; the hosted Persian staging shell rendered over TLS with its skip link, product header, main heading, and increment-status region intact.
+- Hosted Render deployment and API/Worker/Queue remote smoke evidence remain pending.
 
 ## Structure Preservation
 
@@ -83,7 +84,7 @@ Establish the documented staging runtime for the existing three deployables: Web
 - **Resolved — Worker semantics/coupling:** the Worker no longer depends on the Auth provider without a documented use case and no longer emits a false `runtime-ready` claim.
 - **Resolved — contract drift:** OpenAPI retains the documented `/api/v1` product base while overriding the two root operational routes; response schemas include environment, version, release SHA, DB/queue checks, and 503.
 - **Verified — architecture:** operational transport and infrastructure concerns preserve modular-monolith dependency direction and add no deployable boundary.
-- Hosted configuration, remote smoke, and final review remain open until the deployment actions complete.
+- Vercel Preview source integrity and hosted shell rendering are verified. Render configuration, API/Worker/Queue remote smoke, and final review remain open until the blocked deployment actions complete.
 - Vercel project creation was independently read back as Ready on `main` commit `a9cf7cb9b21afee35e30ad400a484b9bd1bc994b`. It is deliberately excluded from TC-0705 because it is not the approved PR SHA.
 - Render GitHub OAuth authorization completed with the requested repository-scoping intent, but the Render card-verification dialog still blocks repository readback and resource creation. No Render resource has been created.
 
@@ -95,13 +96,13 @@ Establish the documented staging runtime for the existing three deployables: Web
 - Web/API/Worker production builds passed; repository lint and type-check passed.
 - Secret scan inspected 109 publishable text files with zero findings after the fixture correction.
 - Supabase project URL, region, health status, and private bucket state were independently read back.
-- Hosted smoke and final full `npm test` / `npm run validate` evidence remain pending and will be recorded in [test-report.md](./test-report.md).
+- Hosted Vercel Preview smoke is recorded in [test-report.md](./test-report.md); Render smoke and final full `npm test` / `npm run validate` evidence remain pending.
 - The focused Render deployment contract suite passes after the branch-integrity correction. Vercel's unscoped deployment action was safely rejected before execution; no Vercel project or deployment exists yet.
 
 ## Remaining Risks
 
 - Render resources do not yet exist. Actual paid instance prices must be confirmed in the dashboard and remain at or below the approved target ceiling before creation.
-- The Vercel project is connected after the current PR branch was last pushed, so a documented branch update is required to trigger its first branch Preview; that Preview remains invalid until its deployment metadata matches the new PR HEAD exactly.
+- Each subsequent PR documentation commit triggers a new immutable Vercel Preview; the final hosted gate must therefore read back the latest deployment source and match it to the final PR HEAD before merge.
 - Supabase Free may pause after inactivity and does not provide production-grade backup/PITR; this is accepted only for Sprint 1 staging.
 - Database and S3 credentials must be generated only at the action point and transmitted directly to the Render secret store; they must never enter source control, command output, or this evidence record.
 - Hosted TLS, cross-platform connectivity, Vercel/Render URLs, deployment logs, and rollback SHA are not yet verified.

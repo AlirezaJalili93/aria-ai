@@ -13,6 +13,7 @@
 - uv: 0.12.5
 - Hosted target: Vercel Web, Render API/Worker/Key Value, Supabase PostgreSQL/Auth/Storage
 - Supabase staging: `hqgfqlvfwflbazsuhazs`, Frankfurt `eu-central-1`, `ACTIVE_HEALTHY`
+- Vercel Preview: `aria-ai-web-git-agent-stag-57de0b-alirezaajalili-3575s-projects.vercel.app`
 - Secret values: never recorded in this report
 
 ## Test Cases
@@ -36,7 +37,7 @@
 | TC-0702 | `npm run test:api` | Liveness returned exact 200 metadata and made zero dependency calls | PASS |
 | TC-0703 | `npm run test:api` | DB/queue readiness returned 200/503 as specified; real loopback RESP `PING` passed; response was sanitized; 24 API tests passed | PASS |
 | TC-0704 | `npm run test:ci`; `npm run scan:secrets` | Typed/secret-safe config and 12 CI/deployment tests passed; 109 publishable files scanned with zero findings | PASS |
-| TC-0705 | Hosted Web/API smoke | Vercel project baseline is Ready on `main` commit `a9cf7cb9b21afee35e30ad400a484b9bd1bc994b`, but it is not the approved PR SHA and therefore is not counted as Preview evidence; Render deployment remains blocked | PENDING |
+| TC-0705 | Hosted Web/API smoke | Vercel deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` is Ready on PR commit `b590f6cbdc878353af72fa81879cb6e99790b6b3`; the Persian shell rendered over TLS with its skip link, semantic header/main content, H1, and increment-status region. Render API smoke remains blocked | PARTIAL |
 | TC-0706 | Supabase project and SQL readback; hosted Render inspection | Supabase is healthy in `eu-central-1`; bucket exists with `public=false`; Render readback pending | PARTIAL |
 | TC-0707 | `node --test scripts/test/deployment-config.test.js`; hosted deployment readback | Five Blueprint contract tests pass, including rejection of explicit service branch overrides; hosted price, URLs, CI gate, and release SHA remain pending | PARTIAL |
 | TC-0708 | `npm run lint`; `npm run typecheck`; `npm run build`; final `npm test`; `npm run validate` | Lint/type-check/build passed; validation has only the intentionally pending hosted-evidence status | PARTIAL |
@@ -52,6 +53,7 @@
 7. The original Blueprint pinned API and Worker to `main`, which could make a PR preview deploy the wrong commit. A contract test now rejects any explicit service branch override, and both pins were removed before hosted verification.
 8. The first precisely intended Vercel Preview call was rejected because the connector action accepts no source-project, commit, or root-scope arguments. No deployment was created; the next attempt must originate from the GitHub branch after its new HEAD is published and must prove the deployed SHA.
 9. Vercel's repository import correctly created a Ready baseline from `main`, but the already-open PR branch did not appear as active because its last push preceded project connection. The baseline is explicitly excluded from hosted smoke evidence; this documentation update is the branch event used to request a new Preview.
+10. The documented branch event produced a Ready Vercel Preview whose deployment metadata exactly matched `b590f6cbdc878353af72fa81879cb6e99790b6b3`. Hosted DOM inspection confirmed the expected Persian staging shell and semantic landmarks; no `main` deployment was substituted as Preview evidence.
 
 ## Final Status
 
