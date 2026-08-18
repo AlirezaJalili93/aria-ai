@@ -8,103 +8,152 @@
 
 ## Scope
 
-Establish the documented staging runtime for the existing three deployables: Web on Vercel, API and Worker on Render, and an isolated Supabase project for PostgreSQL, Auth, and private Storage. The increment also establishes the Redis-compatible durable queue configuration, environment-specific bindings, operational liveness/readiness contract, deployment metadata, smoke evidence, and strict secret separation. It does not implement product authentication flows, domain migrations, queue consumers, outbox publishing, storage upload behavior, or AI workflows assigned to later Sprint 1 stories.
+Establish the documented independent staging environment for the three existing deployables: Web
+on Vercel, API and Worker on a managed container runtime, isolated Supabase PostgreSQL/Auth/Storage,
+and a Redis-compatible durable Queue. The increment owns environment bindings, locked deployment
+artifacts, operational liveness/readiness, release identity, smoke evidence, rollback evidence, and
+secret separation. It does not implement product routes, migrations, a queue consumer, outbox
+publishing, storage upload behavior, or AI workflows assigned to later stories.
+
+The initial Render proposal was replaced after card verification blocked resource creation and the
+owner requested a usable free tool. [ADR-007](../../adr/ADR-007-railway-staging-runtime.md) records
+Railway Trial for temporary API/Worker staging and a free Redis-compatible Frankfurt database.
 
 ## Source Documents
 
-- Google Drive `Aria AI/34 — MVP Documentation Index & Traceability Matrix v1.0` and its source-of-truth order.
-- Google Drive `Aria AI — Master Execution Plan`.
-- Google Drive `Aria AI — Sprint 1 Technical Backlog v1.0`, story `S1-A03`.
-- Google Drive `Aria AI — Environment & Configuration Specification v1.0`.
-- Google Drive `Aria AI — Deployment & Release Runbook v1.0`.
-- Google Drive `Aria AI — Final System Architecture v2.0` and `Accepted ADR Pack v1.0`.
-- Google Drive `Aria AI — API Contract`, `Test Strategy`, `Security Baseline`, and `Definition of Ready / Definition of Done`.
-- Repository `AGENTS.md`, [system architecture](../../architecture/system-architecture.md), and [document-driven development policy](../../governance/document-driven-development.md).
-- User approvals on 2026-08-18: Supabase Free in Frankfurt (`eu-central-1`), Render API/Worker/Persistent Key Value in Frankfurt, target budget ceiling of USD 24/month subject to the selected instance types, root `/health/live` and `/health/ready`, and exclusion of AI providers from readiness.
-- User approval on 2026-08-18 for repository-scoped Render GitHub authorization and a SHA-verified hosted preview of `agent/staging-runtime`; a Render Preview Environment may be used only if the workspace plan supports it, otherwise a temporary branch-bound staging deployment must be removed after smoke verification.
-- User-provided `ui-ux-pro-max.md` and `design-system.md`, plus repository `design-system/MASTER.md`, as unchanged UI quality guardrails.
+- Google Drive `Aria AI — Final System Architecture v2.0`.
+- Google Drive `Aria AI — Engineering Execution Master Plan v1.0`.
+- Google Drive `Aria AI — System Architecture Creation & Governance Plan v1.0`.
+- Google Drive Sprint 1 backlog story `S1-A03` and the Environment, Deployment, Test, Security, and
+  Definition of Done specifications referenced by the traceability index.
+- Repository [system architecture](../../architecture/system-architecture.md), `AGENTS.md`, and
+  [document-driven development policy](../../governance/document-driven-development.md).
+- Owner approvals on 2026-08-18 for isolated Supabase Staging in Frankfurt, root `/health/live` and
+  `/health/ready`, AI-provider exclusion from readiness, repository-scoped GitHub access, and
+  SHA-verified hosted smoke.
+- Owner request on 2026-08-18 to replace Render with a usable free tool.
+- Railway official Trial/pricing, background-worker, monorepo, Config-as-Code, healthcheck,
+  restart-policy, deployment rollback, Git variables, and region documentation.
+- Upstash official Redis free-tier, persistence, TLS, and region documentation.
 
 ## Requirement Traceability
 
 | Requirement | Source | Implementation | Tests |
 |---|---|---|---|
-| REQ-020 | S1-A03: Web, API, Worker, Postgres, Queue, Storage, and Auth staging environment | Vercel target, `render.yaml`, isolated Supabase project and private bucket | TC-0701, TC-0705, TC-0706 |
+| REQ-020 | S1-A03 independent Web/API/Worker/Postgres/Queue/Storage/Auth staging | Vercel, Railway configs and images, Supabase, external Redis-compatible Queue | TC-0701, TC-0705, TC-0706, TC-0709 |
 | REQ-021 | Approved operational endpoint contract | `GET /health/live` and `GET /health/ready`; OpenAPI response schemas | TC-0702, TC-0703 |
-| REQ-022 | S1-A03 AC: staging URL | Hosted Vercel and Render URLs with TLS | TC-0705 |
-| REQ-023 | Environment Specification: environment and secret separation | Typed settings, `sync: false` runtime values, public env allowlist, secret scan | TC-0704, TC-0706 |
-| REQ-024 | Staging fail-fast configuration and production-like deployment | Pydantic hosted-environment validation, locked builds, CI-gated Render deploys | TC-0701, TC-0707 |
-| REQ-025 | Runbook: health, smoke, rollback identity, and dependency isolation | Bounded DB probe, `RELEASE_COMMIT_SHA`, hosted smoke plan | TC-0702, TC-0703, TC-0705, TC-0707 |
-| REQ-026 | Standing rule: development/test Markdown and senior review | This record, linked report, repository quality gates | TC-0708 |
+| REQ-022 | S1-A03 staging URL | Hosted Vercel and Railway TLS URLs | TC-0705 |
+| REQ-023 | Environment and secret separation | Typed settings, dashboard-only bindings, secret scan | TC-0704, TC-0706 |
+| REQ-024 | Fail-fast, locked, production-like deployment | Locked Docker images, Railway Config-as-Code, CI gate | TC-0701, TC-0707, TC-0709 |
+| REQ-025 | Health, smoke, rollback identity, and isolation | Bounded probes, `RAILWAY_GIT_COMMIT_SHA` binding, hosted smoke plan | TC-0702, TC-0703, TC-0705, TC-0707 |
+| REQ-026 | Development/test Markdown and senior review | This record, linked report, ADR-007, repository gates | TC-0708 |
 
 ## Assumptions and Clarifications
 
 **Unapproved assumptions:** None
 
-- Supabase staging location, Render location, budget treatment, and health contracts are copied from explicit user approval; they were not inferred.
-- The target Render plans remain a ceiling proposal until the dashboard shows the actual instance-price breakdown and the user confirms the paid creation action.
-- `/health/live` never checks a dependency. `/health/ready` checks validated runtime configuration, PostgreSQL, and a real Redis-compatible `PING`; it deliberately excludes AI providers.
-- The storage bucket is private because the approved architecture specifies private S3-compatible storage. No object policy or upload flow is added by this story.
-- No product endpoint, domain schema, queue consumer, storage object contract, authentication flow, or AI behavior is inferred from this infrastructure story.
+- The architecture and execution plan require a managed/PaaS staging runtime but do not mandate
+  Render or another vendor.
+- The owner explicitly authorized replacing Render with a usable free tool. Railway was selected
+  because its Trial starts without a card and supports separate API and background-worker services.
+- Railway's only current EU runtime is Amsterdam. Using it near Frankfurt is explicitly limited to
+  this temporary Staging decision and does not approve a Production topology.
+- The free runtime is bounded to the active Trial credit. It is evidence infrastructure, not a claim
+  of permanently free Production capacity.
+- `/health/live` never checks a dependency. `/health/ready` requires configuration, PostgreSQL, and
+  Redis-compatible `PING`, and never calls an AI provider.
+- Queue framework selection remains outside this story; only the documented Redis-compatible
+  infrastructure binding is provisioned.
 
 ## Changes
 
-- Created the isolated Supabase project `aria-ai-staging` (`hqgfqlvfwflbazsuhazs`) in `eu-central-1`; Supabase reports `ACTIVE_HEALTHY`.
-- Created and independently verified the private Supabase Storage bucket `aria-staging-project-content` with `public=false`.
-- Added root operational routes `/health/live` and `/health/ready` plus matching OpenAPI contracts and dependency-isolation tests.
-- Added an async SQLAlchemy/asyncpg PostgreSQL readiness adapter with a three-second deadline, sanitized failure result, and lifecycle disposal.
-- Added a bounded Redis-compatible queue readiness adapter using the standard RESP `PING` contract without selecting the still-open queue framework.
-- Replaced presence-only runtime strings with typed HTTP URLs, supported PostgreSQL/Redis DSNs, enumerated log levels, and a 40-hex release SHA. Credential-bearing values now use `SecretStr`, and validation errors hide inputs.
-- Removed the undocumented Worker dependency on `AUTH_PROVIDER_URL`. Worker startup now reports `runtime-started queue_adapter_configured=false` and never claims job-processing readiness before a queue consumer exists.
-- Added the repository-owned Render Blueprint for Frankfurt API, Worker, and Persistent Key Value, using Starter candidates, private-only queue access, `noeviction`, Journal + Snapshot persistence, locked builds, CI-gated deployment, and secret placeholders.
-- Removed explicit `branch: main` overrides from the Render services. The linked Blueprint branch remains the base deployment source while Render PR previews are free to use the pull request branch; smoke evidence is invalid unless the deployed commit matches the current PR HEAD.
-- Added deployment configuration tests and included them in the CI contract suite.
-- Updated the API README and staging shell copy without adding a product feature.
-- Connected Vercel to GitHub with repository-scoped visibility: the import picker exposed only `AlirezaJalili93/aria-ai`.
-- Created the required Vercel project shell `aria-ai-web` with root directory `apps/web`; its initial `main` deployment is the production baseline only and is not counted as PR smoke evidence.
-- Vercel produced a Ready Preview for `agent/staging-runtime` deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` from exact commit `b590f6cbdc878353af72fa81879cb6e99790b6b3`; the hosted Persian staging shell rendered over TLS with its skip link, product header, main heading, and increment-status region intact.
-- Hosted Render deployment and API/Worker/Queue remote smoke evidence remain pending.
+- Created isolated Supabase project `aria-ai-staging` (`hqgfqlvfwflbazsuhazs`) in Frankfurt
+  `eu-central-1`; Supabase reported `ACTIVE_HEALTHY`.
+- Created and verified private Supabase bucket `aria-staging-project-content` with `public=false`.
+- Implemented root `/health/live` and `/health/ready`, bounded PostgreSQL and Redis-compatible probes,
+  typed secret-safe settings, release metadata, and dependency-isolation tests.
+- Removed the uncreated Render Blueprint; no Render resource or paid commitment existed.
+- Added separate [API](../../../infra/railway/api.railway.json) and
+  [Worker](../../../infra/railway/worker.railway.json) Railway Config-as-Code contracts.
+- Added locked Python 3.12.13 Docker images for API and Worker. Both install exact `uv==0.12.5`, use
+  their committed lockfiles, start with `--no-sync`, and run as UID `10001` rather than root.
+- Configured one API and one Worker replica in Railway EU West Metal Amsterdam, readiness admission
+  only on API, and the bounded Free/Trial-compatible `ON_FAILURE` restart policy.
+- Kept runtime values and credentials outside source control; the repository contains only required
+  variable names and safe public identifiers.
+- Added ADR-007 and rewrote the deployment contract suite to reject Render residue, branch pins,
+  credential values, region drift, unlocked builds, root containers, and Worker/Auth coupling.
+- Retained the verified Vercel Preview deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` for commit
+  `b590f6cbdc878353af72fa81879cb6e99790b6b3` as historical Web evidence. Final hosted verification
+  must use the latest PR SHA.
+
+## Architecture and Design Decisions
+
+- [ADR-007](../../adr/ADR-007-railway-staging-runtime.md) contains the platform decision, alternatives,
+  staging-only constraints, reversibility, and migration impact.
+- API and Worker remain separate deployables; no Domain or service boundary changed.
+- Queue remains a provider-neutral Redis-compatible URL. No provider SDK, Celery, Dramatiq, or RQ was
+  introduced before the required queue spike and ADR.
+- Railway configuration is intentionally service-specific so the API and Worker cannot inherit the
+  wrong command or public-network/health behavior from a shared file.
+- Hosted source selection remains dashboard-owned and therefore must be read back and matched to the
+  exact GitHub SHA before smoke evidence is accepted.
 
 ## Structure Preservation
 
-- The documented deployables remain exactly `web`, `api`, and `worker`; no service or domain module was added.
-- Health routers remain in API presentation code and the PostgreSQL probe remains in Infrastructure. Domain and Application packages do not import FastAPI, SQLAlchemy, Supabase, Render, or Vercel code.
-- No cross-module write, mutating endpoint, event contract, migration, queue consumer, or AI-provider behavior is introduced.
-- The queue remains a Redis-compatible infrastructure binding and never becomes a Domain or financial source of truth.
-- UI remains RTL-first, token-driven, keyboard accessible, and structurally unchanged apart from honest staging-status copy.
+- The documented deployables remain exactly `web`, `api`, and `worker`.
+- Presentation owns health HTTP contracts; infrastructure owns PostgreSQL, Queue, Auth, and hosting
+  adapters. Application and Domain import no Railway, Upstash, Supabase, Docker, or framework code.
+- No cross-module write, mutating endpoint, event contract, migration, queue consumer, or AI-provider
+  behavior was added.
+- PostgreSQL remains transactional truth; Redis-compatible storage remains Queue/Cache/Quota
+  projection only.
+- Web structure and the RTL-first token-driven design system are unchanged.
 
 ## Senior Review
 
-- **Resolved — readiness isolation:** liveness has no probe call; readiness checks the critical database and queue bindings concurrently and never calls an AI provider.
-- **Resolved — bounded failure:** the first database probe had no deadline; it now returns sanitized `503` after a three-second timeout instead of allowing a health request to hang indefinitely.
-- **Resolved — deploy safety:** API and Worker now use `autoDeployTrigger: checksPass`, locked dependency sync, and `--no-sync` startup to prevent runtime dependency drift.
-- **Resolved — preview source integrity:** API and Worker no longer pin `branch: main` in `render.yaml`; the deployment contract test rejects any explicit branch override that could make a PR preview silently deploy the base branch.
-- **Resolved — queue durability:** the Key Value resource is private-only, persistent, and uses `noeviction`, matching durable queue semantics.
-- **Resolved — source-control confidentiality:** all credentials and runtime-derived URLs remain outside Git; the repository secret scanner also caught and removed a credential-shaped test fixture.
-- **Resolved — typed configuration:** malformed HTTP URLs, unsupported PostgreSQL driver schemes, malformed Redis DSNs/database selectors, invalid log levels, and non-40-character release SHAs now fail before startup without echoing their values.
-- **Resolved — Worker semantics/coupling:** the Worker no longer depends on the Auth provider without a documented use case and no longer emits a false `runtime-ready` claim.
-- **Resolved — contract drift:** OpenAPI retains the documented `/api/v1` product base while overriding the two root operational routes; response schemas include environment, version, release SHA, DB/queue checks, and 503.
-- **Verified — architecture:** operational transport and infrastructure concerns preserve modular-monolith dependency direction and add no deployable boundary.
-- Vercel Preview source integrity and hosted shell rendering are verified. Render configuration, API/Worker/Queue remote smoke, and final review remain open until the blocked deployment actions complete.
-- Vercel project creation was independently read back as Ready on `main` commit `a9cf7cb9b21afee35e30ad400a484b9bd1bc994b`. It is deliberately excluded from TC-0705 because it is not the approved PR SHA.
-- Render GitHub OAuth authorization completed with the requested repository-scoping intent, but the Render card-verification dialog still blocks repository readback and resource creation. No Render resource has been created.
+- **Resolved — incompatible free providers:** Koyeb Free cannot run Worker Services; Northflank and
+  broader Koyeb use require payment verification; sleeping demo hosts do not preserve Worker
+  semantics. Railway Trial is the only reviewed no-card option that preserves both deployables for
+  this temporary gate.
+- **Resolved — build reproducibility:** separate minimal Dockerfiles pin Python and uv, consume the
+  committed API/Worker lockfiles, disable runtime sync, and copy only runtime code.
+- **Resolved — container privilege:** both images drop root before process start.
+- **Resolved — readiness isolation:** only API has a health admission path; Worker does not pretend
+  to expose HTTP or claim queue-consumer readiness.
+- **Resolved — free-plan crash policy:** `ALWAYS` is invalid on Railway Free/Trial; bounded
+  `ON_FAILURE` with ten retries matches the documented plan limit.
+- **Resolved — source confidentiality:** no runtime credential name appears inside deployment config
+  JSON or Dockerfile content; values remain dashboard-only and continue through secret scanning.
+- **Accepted for Staging only — regional proximity:** Amsterdam runtime to Frankfurt data/Queue is
+  not same-region. The provider has no Frankfurt runtime; Production requires a new approved capacity
+  decision.
+- **Open — hosted proof:** exact Railway deployment SHA, runtime logs, TLS API URL, Queue binding,
+  Supabase connectivity, rollback source, and latest Vercel SHA remain unverified until account Terms
+  are accepted and the repository changes are deployed.
 
 ## Verification
 
-- API tests: 24/24 passed, including a real loopback RESP `PING`; Ruff and MyPy passed.
-- Worker tests: 11/11 passed; Ruff and MyPy passed.
-- Deployment/CI contract tests: 12/12 passed.
-- Web/API/Worker production builds passed; repository lint and type-check passed.
-- Secret scan inspected 109 publishable text files with zero findings after the fixture correction.
-- Supabase project URL, region, health status, and private bucket state were independently read back.
-- Hosted Vercel Preview smoke is recorded in [test-report.md](./test-report.md); Render smoke and final full `npm test` / `npm run validate` evidence remain pending.
-- The focused Render deployment contract suite passes after the branch-integrity correction. Vercel's unscoped deployment action was safely rejected before execution; no Vercel project or deployment exists yet.
+- Focused Railway deployment contract: 6/6 tests passed after correcting the Docker command matcher
+  for JSON exec form.
+- Existing API and Worker test suites already cover liveness, readiness, secret-safe settings,
+  release SHA, structured startup, and real loopback RESP `PING`.
+- Docker daemon was unavailable locally, so image execution is not claimed. Railway's hosted build
+  must supply the container-build evidence.
+- `npm test` passed 90 tests: Development Records 6, CI/contract 19, Web 4, API 47, and Worker 14.
+- Repository lint, strict TypeScript/MyPy checks, Web/API/Worker builds, dependency scan, and a secret
+  scan of 142 publishable text files passed.
+- `npm run validate` passes every architecture check and remains non-zero only because this report
+  truthfully retains `PENDING` until hosted Railway evidence exists.
+- Hosted smoke details are recorded in [test-report.md](./test-report.md) and remain pending until
+  deployment.
 
 ## Remaining Risks
 
-- Render resources do not yet exist. Actual paid instance prices must be confirmed in the dashboard and remain at or below the approved target ceiling before creation.
-- Each subsequent PR documentation commit triggers a new immutable Vercel Preview; the final hosted gate must therefore read back the latest deployment source and match it to the final PR HEAD before merge.
-- Supabase Free may pause after inactivity and does not provide production-grade backup/PITR; this is accepted only for Sprint 1 staging.
-- Database and S3 credentials must be generated only at the action point and transmitted directly to the Render secret store; they must never enter source control, command output, or this evidence record.
-- Hosted TLS, cross-platform connectivity, Vercel/Render URLs, deployment logs, and rollback SHA are not yet verified.
-- The Worker process is intentionally not job-ready until the dedicated queue framework/consumer story and ADR are completed; this staging increment proves runtime/config binding only and reports that state explicitly.
-- FastAPI 0.141 currently emits an upstream TestClient deprecation warning for httpx; it is non-blocking and requires a separately documented dependency migration when the approved stack adopts httpx2.
+- Railway Terms require owner acceptance before services can be created.
+- The Trial is limited to 30 days or USD 5 and is unsuitable as an always-on Production Worker.
+- Railway EU runtime and Frankfurt data dependencies are adjacent-region, not same-region.
+- The free Redis-compatible database has prototype limits and no Production SLA; Free inactivity can
+  archive it. It is acceptable only for Sprint 1 staging.
+- Hosted TLS, connectivity, exact SHA, logs, rollback, and post-deployment smoke are still pending.
+- The Worker intentionally has no queue consumer until the dedicated queue framework story.

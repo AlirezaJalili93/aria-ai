@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { scanContent } from "../lib/secret-scan.mjs";
+import { scanContent, scanPublishableFiles } from "../lib/secret-scan.mjs";
 
 test("accepts documented empty secret placeholders", () => {
   const content = "DATABASE_URL=\nAPI_TOKEN=\nPASSWORD=   # provided locally\n";
@@ -31,4 +35,17 @@ test("detects credentialed database URLs and nonempty sensitive environment valu
     "credentialed-database-url",
     "nonempty-sensitive-environment-value"
   ]);
+});
+
+test("skips tracked files deleted by an in-progress migration", async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "aria-secret-scan-"));
+  const deletedPath = path.join(root, "superseded-config.yml");
+  context.after(() => rm(root, { recursive: true, force: true }));
+
+  assert.equal(spawnSync("git", ["init", "-q"], { cwd: root }).status, 0);
+  await writeFile(deletedPath, "safe: true\n", "utf8");
+  assert.equal(spawnSync("git", ["add", "superseded-config.yml"], { cwd: root }).status, 0);
+  await rm(deletedPath);
+
+  assert.deepEqual(scanPublishableFiles(root), { filesScanned: 0, findings: [] });
 });

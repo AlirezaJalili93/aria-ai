@@ -78,10 +78,10 @@ Implement the documented observability foundation shared by API and Worker: stru
 - Worker tests: 14 passed.
 - CI/contract tests: 14 passed.
 - Repository-wide lint, strict MyPy/TypeScript checks, Web/API/Worker builds, dependency scan, and secret scan passed after the review corrections.
-- `npm run validate` passes every architecture/content check for this increment but remains globally non-zero only because `0007-staging-runtime` truthfully retains `PENDING` hosted Render evidence.
+- `npm run validate` passes every architecture/content check for this increment but remains globally non-zero only because `0007-staging-runtime` truthfully retains `PENDING` hosted runtime evidence.
 
 ## Remaining Risks
 
-- Hosted Render verification is still blocked by the provider's incomplete card-verification state; S1-A03 remains open and no hosted API/Worker log evidence is claimed here.
+- Hosted runtime verification remains owned by S1-A03; its Render proposal was later superseded by ADR-007, and no hosted API/Worker log evidence is claimed here.
 - Queue delivery, outbox correlation, provider request IDs, metrics, dashboards, and alerts require their explicitly assigned later stories. This increment provides their trace contract only.
 - FastAPI 0.141 emits the existing upstream TestClient/httpx deprecation warning; changing the HTTP client stack requires a separately documented dependency migration.

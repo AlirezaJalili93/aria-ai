@@ -11,49 +11,62 @@
 - Node.js: 24.x repository pin
 - Python: 3.12 repository pin
 - uv: 0.12.5
-- Hosted target: Vercel Web, Render API/Worker/Key Value, Supabase PostgreSQL/Auth/Storage
+- Hosted target: Vercel Web, Railway API/Worker, Supabase PostgreSQL/Auth/Storage, and a separately
+  managed Redis-compatible free Queue
 - Supabase staging: `hqgfqlvfwflbazsuhazs`, Frankfurt `eu-central-1`, `ACTIVE_HEALTHY`
-- Vercel Preview: `aria-ai-web-git-agent-stag-57de0b-alirezaajalili-3575s-projects.vercel.app`
+- Railway Trial: 30 days or USD 5 credit; Terms acceptance pending
+- Railway runtime target: EU West Metal Amsterdam (`europe-west4-drams3a`)
+- Queue target: Frankfurt (`eu-central-1`), TLS, persistent, no eviction
 - Secret values: never recorded in this report
 
 ## Test Cases
 
 | ID | Type | Scenario | Expected result |
 |---|---|---|---|
-| TC-0701 | Build/Runtime | Build all three deployables and validate staging fail-fast settings | Web, API, and Worker build; staging rejects missing critical configuration |
-| TC-0702 | API/Contract | Call `/health/live` while the database probe is unavailable | Stable non-sensitive 200 response; database probe is not called |
-| TC-0703 | API/Runtime | Call `/health/ready` with available/unavailable database and queue probes | Both bindings ready returns 200; either unavailable returns sanitized 503; no AI check occurs |
-| TC-0704 | Security/Config | Inspect frontend allowlist, committed files, Blueprint placeholders, and secret scanner | No backend/provider secret is bundled or committed |
-| TC-0705 | Hosted smoke | Open staging Web URL and call hosted API liveness/readiness | Web and API are reachable over TLS and report staging/version metadata |
-| TC-0706 | Isolation | Read back Supabase project/bucket and Render queue bindings | Staging resources are independent, private where required, and reference no production identifier |
-| TC-0707 | Deployment | Validate Render/Vercel configuration and rollback metadata | Deployment is CI-gated, same-region, within the confirmed ceiling, and identifies the commit |
-| TC-0708 | Quality/Architecture | Run repository tests, builds, validation, and senior review | All gates pass with no unresolved implementation finding |
+| TC-0701 | Build/Runtime | Build all three deployables and validate hosted fail-fast settings | Web, API, and Worker build; Staging rejects missing critical configuration |
+| TC-0702 | API/Contract | Call `/health/live` while dependency probes are unavailable | Stable non-sensitive 200 response; no dependency probe is called |
+| TC-0703 | API/Runtime | Call `/health/ready` with available/unavailable database and Queue probes | Both ready returns 200; either unavailable returns sanitized 503; no AI check occurs |
+| TC-0704 | Security/Config | Inspect frontend allowlist, deployment artifacts, and secret scanner | No backend/provider secret is bundled or committed |
+| TC-0705 | Hosted smoke | Open latest staging Web URL and call hosted API liveness/readiness | Web and API are reachable over TLS and report staging/version/release metadata |
+| TC-0706 | Isolation | Read back Supabase, Queue, Railway services, regions, and bindings | Staging resources are independent, private where required, and reference no Production identifier |
+| TC-0707 | Deployment | Validate source branch, exact SHA, release config, rollback, and cost state | Deployment is PR-gated, uses approved temporary Trial credit, and identifies the exact commit |
+| TC-0708 | Quality/Architecture | Run repository tests, builds, scans, validation, and Senior review | All gates pass with no unresolved implementation finding |
+| TC-0709 | Contract | Validate Railway API/Worker Config-as-Code and locked Dockerfiles | Separate non-root deployables, one EU region, readiness admission, bounded restart, no branch/secret values, and no Render residue |
 
 ## Execution Results
 
 | ID | Command or steps | Actual result | Status |
 |---|---|---|---|
-| TC-0701 | `npm run build`; hosted-settings tests | Web/API/Worker builds passed; configuration fail-fast tests passed | PASS |
+| TC-0701 | `npm run build`; hosted-settings tests | Web/API/Worker local builds and fail-fast tests passed; Railway image build pending | PARTIAL |
 | TC-0702 | `npm run test:api` | Liveness returned exact 200 metadata and made zero dependency calls | PASS |
-| TC-0703 | `npm run test:api` | DB/queue readiness returned 200/503 as specified; real loopback RESP `PING` passed; response was sanitized; 24 API tests passed | PASS |
-| TC-0704 | `npm run test:ci`; `npm run scan:secrets` | Typed/secret-safe config and 12 CI/deployment tests passed; 109 publishable files scanned with zero findings | PASS |
-| TC-0705 | Hosted Web/API smoke | Vercel deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` is Ready on PR commit `b590f6cbdc878353af72fa81879cb6e99790b6b3`; the Persian shell rendered over TLS with its skip link, semantic header/main content, H1, and increment-status region. Render API smoke remains blocked | PARTIAL |
-| TC-0706 | Supabase project and SQL readback; hosted Render inspection | Supabase is healthy in `eu-central-1`; bucket exists with `public=false`; Render readback pending | PARTIAL |
-| TC-0707 | `node --test scripts/test/deployment-config.test.js`; hosted deployment readback | Five Blueprint contract tests pass, including rejection of explicit service branch overrides; hosted price, URLs, CI gate, and release SHA remain pending | PARTIAL |
-| TC-0708 | `npm run lint`; `npm run typecheck`; `npm run build`; final `npm test`; `npm run validate` | Lint/type-check/build passed; validation has only the intentionally pending hosted-evidence status | PARTIAL |
+| TC-0703 | `npm run test:api` | DB/Queue readiness returned 200/503 as specified; real loopback RESP `PING` passed; responses were sanitized | PASS |
+| TC-0704 | `npm run test:ci`; `npm run scan:secrets` | 19 CI/contract tests passed; 142 publishable text files scanned with zero secret findings | PASS |
+| TC-0705 | Hosted Web/API smoke | Historical Vercel Preview matched `b590f6c...`; latest Vercel SHA and Railway TLS API smoke pending | PARTIAL |
+| TC-0706 | Supabase readback; Railway/Queue inspection | Supabase is healthy in Frankfurt and bucket is private; Railway and Queue readback pending | PARTIAL |
+| TC-0707 | Config test; hosted deployment readback | Repository contract passes; hosted source SHA, Trial usage, logs, and rollback remain pending | PARTIAL |
+| TC-0708 | `npm test`; lint; type-check; build; dependency/secret scans; `npm run validate` | 90 tests, lint, strict types, all builds, and both scans passed; validation has only the truthful hosted-evidence PENDING status | PARTIAL |
+| TC-0709 | `node --test scripts/test/deployment-config.test.js` | 6/6 Railway migration contract tests passed; Render Blueprint is absent | PASS |
 
 ## Failures and Corrections
 
-1. Contract-first health tests initially failed before the routes existed, confirming the tests exercised new behavior. The implementation then made all cases pass.
-2. A FastAPI 0.141 lazy-router change made direct `app.routes` introspection unreliable. The bootstrap test was corrected to assert behavior through HTTP without weakening coverage.
-3. The initial database readiness adapter could wait indefinitely. A bounded three-second async timeout and translated unavailable result were added.
-4. The secret scanner detected a credential-shaped database URL in a unit-test fixture. The fixture now assembles representative values at runtime; the scanner remains strict and passes.
-5. The first Vercel deployment request was rejected before execution because its file payload was ambiguous. No project or deployment was created; a precisely scoped deployment requires explicit source/destination confirmation.
-6. Mandatory review found presence-only config, plaintext secret representation, incomplete release metadata, missing Queue readiness, and inaccurate Worker readiness semantics. Contract-first tests reproduced all gaps; typed/secret-safe settings, DB+Queue readiness, OpenAPI metadata, and truthful Worker startup semantics now pass.
-7. The original Blueprint pinned API and Worker to `main`, which could make a PR preview deploy the wrong commit. A contract test now rejects any explicit service branch override, and both pins were removed before hosted verification.
-8. The first precisely intended Vercel Preview call was rejected because the connector action accepts no source-project, commit, or root-scope arguments. No deployment was created; the next attempt must originate from the GitHub branch after its new HEAD is published and must prove the deployed SHA.
-9. Vercel's repository import correctly created a Ready baseline from `main`, but the already-open PR branch did not appear as active because its last push preceded project connection. The baseline is explicitly excluded from hosted smoke evidence; this documentation update is the branch event used to request a new Preview.
-10. The documented branch event produced a Ready Vercel Preview whose deployment metadata exactly matched `b590f6cbdc878353af72fa81879cb6e99790b6b3`. Hosted DOM inspection confirmed the expected Persian staging shell and semantic landmarks; no `main` deployment was substituted as Preview evidence.
+1. The original provider required a payment card before repository or resource creation. No resource
+   was created and no charge occurred. ADR-007 replaces that proposal with temporary Railway Trial
+   services and a separately managed free Queue.
+2. Koyeb Free was rejected because it allows only one free Web Service and explicitly cannot run a
+   Worker Service. Northflank was rejected because all plans require a payment method. Demo runtimes
+   that sleep were rejected for Worker semantics.
+3. Railway offers no Frankfurt runtime. Its only EU Metal runtime is Amsterdam; this proximity
+   compromise is documented as Staging-only and is not promoted to Production architecture.
+4. The first focused contract run had 5/6 passing because the test expected a shell-form Worker
+   command while the safer Dockerfile used JSON exec form. The matcher was corrected without
+   weakening the required `uv run --project apps/worker --no-sync` assertion; 6/6 then passed.
+5. Local Docker image execution could not run because no Docker daemon was active. No local image
+   result is claimed; the Railway hosted build remains the required evidence.
+6. Railway OAuth succeeded and activated the 30-day/USD 5 Trial. Resource creation is paused at the
+   provider's Terms of Service, which the owner must personally accept.
+7. The first post-migration secret scan failed because `git ls-files` also lists tracked files deleted
+   in a dirty worktree. The scanner now skips missing tracked paths, a temporary-repository regression
+   test proves that behavior, and the full scan passes without weakening any detector.
 
 ## Final Status
 

@@ -1,51 +1,71 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import test from "node:test";
 
 const root = process.cwd();
-const blueprint = await readFile(path.join(root, "render.yaml"), "utf8");
+const railwayRoot = path.join(root, "infra", "railway");
 
-test("Render staging services share the approved Frankfurt region and starter ceiling", () => {
-  assert.match(blueprint, /Budget ceiling target: USD 24\/month/);
-  assert.equal((blueprint.match(/region: frankfurt/g) ?? []).length, 3);
-  assert.equal((blueprint.match(/plan: starter/g) ?? []).length, 3);
-  assert.match(blueprint, /type: web\s+name: aria-staging-api/);
-  assert.match(blueprint, /type: worker\s+name: aria-staging-worker/);
-  assert.match(blueprint, /type: keyvalue\s+name: aria-staging-queue/);
+const apiConfig = JSON.parse(
+  await readFile(path.join(railwayRoot, "api.railway.json"), "utf8")
+);
+const workerConfig = JSON.parse(
+  await readFile(path.join(railwayRoot, "worker.railway.json"), "utf8")
+);
+const apiDockerfile = await readFile(path.join(railwayRoot, "api.Dockerfile"), "utf8");
+const workerDockerfile = await readFile(path.join(railwayRoot, "worker.Dockerfile"), "utf8");
+
+test("Railway keeps API and Worker as separate deployables in the same EU staging region", () => {
+  const expectedRegion = {
+    "europe-west4-drams3a": { numReplicas: 1 }
+  };
+
+  assert.deepEqual(apiConfig.deploy.multiRegionConfig, expectedRegion);
+  assert.deepEqual(workerConfig.deploy.multiRegionConfig, expectedRegion);
+  assert.equal(apiConfig.build.dockerfilePath, "infra/railway/api.Dockerfile");
+  assert.equal(workerConfig.build.dockerfilePath, "infra/railway/worker.Dockerfile");
 });
 
-test("Render leaves Git branches unpinned so PR previews deploy the verified PR commit", () => {
-  assert.doesNotMatch(blueprint, /^\s*branch:/m);
-  assert.equal((blueprint.match(/autoDeployTrigger: checksPass/g) ?? []).length, 2);
-  assert.equal((blueprint.match(/uv run .*--no-sync/g) ?? []).length, 2);
-});
-
-test("Render uses readiness for traffic and persistent no-eviction queue semantics", () => {
-  assert.match(blueprint, /healthCheckPath: \/health\/ready/);
-  assert.match(blueprint, /maxmemoryPolicy: noeviction/);
-  assert.match(blueprint, /persistenceMode: journal-snapshot/);
-  assert.match(blueprint, /ipAllowList: \[\]/);
-});
-
-test("Render Blueprint keeps runtime-bound values and credentials outside source control", () => {
-  for (const key of [
-    "DATABASE_URL",
-    "STORAGE_ACCESS_KEY",
-    "STORAGE_SECRET_KEY",
-    "PUBLIC_APP_URL",
-    "API_BASE_URL"
+test("Railway deploys locked Python 3.12 API and Worker images without runtime dependency sync", () => {
+  for (const [dockerfile, project] of [
+    [apiDockerfile, "api"],
+    [workerDockerfile, "worker"]
   ]) {
+    assert.match(dockerfile, /^FROM python:3\.12\.13-slim-bookworm$/m);
+    assert.match(dockerfile, /uv==0\.12\.5/);
+    assert.match(dockerfile, new RegExp(`uv sync --project apps/${project} --locked --no-dev`));
     assert.match(
-      blueprint,
-      new RegExp(`key: ${key}\\n\\s+sync: false`),
-      `${key} must be supplied by the Render secret store`
+      dockerfile,
+      new RegExp(`uv[\\s\\S]+run[\\s\\S]+--project[\\s\\S]+apps/${project}[\\s\\S]+--no-sync`)
     );
+    assert.match(dockerfile, /^USER aria$/m);
   }
 });
 
-test("Worker has no undocumented direct Auth provider dependency", () => {
-  const workerSection = blueprint.split("  - type: worker")[1] ?? "";
-  assert.doesNotMatch(workerSection, /AUTH_PROVIDER_URL/);
+test("Railway uses readiness for API admission and a bounded free-plan restart policy", () => {
+  assert.equal(apiConfig.deploy.healthcheckPath, "/health/ready");
+  assert.equal(apiConfig.deploy.healthcheckTimeout, 300);
+  assert.equal(apiConfig.deploy.restartPolicyType, "ON_FAILURE");
+  assert.equal(apiConfig.deploy.restartPolicyMaxRetries, 10);
+  assert.equal(workerConfig.deploy.restartPolicyType, "ON_FAILURE");
+  assert.equal(workerConfig.deploy.restartPolicyMaxRetries, 10);
+  assert.equal("healthcheckPath" in workerConfig.deploy, false);
+});
+
+test("Railway configuration is branch-neutral and contains no runtime credentials", () => {
+  const source = JSON.stringify({ apiConfig, workerConfig, apiDockerfile, workerDockerfile });
+
+  assert.doesNotMatch(source, /agent\/staging-runtime|\"branch\"/i);
+  assert.doesNotMatch(source, /DATABASE_URL|QUEUE_BROKER_URL|STORAGE_ACCESS_KEY|STORAGE_SECRET_KEY/);
+  assert.doesNotMatch(source, /postgres(?:ql)?:\/\/[^\s]+:[^\s]+@/i);
+  assert.doesNotMatch(source, /redis(?:s)?:\/\/[^\s]+:[^\s]+@/i);
+});
+
+test("The superseded Render Blueprint is absent", async () => {
+  await assert.rejects(access(path.join(root, "render.yaml")));
+});
+
+test("Worker keeps no undocumented direct Auth provider dependency", () => {
+  assert.doesNotMatch(workerDockerfile, /AUTH_PROVIDER_URL|AUTH_JWKS_URL|AUTH_AUDIENCE/);
 });

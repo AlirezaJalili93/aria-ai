@@ -117,8 +117,9 @@ database writes, a product route, or authorization.
 
 ## Remaining Risks
 
-- S1-A03 hosted Render evidence remains independently blocked by the provider's card-verification
-  step; this increment does not claim Hosted Auth smoke evidence or close S1-A03.
+- S1-A03 hosted runtime evidence remains independent from this increment; its original Render
+  proposal was later superseded by ADR-007. This increment does not claim Hosted Auth smoke evidence
+  or close S1-A03.
 - JWKS availability is required on a cold cache. Cached asymmetric keys keep normal verification
   local, while operational monitoring of Auth/JWKS availability belongs to the staging/runtime
   observability work.
