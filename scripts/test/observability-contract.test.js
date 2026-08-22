@@ -24,3 +24,25 @@ test("job trace contract carries only the documented versioned identifiers", asy
   assert.equal("content" in contract.properties, false);
   assert.equal("authorization" in contract.properties, false);
 });
+
+test("HTTP observability middleware is pure ASGI", async () => {
+  const middleware = await readFile(
+    new URL("../../apps/api/app/api/middleware/observability.py", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(middleware, /BaseHTTPMiddleware/);
+  assert.match(middleware, /async def __call__\(/);
+});
+
+test("structured logging contract is versioned and content fields are not allowlisted", async () => {
+  const logger = await readFile(
+    new URL("../../packages/observability/src/aria_observability/logging.py", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(logger, /"schema_version": "1"/);
+  assert.doesNotMatch(logger, /_OPTIONAL_FIELDS\s*=\s*\{[^}]*"prompt"/s);
+  assert.doesNotMatch(logger, /_OPTIONAL_FIELDS\s*=\s*\{[^}]*"response"/s);
+  assert.doesNotMatch(logger, /_OPTIONAL_FIELDS\s*=\s*\{[^}]*"authorization"/s);
+});

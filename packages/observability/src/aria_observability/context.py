@@ -4,7 +4,7 @@ import re
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from uuid import UUID, uuid4
 
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
@@ -58,6 +58,42 @@ _TRACE_CONTEXT: ContextVar[TraceContext | None] = ContextVar(
 
 def current_trace_context() -> TraceContext | None:
     return _TRACE_CONTEXT.get()
+
+
+def enrich_trace_context(
+    *,
+    account_id: str | None = None,
+    project_id: str | None = None,
+    job_id: str | None = None,
+) -> TraceContext:
+    """Add validated identifiers to the current trace in the active execution context.
+
+    Callers may attach account or project identifiers only after the corresponding tenant
+    authorization has succeeded. This function validates identifiers; authorization remains an
+    Application/API responsibility.
+    """
+    context = current_trace_context()
+    if context is None:
+        raise RuntimeError("An active trace context is required for enrichment")
+    if account_id is None and project_id is None and job_id is None:
+        raise ValueError("At least one trace identifier is required for enrichment")
+
+    enriched = replace(
+        context,
+        account_id=(
+            _uuid_string(account_id, "account_id")
+            if account_id is not None
+            else context.account_id
+        ),
+        project_id=(
+            _uuid_string(project_id, "project_id")
+            if project_id is not None
+            else context.project_id
+        ),
+        job_id=_uuid_string(job_id, "job_id") if job_id is not None else context.job_id,
+    )
+    _TRACE_CONTEXT.set(enriched)
+    return enriched
 
 
 @contextmanager

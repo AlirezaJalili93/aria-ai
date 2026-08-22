@@ -4,6 +4,7 @@ from aria_observability.context import (
     TraceContext,
     bind_trace_context,
     current_trace_context,
+    enrich_trace_context,
     resolve_http_trace_context,
 )
 from aria_observability.logging import StructuredEventLogger, create_event_logger
@@ -16,5 +17,6 @@ __all__ = [
     "bind_trace_context",
     "create_event_logger",
     "current_trace_context",
+    "enrich_trace_context",
     "resolve_http_trace_context",
 ]

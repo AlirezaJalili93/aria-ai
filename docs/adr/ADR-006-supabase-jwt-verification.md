@@ -27,9 +27,16 @@ skew value, so implementation paused until the owner explicitly approved both de
    seconds of leeway.
 6. Cache the JWKS for at most the Supabase Edge cache window of 600 seconds. Unknown `kid` lookup
    must force a refresh through `PyJWKClient`, allowing signing-key rotation without a restart.
-7. Map missing and invalid bearer credentials to the same safe `AUTH_REQUIRED` 401 response.
-   Keep `/health/live` and `/health/ready` public.
-8. Do not add Account Bootstrap, Membership Resolution, Tenant Context, `/me`, or another product
+   Every JWKS request uses the owner-approved explicit timeout of five seconds.
+7. Separate credential rejection from Auth infrastructure failure at the provider-neutral
+   Application boundary. Malformed/expired/mismatched credentials and an unknown `kid` after a
+   successful refresh map to `AUTH_REQUIRED` 401. Network, DNS, timeout, malformed-JWKS, or unusable
+   JWKS failures map to retryable `AUTH_PROVIDER_UNAVAILABLE` 503.
+8. Emit only allowlisted Auth telemetry: verification success/rejection, provider unavailability,
+   and successful JWKS refresh. JWTs, Authorization headers, claims, raw subjects, email, and provider
+   URLs are prohibited.
+9. Keep `/health/live` and `/health/ready` public. Do not add Account Bootstrap, Membership
+   Resolution, Tenant Context, `/me`, or another product
    route in this story.
 
 ## Consequences
@@ -38,7 +45,10 @@ skew value, so implementation paused until the owner explicitly approved both de
   the normal request path.
 - Supabase can be replaced behind the Application port without changing Identity consumers.
 - Key rotation is accepted as soon as the refreshed public JWKS contains the new `kid`.
-- The API fails closed when Auth configuration is absent.
+- The API fails closed when Auth configuration is absent, while clients can distinguish a retryable
+  verification dependency outage from credentials they must replace.
+- A cold-cache provider outage is bounded to five seconds per JWKS attempt; cached keys keep normal
+  asymmetric verification local.
 - PyJWT and `cryptography` become security-critical locked dependencies and remain subject to the
   dependency scan and upgrade policy.
 - Account, membership, role and tenant authority remain unresolved until their separately approved
@@ -53,4 +63,5 @@ skew value, so implementation paused until the owner explicitly approved both de
 - Dependency & Vendor Register v1.0 — Supabase abstraction and dependency admission
 - Test Strategy & Test Case Master v1.0 — TC-ID-001 and TC-ID-002
 - Supabase current JWT and signing-key documentation reviewed on 2026-08-18
-- Owner approval in the development task on 2026-08-18
+- Owner approvals in the development task on 2026-08-18, including the five-second timeout and exact
+  `AUTH_PROVIDER_UNAVAILABLE` 503 contract

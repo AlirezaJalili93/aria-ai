@@ -39,6 +39,16 @@ test("JWT library imports remain inside the Supabase infrastructure adapter", as
   assert.deepEqual(importers, ["apps/api/app/infrastructure/auth/supabase_jwt.py"]);
 });
 
+test("Supabase JWKS access uses the owner-approved five-second timeout", async () => {
+  const adapter = await readFile(
+    path.join(root, "apps", "api", "app", "infrastructure", "auth", "supabase_jwt.py"),
+    "utf8"
+  );
+
+  assert.match(adapter, /_JWKS_TIMEOUT_SECONDS\s*=\s*5/);
+  assert.match(adapter, /timeout=_JWKS_TIMEOUT_SECONDS/);
+});
+
 test("public API contract keeps Bearer JWT and health exceptions explicit", async () => {
   const openapi = await readFile(
     path.join(root, "packages", "contracts", "openapi.yaml"),

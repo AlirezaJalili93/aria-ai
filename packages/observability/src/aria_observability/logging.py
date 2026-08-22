@@ -23,9 +23,21 @@ _OPTIONAL_FIELDS = {
     "route",
     "task_type",
     "duration_ms",
+    "latency_ms",
     "status",
     "error_code",
+    "reason_code",
+    "provider",
+    "model",
+    "workflow",
+    "attempt",
+    "input_tokens",
+    "output_tokens",
+    "estimated_cost",
     "provider_request_id",
+    "exception_type",
+    "component",
+    "operation",
     "queue_adapter_configured",
 }
 
@@ -55,6 +67,18 @@ def _safe_duration(value: object) -> int | float | None:
     return round(value, 3)
 
 
+def _safe_non_negative_integer(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _safe_non_negative_number(value: object) -> int | float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return None
+    return round(value, 6)
+
+
 def _safe_status(value: object) -> int | str | None:
     if isinstance(value, bool):
         return None
@@ -66,12 +90,16 @@ def _safe_status(value: object) -> int | str | None:
 def _safe_optional_value(field: str, value: object) -> object | None:
     if field == "route":
         return _safe_route(value)
-    if field == "duration_ms":
+    if field in {"duration_ms", "latency_ms"}:
         return _safe_duration(value)
     if field == "status":
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
+    if field in {"attempt", "input_tokens", "output_tokens"}:
+        return _safe_non_negative_integer(value)
+    if field == "estimated_cost":
+        return _safe_non_negative_number(value)
     return _safe_name(value)
 
 
@@ -89,6 +117,7 @@ class StructuredEventLogger:
         if level not in _LEVELS:
             raise ValueError("Unsupported structured log level")
         self._base = {
+            "schema_version": "1",
             "service": service,
             "environment": environment,
             "app_version": app_version,

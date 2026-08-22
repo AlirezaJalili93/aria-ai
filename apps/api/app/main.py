@@ -4,7 +4,12 @@ from contextlib import asynccontextmanager
 from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
 
-from app.api.errors import AuthenticationRequiredError, authentication_required_handler
+from app.api.errors import (
+    AuthenticationProviderUnavailableError,
+    AuthenticationRequiredError,
+    authentication_provider_unavailable_handler,
+    authentication_required_handler,
+)
 from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.health import create_health_router
 from app.core.config import ApiSettings, load_api_settings
@@ -60,8 +65,14 @@ def create_app(
     )
     app.add_middleware(ObservabilityMiddleware, event_logger=resolved_event_logger)
     app.add_exception_handler(AuthenticationRequiredError, authentication_required_handler)
+    app.add_exception_handler(
+        AuthenticationProviderUnavailableError,
+        authentication_provider_unavailable_handler,
+    )
+    app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
-        resolved_settings
+        resolved_settings,
+        resolved_event_logger,
     )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
@@ -69,12 +80,16 @@ def create_app(
     return app
 
 
-def _create_access_token_verifier(settings: ApiSettings) -> AccessTokenVerifier:
+def _create_access_token_verifier(
+    settings: ApiSettings,
+    event_logger: StructuredEventLogger,
+) -> AccessTokenVerifier:
     if settings.auth_provider_url and settings.auth_jwks_url and settings.auth_audience:
         return SupabaseJwtVerifier(
             jwks_url=str(settings.auth_jwks_url),
             issuer=str(settings.auth_provider_url),
             audience=settings.auth_audience,
             clock_skew_seconds=30,
+            event_logger=event_logger,
         )
     return RejectingAccessTokenVerifier()
