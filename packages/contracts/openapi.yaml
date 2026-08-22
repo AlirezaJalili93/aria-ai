@@ -7,7 +7,44 @@ info:
     story, authorization rules, implementation, and contract tests.
 servers:
   - url: /api/v1
-paths: {}
+paths:
+  /health/live:
+    get:
+      servers:
+        - url: /
+      operationId: getLiveness
+      summary: Report whether the API process is alive
+      security: []
+      responses:
+        "200":
+          description: The API process is alive. No dependency is probed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivenessResponse"
+  /health/ready:
+    get:
+      servers:
+        - url: /
+      operationId: getReadiness
+      summary: Report whether the API is ready to receive traffic
+      description: >-
+        Checks startup configuration, database connectivity, and the
+        Redis-compatible queue binding. AI providers are deliberately excluded.
+      security: []
+      responses:
+        "200":
+          description: The API is ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: A critical internal dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -15,6 +52,38 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    LivenessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, environment, version, release_commit_sha]
+      properties:
+        status: { type: string, const: alive }
+        service: { type: string, const: aria-api }
+        environment: { type: string, enum: [local, test, staging, production] }
+        version: { type: string }
+        release_commit_sha:
+          type: [string, "null"]
+          pattern: "^[0-9a-fA-F]{40}$"
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, environment, version, release_commit_sha, checks]
+      properties:
+        status: { type: string, enum: [ready, not_ready] }
+        service: { type: string, const: aria-api }
+        environment: { type: string, enum: [local, test, staging, production] }
+        version: { type: string }
+        release_commit_sha:
+          type: [string, "null"]
+          pattern: "^[0-9a-fA-F]{40}$"
+        checks:
+          type: object
+          additionalProperties: false
+          required: [configuration, database, queue]
+          properties:
+            configuration: { type: string, const: pass }
+            database: { type: string, enum: [pass, fail] }
+            queue: { type: string, enum: [pass, fail] }
     ErrorEnvelope:
       type: object
       additionalProperties: false
@@ -35,4 +104,3 @@ components:
           required: [request_id]
           properties:
             request_id: { type: string, format: uuid }
-
