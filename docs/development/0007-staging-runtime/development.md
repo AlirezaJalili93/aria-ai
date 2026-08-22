@@ -86,6 +86,9 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
 - Retained the verified Vercel Preview deployment `GQFMEVWyeppynbd3JDTFxM3tcoPf` for commit
   `b590f6cbdc878353af72fa81879cb6e99790b6b3` as historical Web evidence. Final hosted verification
   must use the latest PR SHA.
+- Corrected the Worker container import root after the first hosted Railway deployment proved that
+  `uv --project` selects the environment but does not change Python's working directory. The image
+  now starts from `/srv/aria/apps/worker` and retains an absolute locked project path.
 
 ## Architecture and Design Decisions
 
@@ -125,6 +128,9 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
   `ON_FAILURE` with ten retries matches the documented plan limit.
 - **Resolved — source confidentiality:** no runtime credential name appears inside deployment config
   JSON or Dockerfile content; values remain dashboard-only and continue through secret scanning.
+- **Resolved — Worker import root:** hosted deploy `72b74b0d` built successfully but crashed because
+  Python could not resolve `app.main` from `/srv/aria`. An explicit application `WORKDIR` and a
+  contract regression test correct the runtime path without changing Worker behavior.
 - **Accepted for Staging only — regional proximity:** Amsterdam runtime to Frankfurt data/Queue is
   not same-region. The provider has no Frankfurt runtime; Production requires a new approved capacity
   decision.

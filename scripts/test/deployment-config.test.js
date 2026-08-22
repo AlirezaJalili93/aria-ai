@@ -69,3 +69,11 @@ test("The superseded Render Blueprint is absent", async () => {
 test("Worker keeps no undocumented direct Auth provider dependency", () => {
   assert.doesNotMatch(workerDockerfile, /AUTH_PROVIDER_URL|AUTH_JWKS_URL|AUTH_AUDIENCE/);
 });
+
+test("Worker starts from the Python application import root", () => {
+  assert.match(workerDockerfile, /^WORKDIR \/srv\/aria\/apps\/worker$/m);
+  assert.match(
+    workerDockerfile,
+    /"--project",\s*"\/srv\/aria\/apps\/worker"[\s\S]+"python",\s*"-m",\s*"app\.main"/
+  );
+});

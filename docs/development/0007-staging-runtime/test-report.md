@@ -67,6 +67,10 @@
 7. The first post-migration secret scan failed because `git ls-files` also lists tracked files deleted
    in a dirty worktree. The scanner now skips missing tracked paths, a temporary-repository regression
    test proves that behavior, and the full scan passes without weakening any detector.
+8. Hosted Worker deployment `72b74b0d` built but crashed at startup with
+   `ModuleNotFoundError: No module named 'app'`. Contract-first regression evidence failed 1/7 before
+   the fix and passed 7/7 after setting the Worker image import root explicitly. Hosted redeployment
+   remains required before TC-0701 can pass.
 
 ## Final Status
 

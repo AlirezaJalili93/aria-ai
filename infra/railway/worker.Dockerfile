@@ -21,4 +21,6 @@ RUN useradd --create-home --uid 10001 aria \
 
 USER aria
 
-CMD ["uv", "run", "--project", "apps/worker", "--no-sync", "python", "-m", "app.main"]
+WORKDIR /srv/aria/apps/worker
+
+CMD ["uv", "run", "--project", "/srv/aria/apps/worker", "--no-sync", "python", "-m", "app.main"]
