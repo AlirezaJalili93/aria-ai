@@ -9,12 +9,9 @@ from app.modules.identity.application.bootstrap_ports import (
     AccountBootstrapUnitOfWorkFactory,
     ResolvedMembership,
 )
+from app.modules.identity.application.membership_resolution import ActiveMembershipRequired
 from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.domain.membership import ACTIVE_MEMBERSHIP_STATUS
-
-
-class ActiveMembershipRequired(Exception):
-    """The projected user has no Membership with operational authority."""
 
 
 class AccountBootstrapInvariantError(Exception):
