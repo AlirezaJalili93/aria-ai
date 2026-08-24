@@ -48,3 +48,16 @@ test("pull-request CI keeps proving the fresh PostgreSQL migration chain", async
   assert.match(ci, /DATABASE_URL:/);
   assert.match(ci, /npm run quality/);
 });
+
+test("the immutable follow-up revision closes implicit Supabase Data API grants", async () => {
+  const hardening = await read(
+    "apps/api/migrations/versions/0001a_identity_projection_access_hardening.py"
+  );
+
+  assert.match(hardening, /down_revision: str \| None = "0001_identity_projection"/);
+  assert.match(hardening, /ALTER TABLE public\.alembic_version ENABLE ROW LEVEL SECURITY/);
+  assert.match(hardening, /REVOKE ALL PRIVILEGES ON TABLE/);
+  assert.match(hardening, /ALTER DEFAULT PRIVILEGES IN SCHEMA public/);
+  assert.match(hardening, /'anon', 'authenticated'/);
+  assert.doesNotMatch(hardening, /CREATE POLICY|service_role/i);
+});
