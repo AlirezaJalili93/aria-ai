@@ -17,8 +17,9 @@ staging-only proximity compromise, not a production region decision.
 
 ## Required runtime bindings
 
-The dashboard must provide values for the names below. Values must never be copied into this
-repository, deployment logs, screenshots, or development records.
+The dashboard must provide the explicit service values below; Railway injects the listed native
+deployment metadata. Values must never be copied into this repository, deployment logs,
+screenshots, or development records.
 
 ### API
 
@@ -36,7 +37,7 @@ repository, deployment logs, screenshots, or development records.
 - `AUTH_PROVIDER_URL`
 - `AUTH_JWKS_URL`
 - `AUTH_AUDIENCE=authenticated`
-- `RELEASE_COMMIT_SHA=${{RAILWAY_GIT_COMMIT_SHA}}`
+- Railway-provided `RAILWAY_GIT_COMMIT_SHA` (injected automatically for GitHub-triggered deploys)
 
 ### Worker
 
@@ -49,7 +50,13 @@ repository, deployment logs, screenshots, or development records.
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`
-- `RELEASE_COMMIT_SHA=${{RAILWAY_GIT_COMMIT_SHA}}`
+- Railway-provided `RAILWAY_GIT_COMMIT_SHA` (injected automatically for GitHub-triggered deploys)
+
+Do not create a dashboard `RELEASE_COMMIT_SHA` reference to the Git variable. Railway injects Git
+variables only for GitHub-triggered builds/deployments; the tested reference resolved empty during
+a manual configuration redeploy. API and Worker map the native Railway value to the
+provider-neutral release identity, and the native value takes precedence over a legacy
+`RELEASE_COMMIT_SHA` value.
 
 ## Hosted verification gate
 

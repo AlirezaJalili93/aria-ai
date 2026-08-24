@@ -7,6 +7,7 @@ from app.core.config import WorkerSettings
 from app.main import bootstrap_worker, run_worker
 
 FULL_COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
+STALE_COMMIT_SHA = "89abcdef0123456789abcdef0123456789abcdef"
 
 
 def test_bootstrap_worker_remains_queue_neutral() -> None:
@@ -35,16 +36,29 @@ def test_staging_worker_settings_accept_documented_service_bindings() -> None:
         storage_bucket="aria-staging-artifacts",
         storage_access_key="test-access-key",
         storage_secret_key="test-secret-key",
-        release_commit_sha=FULL_COMMIT_SHA,
+        railway_git_commit_sha=FULL_COMMIT_SHA,
     )
 
     worker = bootstrap_worker(settings)
 
     assert worker.environment == "staging"
     assert worker.app_version == "0.1.0"
+    assert settings.release_commit_sha == FULL_COMMIT_SHA
     assert not hasattr(settings, "auth_provider_url")
     assert "test-secret-key" not in repr(settings)
     assert "postgresql://staging.example.test/aria" not in repr(settings)
+
+
+def test_railway_git_commit_sha_is_the_worker_runtime_source_of_truth() -> None:
+    settings = WorkerSettings(
+        app_env="test",
+        app_version="0.1.0",
+        log_level="INFO",
+        release_commit_sha=STALE_COMMIT_SHA,
+        railway_git_commit_sha=FULL_COMMIT_SHA,
+    )
+
+    assert settings.release_commit_sha == FULL_COMMIT_SHA
 
 
 def test_worker_runtime_stays_alive_after_successful_bootstrap(
@@ -76,6 +90,7 @@ def test_worker_runtime_stays_alive_after_successful_bootstrap(
         ("queue_broker_url", "redis://queue-staging.example.test/not-a-number"),
         ("storage_endpoint", "not-a-url"),
         ("release_commit_sha", "abc"),
+        ("railway_git_commit_sha", "abc"),
         ("log_level", "BLABLA"),
     ],
 )
