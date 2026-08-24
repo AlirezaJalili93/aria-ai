@@ -7,7 +7,8 @@
 ## Environment
 
 - Local OS: Windows
-- Branch: `agent/staging-runtime`
+- Source branch: `agent/staging-runtime`; promoted branch: `main`
+- Promoted merge SHA: `8698bddeb86efb823d0884172164a016478c5952`
 - Node.js: 24.x repository pin
 - Python: 3.12 repository pin
 - uv: 0.12.5
@@ -42,10 +43,10 @@
 | TC-0702 | `npm run test:api` | Liveness returned exact 200 metadata and made zero dependency calls | PASS |
 | TC-0703 | `npm run test:api` | DB/Queue readiness returned 200/503 as specified; real loopback RESP `PING` passed; responses were sanitized | PASS |
 | TC-0704 | `npm run test:ci`; `npm run scan:secrets` | 27 CI/contract tests passed; 166 publishable text files scanned with zero secret findings | PASS |
-| TC-0705 | Exact-SHA Vercel readback and HTTP request; hosted Railway health requests | Vercel Preview is READY at `f3752ca...` and returned 200; API `/health/live` and `/health/ready` both returned 200 with exact release SHA and sanitized metadata | PASS |
+| TC-0705 | Exact-SHA Vercel readback and HTTP request; hosted Railway health requests | Preview passed at `f3752ca...`; after merge, Vercel Production and both API health routes returned 200 at exact merge SHA `8698bdd...` | PASS |
 | TC-0706 | Post-rotation Supabase SQL readback; Railway inspection; direct Queue TLS probe | Supabase `SELECT 1` returned one; private bucket and official Session Pooler host/port/user were verified; authenticated Queue `PING/PONG` passed | PASS |
-| TC-0707 | Config test; hosted source/deployment readback; prior-artifact rollback/redeploy selection | API and Worker are Active at `f3752ca...`; Trial remained within approved credit; Railway exposed rollback/redeploy for the prior same-SHA artifact and deduplicated the no-op selection without service degradation | PASS |
-| TC-0708 | GitHub Quality/Security; local focused tests; `npm run validate` | At `f3752ca...`, lint, strict types, builds, Records 6, CI/contract 23, Web 4, API 57, and Worker 14 passed; Security baseline passed; final local validation passed all 22 checks | PASS |
+| TC-0707 | Config test; hosted source/deployment readback; prior-artifact rollback/redeploy selection | Rollback control passed before merge; API `099e6202` and Worker `318b2376` then deployed successfully from `main` at exact merge SHA `8698bdd...` | PASS |
+| TC-0708 | GitHub Quality/Security; clean-worktree `npm test`; scans; `npm run validate` | CI passed at `f3752ca...`; final clean run passed Records 6, CI/contract 23, Web 4, API 57, and Worker 14; Secret Scan passed 144 files; validation passed 22 checks | PASS |
 | TC-0709 | `node --test scripts/test/deployment-config.test.js` | 7/7 Railway migration/runtime-root contract tests passed; Render Blueprint is absent | PASS |
 | TC-0710 | `.tools/venv-api/Scripts/python.exe -m pytest -q apps/api/tests/test_database_readiness.py apps/api/tests/test_health.py` | 8/8 passed; `sslmode=require` is adapted to `ssl=require` and unrelated query parameters are preserved | PASS |
 
@@ -107,6 +108,15 @@
     required by the uncommitted S1-B02 work. This is not release evidence for Increment 0007 and no
     S1-B02 environment or source was changed to mask it; the clean exact-SHA GitHub run above remains
     the Increment 0007 suite evidence.
+18. After PR #2 was squash-merged, Vercel Production, Railway API deployment `099e6202`, and Railway
+    Worker deployment `318b2376` reported success for merge SHA `8698bdd...`. The Production Web
+    page returned HTTP 200. API liveness and readiness both returned HTTP 200 and the full merge SHA;
+    readiness reported configuration, database, and Queue as `pass`.
+19. The first clean-worktree `npm test` reached the API stage after Records 6, CI/contract 23, and Web
+    4 passed, then the sandbox denied uv's global Roaming Python lock. The rerun explicitly used the
+    repository-pinned uv executable/cache and the bundled CPython 3.12.13 interpreter without
+    changing project scripts. It passed API 57 and Worker 14 tests; the API emitted one
+    FastAPI/Starlette dependency deprecation warning and no failure.
 
 ## Final Status
 
