@@ -1,20 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
 
-from app.modules.identity.domain.membership import MembershipRole, MembershipStatus
-
-
-@dataclass(frozen=True, slots=True)
-class ResolvedMembership:
-    membership_id: UUID
-    account_id: UUID
-    user_id: UUID
-    role: MembershipRole
-    status: MembershipStatus
+from app.modules.identity.application.membership_ports import ResolvedMembership
 
 
 class AccountBootstrapRepository(Protocol):

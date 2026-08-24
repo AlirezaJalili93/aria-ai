@@ -8,11 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.modules.identity.application.account_bootstrap import AccountBootstrapInvariantError
 from app.modules.identity.application.bootstrap_ports import (
     AccountBootstrapUnitOfWork,
     ResolvedMembership,
 )
+from app.modules.identity.application.membership_ports import MembershipProjectionInvariantError
 from app.modules.identity.domain.membership import MembershipRole, MembershipStatus
 from app.modules.identity.infrastructure.models import (
     AccountMembershipModel,
@@ -32,24 +32,7 @@ class SqlAlchemyAccountBootstrapRepository:
             .order_by(AccountMembershipModel.joined_at, AccountMembershipModel.id)
         )
         rows = (await self._session.scalars(statement)).all()
-        resolved = []
-        for row in rows:
-            if row.role not in {"owner", "admin", "member"} or row.status not in {
-                "active",
-                "invited",
-                "suspended",
-            }:
-                raise AccountBootstrapInvariantError
-            resolved.append(
-                ResolvedMembership(
-                    membership_id=row.id,
-                    account_id=row.account_id,
-                    user_id=row.user_id,
-                    role=cast(MembershipRole, row.role),
-                    status=cast(MembershipStatus, row.status),
-                )
-            )
-        return tuple(resolved)
+        return tuple(_resolved_membership(row) for row in rows)
 
     async def create_profile_if_absent(self, user_id: UUID) -> bool:
         statement = (
@@ -128,3 +111,19 @@ class SqlAlchemyAccountBootstrapUnitOfWorkFactory:
 
     def __call__(self) -> AccountBootstrapUnitOfWork:
         return SqlAlchemyAccountBootstrapUnitOfWork(self._session_factory)
+
+
+def _resolved_membership(row: AccountMembershipModel) -> ResolvedMembership:
+    if row.role not in {"owner", "admin", "member"} or row.status not in {
+        "active",
+        "invited",
+        "suspended",
+    }:
+        raise MembershipProjectionInvariantError
+    return ResolvedMembership(
+        membership_id=row.id,
+        account_id=row.account_id,
+        user_id=row.user_id,
+        role=cast(MembershipRole, row.role),
+        status=cast(MembershipStatus, row.status),
+    )

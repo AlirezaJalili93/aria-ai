@@ -8,6 +8,7 @@ const failures = [];
 const checks = [];
 const skippedDirectories = new Set([
   ".git",
+  ".data",
   ".next",
   ".mypy_cache",
   ".npm-cache",

@@ -29,5 +29,5 @@ concurrent first requests duplicate-safe; an existing projection resolves withou
 FastAPI dependency emits safe started/completed/resolved/failed events and never logs JWT, Email,
 external subject, or Profile data. It adds no `/bootstrap` or `/me` endpoint.
 
-Multi-account Membership selection, current Tenant Context, product routes and async jobs remain
-separate documented stories.
+S1-B03 adds internal multi-account Membership validation with persisted Role and Status. Current
+Account transport, Tenant Context, product routes and async jobs remain separate documented stories.

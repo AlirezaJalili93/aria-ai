@@ -17,9 +17,15 @@ from app.modules.identity.application.account_bootstrap import (
     ActiveMembershipRequired,
     BootstrapAccountUseCase,
 )
+from app.modules.identity.application.membership_resolution import (
+    ResolveActiveMembershipUseCase,
+)
 from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.infrastructure.account_bootstrap import (
     SqlAlchemyAccountBootstrapUnitOfWorkFactory,
+)
+from app.modules.identity.infrastructure.membership_resolution import (
+    SqlAlchemyMembershipResolutionRepository,
 )
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -108,9 +114,7 @@ def test_m001_schema_enforces_profile_and_membership_contract() -> None:
         finally:
             await runtime.close()
 
-    profile_columns, checks, unique_constraints, indexes, rls_tables = asyncio.run(
-        inspect_schema()
-    )
+    profile_columns, checks, unique_constraints, indexes, rls_tables = asyncio.run(inspect_schema())
     assert profile_columns == {
         "user_id",
         "display_name",
@@ -136,9 +140,7 @@ def test_m001_schema_enforces_profile_and_membership_contract() -> None:
     )
     assert locale == "fa-IR"
 
-    account_id = asyncio.run(
-        _scalar("INSERT INTO accounts DEFAULT VALUES RETURNING id")
-    )
+    account_id = asyncio.run(_scalar("INSERT INTO accounts DEFAULT VALUES RETURNING id"))
     with pytest.raises(IntegrityError):
         asyncio.run(
             _execute(
@@ -278,6 +280,129 @@ def test_suspended_membership_denies_context_without_deleting_membership() -> No
             == "suspended"
         )
         assert await _scalar("SELECT count(*) FROM account_memberships") == 1
+
+    asyncio.run(scenario())
+
+
+def test_membership_resolution_selects_only_requested_active_membership() -> None:
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> None:
+        subject = uuid4()
+        other_subject = uuid4()
+        first_account = uuid4()
+        selected_account = uuid4()
+        unowned_account = uuid4()
+        await _execute(
+            "INSERT INTO profiles (user_id) VALUES (:subject), (:other_subject)",
+            {"subject": subject, "other_subject": other_subject},
+        )
+        await _execute(
+            """
+            INSERT INTO accounts (id) VALUES
+                (:first_account), (:selected_account), (:unowned_account)
+            """,
+            {
+                "first_account": first_account,
+                "selected_account": selected_account,
+                "unowned_account": unowned_account,
+            },
+        )
+        await _execute(
+            """
+            INSERT INTO account_memberships (id, account_id, user_id, role, status) VALUES
+                (:first_id, :first_account, :subject, 'owner', 'active'),
+                (:selected_id, :selected_account, :subject, 'admin', 'active'),
+                (:unowned_id, :unowned_account, :other_subject, 'owner', 'active')
+            """,
+            {
+                "first_id": uuid4(),
+                "selected_id": uuid4(),
+                "unowned_id": uuid4(),
+                "first_account": first_account,
+                "selected_account": selected_account,
+                "unowned_account": unowned_account,
+                "subject": subject,
+                "other_subject": other_subject,
+            },
+        )
+        before = await _scalar(
+            """
+            SELECT string_agg(xmin::text, ',' ORDER BY account_id)
+            FROM account_memberships
+            WHERE user_id = :subject
+            """,
+            {"subject": subject},
+        )
+
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            async with runtime.session_factory() as session:
+                use_case = ResolveActiveMembershipUseCase(
+                    SqlAlchemyMembershipResolutionRepository(session)
+                )
+                context = await use_case.execute(
+                    AuthenticatedIdentity(subject=subject),
+                    selected_account,
+                )
+                with pytest.raises(ActiveMembershipRequired):
+                    await use_case.execute(
+                        AuthenticatedIdentity(subject=subject),
+                        unowned_account,
+                    )
+        finally:
+            await runtime.close()
+
+        after = await _scalar(
+            """
+            SELECT string_agg(xmin::text, ',' ORDER BY account_id)
+            FROM account_memberships
+            WHERE user_id = :subject
+            """,
+            {"subject": subject},
+        )
+        assert context.account_id == selected_account
+        assert context.membership.role == "admin"
+        assert context.membership.status == "active"
+        assert before == after
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("status", ["invited", "suspended"])
+def test_postgres_inactive_membership_cannot_be_selected(status: str) -> None:
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> None:
+        subject = uuid4()
+        account_id = uuid4()
+        await _execute("INSERT INTO profiles (user_id) VALUES (:subject)", {"subject": subject})
+        await _execute("INSERT INTO accounts (id) VALUES (:account_id)", {"account_id": account_id})
+        await _execute(
+            """
+            INSERT INTO account_memberships (id, account_id, user_id, role, status)
+            VALUES (:id, :account_id, :subject, 'member', :status)
+            """,
+            {
+                "id": uuid4(),
+                "account_id": account_id,
+                "subject": subject,
+                "status": status,
+            },
+        )
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            async with runtime.session_factory() as session:
+                use_case = ResolveActiveMembershipUseCase(
+                    SqlAlchemyMembershipResolutionRepository(session)
+                )
+                with pytest.raises(ActiveMembershipRequired):
+                    await use_case.execute(
+                        AuthenticatedIdentity(subject=subject),
+                        account_id,
+                    )
+        finally:
+            await runtime.close()
 
     asyncio.run(scenario())
 
