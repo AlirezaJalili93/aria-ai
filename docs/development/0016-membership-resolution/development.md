@@ -67,7 +67,7 @@ with Access Control authoritative over the conflicting historical Data Dictionar
   `UNIQUE(account_id,user_id)` index. No schema revision or dependency was added.
 - Preserved Account Bootstrap behavior while moving its shared Membership DTO and inactive-state
   exception to the general Membership Application boundary.
-- Added six focused Unit cases, four repository Contract cases, and three real PostgreSQL S1-B03
+- Added six focused Unit cases, five repository Contract cases, and three real PostgreSQL S1-B03
   cases covering multiple accounts, cross-user selection, inactivity, persisted Role, and no writes.
 - Updated the API/module developer notes and added this linked development/test record pair.
 - Corrected architecture validation to exclude the existing Git-ignored `.data/` evidence/cache
@@ -111,12 +111,17 @@ Senior review completed after the first full regression run:
    with third-party Markdown whose relative links are intentionally incomplete outside its package.
    The architecture walker now skips the already Git-ignored `.data` root, and a Contract Test locks
    that boundary without weakening checks on any publishable repository artifact.
+8. **Verified — hosted delivery:** PR #9 and post-merge `main` CI passed independently. Railway
+   deployed the API from exact merge SHA `04bf101d0bc4ab617a8f3d24bc6ba492716f9a02`;
+   live/readiness returned 200 with configuration, database, and queue passing. The Worker correctly
+   reported no deployment needed because its watched paths did not change.
 
 ## Verification
 
 Focused Unit/Contract checks, real PostgreSQL integration, repository lint/type checks, Web/API/Worker
 regression, production builds, architecture validation, dependency audit, and secret scan passed. The
-final aggregate commands and exact counts are recorded in the linked test report.
+final aggregate commands and exact counts are recorded in the linked test report. The report also
+records PR CI, post-merge CI, Railway commit status, and exact-SHA hosted smoke evidence.
 
 ## Remaining Risks
 
