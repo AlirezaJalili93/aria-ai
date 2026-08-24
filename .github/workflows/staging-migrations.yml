@@ -1,0 +1,77 @@
+name: Staging database migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/api/alembic.ini
+      - apps/api/migrations/**
+      - apps/api/pyproject.toml
+      - apps/api/uv.lock
+      - scripts/db/**
+      - .github/workflows/staging-migrations.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-database-migrations
+  cancel-in-progress: false
+
+env:
+  UV_VERSION: 0.12.5
+  UV_PYTHON_DOWNLOADS: never
+
+jobs:
+  migrate:
+    name: Apply and verify Staging migrations
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+    steps:
+      - name: Check out exact source revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version-file: .python-version
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: apps/api/uv.lock
+
+      - name: Initialize migration evidence
+        shell: bash
+        run: |
+          mkdir -p .data/staging-migrations
+          printf 'source_sha=%s\n' "$GITHUB_SHA" > .data/staging-migrations/migration.log
+
+      - name: Verify protected credential binding
+        shell: bash
+        run: test -n "${DATABASE_URL:-}"
+
+      - name: Install locked migration dependencies
+        run: uv sync --project apps/api --locked
+
+      - name: Apply and verify Alembic head
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run --project apps/api python scripts/db/migrate.py 2>&1 \
+            | tee -a .data/staging-migrations/migration.log
+
+      - name: Preserve migration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: staging-migration-${{ github.run_id }}
+          path: .data/staging-migrations/migration.log
+          if-no-files-found: error
