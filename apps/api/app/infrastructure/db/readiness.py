@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,12 +10,15 @@ READINESS_TIMEOUT_SECONDS = 3.0
 
 def normalize_async_database_url(database_url: str) -> str:
     if database_url.startswith("postgresql+asyncpg://"):
-        return database_url
-    if database_url.startswith("postgres://"):
-        return database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-    if database_url.startswith("postgresql://"):
-        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return database_url
+        normalized_url = database_url
+    elif database_url.startswith("postgres://"):
+        normalized_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif database_url.startswith("postgresql://"):
+        normalized_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    else:
+        normalized_url = database_url
+
+    return re.sub(r"([?&])sslmode=", r"\1ssl=", normalized_url)
 
 
 class PostgresReadinessProbe:

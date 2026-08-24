@@ -21,3 +21,15 @@ def test_normalize_async_database_url_adapts_postgres_alias() -> None:
         normalize_async_database_url("postgres://db.example.test/app")
         == "postgresql+asyncpg://db.example.test/app"
     )
+
+
+def test_normalize_async_database_url_adapts_libpq_sslmode_for_asyncpg() -> None:
+    database_url = (
+        "postgresql://user:placeholder@db.example.test/app"
+        "?sslmode=require&application_name=aria"
+    )
+
+    assert normalize_async_database_url(database_url) == (
+        "postgresql+asyncpg://user:placeholder@db.example.test/app"
+        "?ssl=require&application_name=aria"
+    )
