@@ -103,7 +103,7 @@ Dependency and publishable-file secret scans also pass with no blocking finding.
 
 ## Remaining Risks
 
-- The workflow cannot truthfully prove its hosted run before it exists on `main`. The immediately
-  following `0013-staging-migration-hosted-evidence` increment must record the GitHub run, exact SHA,
-  Supabase migration/table/RLS/advisor readback, and Railway health smoke before hosted delivery is
-  reported complete.
+- The first hosted readback exposed implicit Supabase Data API grants and RLS-disabled
+  `public.alembic_version`. Increment 0013 owns the immutable hardening revision; increment 0014 then
+  records final migration/table/RLS/advisor readback and Railway health smoke before hosted delivery
+  is reported complete.

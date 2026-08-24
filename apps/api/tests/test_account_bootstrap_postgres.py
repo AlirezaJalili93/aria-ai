@@ -300,3 +300,80 @@ def test_identity_revision_downgrades_and_reapplies_cleanly() -> None:
     assert not {"accounts", "profiles", "account_memberships"} & asyncio.run(table_names())
     command.upgrade(config, "head")
     assert {"accounts", "profiles", "account_memberships"} <= asyncio.run(table_names())
+
+
+def test_identity_access_hardening_revokes_data_api_roles() -> None:
+    config = _migration_config()
+    command.downgrade(config, "0001_identity_projection")
+
+    async def prepare_supabase_roles() -> None:
+        await _execute(
+            """
+            DO $aria$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+                    CREATE ROLE anon NOLOGIN;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_roles WHERE rolname = 'authenticated'
+                ) THEN
+                    CREATE ROLE authenticated NOLOGIN;
+                END IF;
+            END
+            $aria$;
+            """
+        )
+        for role in ("anon", "authenticated"):
+            await _execute(
+                "GRANT ALL PRIVILEGES ON TABLE accounts, profiles, "
+                f"account_memberships, alembic_version TO {role}"
+            )
+            await _execute(
+                "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
+                f"GRANT ALL PRIVILEGES ON TABLES TO {role}"
+            )
+
+    asyncio.run(prepare_supabase_roles())
+    command.upgrade(config, "head")
+
+    assert asyncio.run(
+        _scalar(
+            """
+            SELECT relrowsecurity
+            FROM pg_catalog.pg_class
+            WHERE oid = 'public.alembic_version'::regclass
+            """
+        )
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                """
+                SELECT count(*)
+                FROM information_schema.role_table_grants
+                WHERE table_schema = 'public'
+                  AND table_name IN (
+                    'accounts', 'profiles', 'account_memberships', 'alembic_version'
+                  )
+                  AND grantee IN ('anon', 'authenticated')
+                """
+            )
+        )
+        == 0
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                """
+                SELECT count(*)
+                FROM pg_catalog.pg_default_acl AS defaults
+                CROSS JOIN LATERAL pg_catalog.aclexplode(defaults.defaclacl) AS acl
+                JOIN pg_catalog.pg_roles AS roles ON roles.oid = acl.grantee
+                WHERE defaults.defaclnamespace = 'public'::regnamespace
+                  AND defaults.defaclobjtype = 'r'
+                  AND roles.rolname IN ('anon', 'authenticated')
+                """
+            )
+        )
+        == 0
+    )
