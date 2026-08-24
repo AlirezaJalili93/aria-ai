@@ -109,6 +109,9 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
   dashboard-only `DATABASE_URL` on API and Worker without displaying or persisting the credential.
 - Corrected the Railway public-domain target from port `8000` to the Docker/runtime port `8080`.
   Deployment `6508b8f2` is active and the public liveness/readiness routes now return 200.
+- Promoted the approved PR to `main` with squash-merge SHA
+  `8698bddeb86efb823d0884172164a016478c5952`, then deployed that exact revision to Vercel
+  Production and both Railway Staging services.
 
 ## Architecture and Design Decisions
 
@@ -172,6 +175,9 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
   previous API artifact. The drill selected the prior artifact; because both artifacts were the same
   source SHA and current environment, Railway deduplicated the no-op and the active service remained
   healthy.
+- **Verified — post-merge promotion:** GitHub reports successful Vercel, Railway API, and Railway
+  Worker statuses for merge SHA `8698bdd...`. The hosted API reports that full SHA from both health
+  routes, so the smoke test cannot accidentally validate the pre-merge artifact.
 
 ## Verification
 
@@ -201,6 +207,17 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
 - `npm run scan:secrets` passed over 166 publishable text files after the fixture correction.
 - Final local `npm run validate` passed all 22 architecture/documentation checks after this record
   and its linked test report were finalized.
+- Post-merge Vercel Production `aria-ai-web-eight.vercel.app` is Ready from `main` at exact SHA
+  `8698bddeb86efb823d0884172164a016478c5952`; the public page returned HTTP 200 and contained the
+  Aria application shell.
+- Railway API deployment `099e6202` and Worker deployment `318b2376` both reported success for the
+  same merge SHA. Public `/health/live` returned `alive`/200 and `/health/ready` returned
+  `ready`/200 with configuration, database, and Queue all `pass`; both responses reported the exact
+  merge SHA.
+- Final clean-worktree `npm test` passed Development Records 6, CI/contract 23, Web 4, API 57, and
+  Worker 14 tests. The API suite emitted one dependency deprecation warning and no failure.
+- Final clean-worktree `npm run scan:secrets` passed across 144 publishable tracked text files, and
+  `npm run validate` passed all 22 checks.
 
 ## Remaining Risks
 
@@ -211,6 +228,4 @@ Railway Trial for temporary API/Worker staging and a free Redis-compatible Frank
 - Railway Config-as-Code is now marked deprecated by the provider and existing configurations are
   supported only until 2026-12-01. Migration to Railway Infrastructure as Code requires a separate
   approved operational increment before that date.
-- A short post-merge smoke remains required after promoting the approved PR to `main`; Preview smoke
-  does not replace that deployment check.
 - The Worker intentionally has no queue consumer until the dedicated queue framework story.
