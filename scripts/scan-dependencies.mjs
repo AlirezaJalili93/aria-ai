@@ -48,6 +48,7 @@ for (const project of ["api", "worker"]) {
     `apps/${project}`,
     "--locked",
     "--all-groups",
+    "--no-emit-local",
     "--format",
     "requirements-txt",
     "--output-file",

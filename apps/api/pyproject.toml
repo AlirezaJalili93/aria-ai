@@ -3,10 +3,17 @@ name = "aria-api"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
+  "aria-observability",
+  "asyncpg==0.31.0",
   "fastapi==0.141.1",
   "pydantic-settings==2.15.0",
+  "pyjwt[crypto]==2.13.0",
+  "sqlalchemy[asyncio]==2.0.51",
   "uvicorn[standard]==0.52.3",
 ]
+
+[tool.uv.sources]
+aria-observability = { path = "../../packages/observability" }
 
 [dependency-groups]
 dev = [
@@ -34,4 +41,3 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-

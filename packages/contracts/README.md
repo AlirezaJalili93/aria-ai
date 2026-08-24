@@ -1,5 +1,11 @@
 # Contracts
 
+Language-neutral, versioned boundary contracts live here.
+
+- `openapi.yaml`: public HTTP contract.
+- `events.schema.json`: transactional outbox/domain-event envelope.
+- `job-trace-context.schema.json`: API-to-job-to-worker correlation metadata. It contains identifiers only; raw project content and secrets are forbidden from trace context.
+
 - `openapi.yaml` baseline قرارداد `/api/v1` است. Endpoint هر Story هم‌زمان با implementation و contract test افزوده می‌شود.
 - `events.schema.json` envelope مشترک رویدادهای outbox/queue را تعریف می‌کند.
 

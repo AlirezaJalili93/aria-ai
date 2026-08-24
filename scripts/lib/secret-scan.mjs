@@ -52,7 +52,14 @@ export function scanPublishableFiles(root) {
   let filesScanned = 0;
 
   for (const relativePath of files) {
-    const buffer = readFileSync(path.join(root, relativePath));
+    const absolutePath = path.join(root, relativePath);
+    let buffer;
+    try {
+      buffer = readFileSync(absolutePath);
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
     if (buffer.includes(0)) continue;
     filesScanned += 1;
     findings.push(...scanContent(relativePath.replaceAll("\\", "/"), buffer.toString("utf8")));
