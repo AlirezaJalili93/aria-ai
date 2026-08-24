@@ -10,6 +10,9 @@
 - Python 3.12 project runtime through repository-pinned uv
 - PostgreSQL integration through `TEST_DATABASE_URL` when available
 - Node.js 24.11.1 / npm 11
+- [Pull Request #9](https://github.com/AlirezaJalili93/aria-ai/pull/9)
+- Hosted API: `https://aria-staging-api-staging.up.railway.app`
+- Runtime merge SHA: `04bf101d0bc4ab617a8f3d24bc6ba492716f9a02`
 
 ## Test Cases
 
@@ -38,7 +41,7 @@
 | TC-1608 | `npm run validate` | Architecture/development-record checks passed | PASS |
 | TC-1610 | `npm run lint` | Web ESLint and API/Worker Ruff passed | PASS |
 | TC-1610 | `npm run typecheck` | Web TypeScript and API/Worker MyPy passed | PASS |
-| TC-1610 | `npm run test:ci` | 36 passed | PASS |
+| TC-1610 | `npm run test:ci` | 37 passed | PASS |
 | TC-1610 | `npm run test:web` | 4 passed | PASS |
 | TC-1610 | `npm run test:api` | 83 passed with PostgreSQL integration enabled | PASS |
 | TC-1610 | `npm run test:worker` | 16 passed | PASS |
@@ -46,6 +49,10 @@
 | TC-1601–TC-1612 | `npm test` | 146 passed across records, contracts, Web, API, and Worker | PASS |
 | TC-1608, TC-1610 | `npm run scan:dependencies` | npm, API, and Worker audits found no blocking vulnerabilities | PASS |
 | TC-1608, TC-1610 | `npm run scan:secrets` | 186 publishable text files inspected; no secret material found | PASS |
+| TC-1601–TC-1612 | [PR #9 CI](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32730656828) | Quality, Security Baseline, Vercel, and Vercel Preview Comments passed | PASS |
+| TC-1601–TC-1612 | [Post-merge main CI](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32730911519) | Quality passed in 1m24s; Security Baseline passed in 1m7s | PASS |
+| TC-1608 | GitHub commit status for merge SHA | Railway API success; Worker correctly reported watched paths not modified; Vercel success | PASS |
+| TC-1608 | Hosted GET `/health/live` and `/health/ready`; strict full-SHA comparison | Both HTTP 200; release SHA exactly `04bf101d0bc4ab617a8f3d24bc6ba492716f9a02`; configuration/database/queue all `pass` | PASS |
 
 ## Failures and Corrections
 
