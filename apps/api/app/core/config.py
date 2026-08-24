@@ -80,6 +80,7 @@ class ApiSettings(BaseSettings):
     auth_jwks_url: AnyHttpUrl | None = None
     auth_audience: NonEmptyString | None = None
     release_commit_sha: CommitSha | None = None
+    railway_git_commit_sha: CommitSha | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -88,6 +89,12 @@ class ApiSettings(BaseSettings):
         extra="ignore",
         hide_input_in_errors=True,
     )
+
+    @model_validator(mode="after")
+    def resolve_platform_commit_sha(self) -> Self:
+        if self.railway_git_commit_sha is not None:
+            self.release_commit_sha = self.railway_git_commit_sha
+        return self
 
     @model_validator(mode="after")
     def validate_hosted_environment(self) -> Self:

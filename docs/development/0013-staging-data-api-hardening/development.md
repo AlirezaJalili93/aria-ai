@@ -11,7 +11,8 @@
 Correct the hosted security mismatch discovered after M000/M001 delivery without editing an applied
 shared revision. Add one forward Alembic revision that enables RLS on the public Alembic version
 table, revokes implicit `anon`/`authenticated` privileges from the Identity and version tables, and
-removes the same future public-table default privileges when those provider roles exist. This
+removes matching future public-table default privileges owned by the migration role when those
+provider roles exist. This
 increment does not select M010 tenant policies, add a public policy/grant, change product schema, or
 touch Production.
 
@@ -31,7 +32,7 @@ touch Production.
 |---|---|---|---|
 | REQ-063 | ADR-008: applied M001 is immutable; corrections use a new revision | `0001a_identity_projection_access_hardening.py` | TC-1301, TC-1304 |
 | REQ-064 | Migration Plan/Advisor: every exposed public table has RLS | hardening revision enables RLS on `public.alembic_version` | TC-1301, TC-1302 |
-| REQ-065 | ADR-008: M001 grants no Data API access before M010 policy selection | conditional revoke of existing and default `anon`/`authenticated` table privileges | TC-1301, TC-1302 |
+| REQ-065 | ADR-008: M001 grants no Data API access before M010 policy selection | conditional revoke of existing privileges and migration-owner defaults for `anon`/`authenticated` | TC-1301, TC-1302 |
 | REQ-066 | Architecture: Alembic remains provider-neutral and local PostgreSQL remains supported | role-existence guard; no Supabase CLI/SDK/service role | TC-1301, TC-1302, TC-1303 |
 | REQ-067 | Quality rules: recovery path, complete records, mandatory gates | downgrade/re-upgrade coverage; this record and linked report | TC-1302, TC-1303, TC-1304 |
 
@@ -68,8 +69,10 @@ touch Production.
 ## Senior Review
 
 - Hosted finding severity: **HIGH / corrected in code**.
-- The revision covers both already-created tables and the owner role's future public-table defaults,
-  preventing the same provider behavior from recurring on later migrations before M010.
+- The revision covers both already-created tables and the migration-owner role's future
+  public-table defaults. Hosted readback later confirmed that Supabase's provider-owned
+  `supabase_admin` defaults remain outside the migration role's authority; therefore future Aria
+  public-table migrations still require an explicit current-grant revoke before M010.
 - The Alembic version table keeps owner access (RLS is not forced), so controlled migration history
   remains writable while Data API roles have no privilege.
 - Revision ID length remains within Alembic's existing version column; dynamic role identifiers are
@@ -79,9 +82,10 @@ touch Production.
 ## Verification
 
 The complete chain passed against empty real PostgreSQL with simulated provider roles. At head,
-`alembic_version` has RLS, the current/default Data API grant counts are zero, and the controlled
-runner reports exact revision `0001_identity_access_hardening`. Full repository, dependency, and
-secret gates pass. See the linked test report.
+`alembic_version` has RLS, current Data API grant counts and migration-owner default ACL counts are
+zero, and the controlled runner reports exact revision `0001_identity_access_hardening`. Hosted
+provider-default behavior is recorded separately in increment 0014. Full repository, dependency,
+and secret gates pass. See the linked test report.
 
 ## Remaining Risks
 

@@ -7,6 +7,7 @@ from app.infrastructure.auth.supabase_jwt import SupabaseJwtVerifier
 from app.main import create_app
 
 FULL_COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
+STALE_COMMIT_SHA = "89abcdef0123456789abcdef0123456789abcdef"
 
 
 def test_create_app_uses_explicit_bootstrap_settings() -> None:
@@ -52,11 +53,12 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
         auth_provider_url="https://auth-staging.example.test/auth/v1",
         auth_jwks_url="https://auth-staging.example.test/auth/v1/.well-known/jwks.json",
         auth_audience="authenticated",
-        release_commit_sha=FULL_COMMIT_SHA,
+        railway_git_commit_sha=FULL_COMMIT_SHA,
     )
 
     assert settings.app_env == "staging"
     assert settings.storage_bucket == "aria-staging-artifacts"
+    assert settings.release_commit_sha == FULL_COMMIT_SHA
     assert "test-secret-key" not in repr(settings)
     assert "postgresql://staging.example.test/aria" not in repr(settings)
 
@@ -66,6 +68,18 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
     assert app.state.access_token_verifier._issuer == (  # noqa: SLF001 - wiring contract
         "https://auth-staging.example.test/auth/v1"
     )
+
+
+def test_railway_git_commit_sha_is_the_runtime_source_of_truth() -> None:
+    settings = ApiSettings(
+        app_env="test",
+        app_version="0.1.0",
+        log_level="INFO",
+        release_commit_sha=STALE_COMMIT_SHA,
+        railway_git_commit_sha=FULL_COMMIT_SHA,
+    )
+
+    assert settings.release_commit_sha == FULL_COMMIT_SHA
 
 
 @pytest.mark.parametrize(
@@ -81,6 +95,7 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
         ("auth_provider_url", "banana"),
         ("auth_jwks_url", "not-a-url"),
         ("release_commit_sha", "abc"),
+        ("railway_git_commit_sha", "abc"),
         ("log_level", "BLABLA"),
     ],
 )
