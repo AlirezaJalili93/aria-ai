@@ -11,6 +11,10 @@ class AuthenticationProviderUnavailableError(Exception):
     """API signal mapped to the owner-approved retryable Auth 503 envelope."""
 
 
+class MembershipRequiredError(Exception):
+    """API signal for an authenticated subject without active Membership authority."""
+
+
 async def authentication_required_handler(
     request: Request,
     error: Exception,
@@ -54,6 +58,30 @@ async def authentication_provider_unavailable_handler(
                 "code": "AUTH_PROVIDER_UNAVAILABLE",
                 "message": "Authentication provider is temporarily unavailable.",
                 "retryable": True,
+            },
+            "meta": {"request_id": request_id},
+        },
+    )
+
+
+async def membership_required_handler(
+    request: Request,
+    error: Exception,
+) -> JSONResponse:
+    if not isinstance(error, MembershipRequiredError):
+        raise TypeError("Unexpected exception type for membership handler")
+    del request, error
+    trace_context = current_trace_context()
+    request_id = trace_context.request_id if trace_context is not None else None
+    if request_id is None:
+        raise RuntimeError("Membership error requires an active request context")
+    return JSONResponse(
+        status_code=403,
+        content={
+            "error": {
+                "code": "MEMBERSHIP_REQUIRED",
+                "message": "An active account membership is required.",
+                "retryable": False,
             },
             "meta": {"request_id": request_id},
         },

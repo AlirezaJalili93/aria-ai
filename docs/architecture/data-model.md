@@ -2,7 +2,7 @@
 
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-08-17
+- تاریخ همگام‌سازی: 2026-08-24
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -36,9 +36,12 @@ M000 extensions
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| accounts | id, plan_id, status, created_at, updated_at | Tenant root |
-| profiles | user_id, email projection, display_name, profile_data | password hash در Aria ذخیره نمی‌شود |
-| account_memberships | id, account_id, user_id, role, status, joined_at | `UNIQUE(account_id,user_id)`؛ Role متعلق به Membership است |
+| accounts | id=`gen_random_uuid()`, plan_id, status, created_at, updated_at | Tenant root |
+| profiles | user_id, display_name, locale=`fa-IR`, profile_data, timestamps | Email/password در Aria کپی نمی‌شود؛ Auth Provider منبع هویت خارجی است |
+| account_memberships | id, account_id, user_id, role, status, joined_at | `UNIQUE(account_id,user_id)`؛ Role متعلق به Membership است؛ status فقط active/invited/suspended |
+
+`suspended` یعنی Membership همچنان وجود دارد اما authority عملیاتی ندارد. حذف Membership
+عملیات مستقل است و با suspended مدل نمی‌شود.
 
 ## Project و Context
 

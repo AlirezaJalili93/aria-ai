@@ -22,5 +22,12 @@ timeout and map to the retryable `AUTH_PROVIDER_UNAVAILABLE` 503 envelope. Auth 
 only approved reason/provider/timing and trace fields; it never records bearer tokens, headers,
 claims, raw subjects, emails, or provider URLs. Health routes remain public.
 
-Account bootstrap, membership resolution, Tenant Context, product persistence and async jobs
-remain separate documented stories.
+S1-B02 adds Account Bootstrap after verified JWT identity and before Account-scoped use cases. The
+Application use case atomically projects Profile, creates Account, and creates the active Owner
+Membership through a SQLAlchemy UoW. Profile PK conflict handling and database constraints make
+concurrent first requests duplicate-safe; an existing projection resolves without writes. The
+FastAPI dependency emits safe started/completed/resolved/failed events and never logs JWT, Email,
+external subject, or Profile data. It adds no `/bootstrap` or `/me` endpoint.
+
+Multi-account Membership selection, current Tenant Context, product routes and async jobs remain
+separate documented stories.

@@ -7,8 +7,10 @@ from fastapi import FastAPI
 from app.api.errors import (
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    MembershipRequiredError,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    membership_required_handler,
 )
 from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.health import create_health_router
@@ -18,8 +20,23 @@ from app.infrastructure.auth.supabase_jwt import (
     SupabaseJwtVerifier,
 )
 from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_database_probe
+from app.infrastructure.db.runtime import DatabaseRuntime
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
-from app.modules.identity.application.ports import AccessTokenVerifier
+from app.modules.identity.application.account_bootstrap import (
+    AccountBootstrapContext,
+    AccountBootstrapper,
+    BootstrapAccountUseCase,
+)
+from app.modules.identity.application.ports import AccessTokenVerifier, AuthenticatedIdentity
+from app.modules.identity.infrastructure.account_bootstrap import (
+    SqlAlchemyAccountBootstrapUnitOfWorkFactory,
+)
+
+
+class UnavailableAccountBootstrapper:
+    async def execute(self, identity: AuthenticatedIdentity) -> AccountBootstrapContext:
+        del identity
+        raise RuntimeError("Account bootstrap database is not configured")
 
 
 def create_app(
@@ -28,14 +45,19 @@ def create_app(
     queue_probe: Callable[[], Awaitable[bool]] | None = None,
     event_logger: StructuredEventLogger | None = None,
     access_token_verifier: AccessTokenVerifier | None = None,
+    account_bootstrapper: AccountBootstrapper | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
-    owned_database_probe = (
-        PostgresReadinessProbe(resolved_settings.database_url.get_secret_value())
-        if database_probe is None and resolved_settings.database_url
+    database_runtime = (
+        DatabaseRuntime(resolved_settings.database_url.get_secret_value())
+        if resolved_settings.database_url
         else None
     )
-    resolved_database_probe = database_probe or owned_database_probe or unavailable_database_probe
+    resolved_database_probe = database_probe or (
+        PostgresReadinessProbe(engine=database_runtime.engine)
+        if database_runtime is not None
+        else unavailable_database_probe
+    )
     resolved_queue_probe = queue_probe or (
         RedisQueueReadinessProbe(resolved_settings.queue_broker_url.get_secret_value())
         if resolved_settings.queue_broker_url
@@ -45,8 +67,8 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         yield
-        if owned_database_probe is not None:
-            await owned_database_probe.close()
+        if database_runtime is not None:
+            await database_runtime.close()
 
     app = FastAPI(
         title="Aria API",
@@ -69,10 +91,18 @@ def create_app(
         AuthenticationProviderUnavailableError,
         authentication_provider_unavailable_handler,
     )
+    app.add_exception_handler(MembershipRequiredError, membership_required_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
         resolved_settings,
         resolved_event_logger,
+    )
+    app.state.account_bootstrapper = account_bootstrapper or (
+        BootstrapAccountUseCase(
+            SqlAlchemyAccountBootstrapUnitOfWorkFactory(database_runtime.session_factory)
+        )
+        if database_runtime is not None
+        else UnavailableAccountBootstrapper()
     )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)

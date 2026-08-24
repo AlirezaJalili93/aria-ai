@@ -24,12 +24,16 @@ def normalize_async_database_url(database_url: str) -> str:
 class PostgresReadinessProbe:
     def __init__(
         self,
-        database_url: str,
+        database_url: str | None = None,
+        *,
+        engine: AsyncEngine | None = None,
         timeout_seconds: float = READINESS_TIMEOUT_SECONDS,
     ) -> None:
-        self._engine: AsyncEngine = create_async_engine(
-            normalize_async_database_url(database_url),
-            pool_pre_ping=True,
+        if (database_url is None) == (engine is None):
+            raise ValueError("Provide exactly one of database_url or engine")
+        self._owns_engine = engine is None
+        self._engine = engine or create_async_engine(
+            normalize_async_database_url(database_url or ""), pool_pre_ping=True
         )
         self._timeout_seconds = timeout_seconds
 
@@ -43,7 +47,8 @@ class PostgresReadinessProbe:
             return False
 
     async def close(self) -> None:
-        await self._engine.dispose()
+        if self._owns_engine:
+            await self._engine.dispose()
 
 
 async def unavailable_database_probe() -> bool:
