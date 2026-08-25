@@ -15,6 +15,10 @@ class MembershipRequiredError(Exception):
     """API signal for an authenticated subject without active Membership authority."""
 
 
+class AccountContextRequiredError(Exception):
+    """API signal for a missing or malformed Account selector."""
+
+
 async def authentication_required_handler(
     request: Request,
     error: Exception,
@@ -81,6 +85,30 @@ async def membership_required_handler(
             "error": {
                 "code": "MEMBERSHIP_REQUIRED",
                 "message": "An active account membership is required.",
+                "retryable": False,
+            },
+            "meta": {"request_id": request_id},
+        },
+    )
+
+
+async def account_context_required_handler(
+    request: Request,
+    error: Exception,
+) -> JSONResponse:
+    if not isinstance(error, AccountContextRequiredError):
+        raise TypeError("Unexpected exception type for Account context handler")
+    del request, error
+    trace_context = current_trace_context()
+    request_id = trace_context.request_id if trace_context is not None else None
+    if request_id is None:
+        raise RuntimeError("Account context error requires an active request context")
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": {
+                "code": "ACCOUNT_CONTEXT_REQUIRED",
+                "message": "A valid account context is required.",
                 "retryable": False,
             },
             "meta": {"request_id": request_id},

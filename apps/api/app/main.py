@@ -1,13 +1,16 @@
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
+from uuid import UUID
 
 from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
 
 from app.api.errors import (
+    AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
     MembershipRequiredError,
+    account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
     membership_required_handler,
@@ -28,8 +31,16 @@ from app.modules.identity.application.account_bootstrap import (
     BootstrapAccountUseCase,
 )
 from app.modules.identity.application.ports import AccessTokenVerifier, AuthenticatedIdentity
+from app.modules.identity.application.tenant_context import (
+    ResolveTenantContextUseCase,
+    TenantContext,
+    TenantContextResolver,
+)
 from app.modules.identity.infrastructure.account_bootstrap import (
     SqlAlchemyAccountBootstrapUnitOfWorkFactory,
+)
+from app.modules.identity.infrastructure.membership_resolution import (
+    SqlAlchemyMembershipResolver,
 )
 
 
@@ -39,6 +50,16 @@ class UnavailableAccountBootstrapper:
         raise RuntimeError("Account bootstrap database is not configured")
 
 
+class UnavailableTenantContextResolver:
+    async def execute(
+        self,
+        identity: AuthenticatedIdentity,
+        account_id: UUID,
+    ) -> TenantContext:
+        del identity, account_id
+        raise RuntimeError("Tenant context database is not configured")
+
+
 def create_app(
     settings: ApiSettings | None = None,
     database_probe: Callable[[], Awaitable[bool]] | None = None,
@@ -46,6 +67,7 @@ def create_app(
     event_logger: StructuredEventLogger | None = None,
     access_token_verifier: AccessTokenVerifier | None = None,
     account_bootstrapper: AccountBootstrapper | None = None,
+    tenant_context_resolver: TenantContextResolver | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -92,6 +114,7 @@ def create_app(
         authentication_provider_unavailable_handler,
     )
     app.add_exception_handler(MembershipRequiredError, membership_required_handler)
+    app.add_exception_handler(AccountContextRequiredError, account_context_required_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
         resolved_settings,
@@ -103,6 +126,13 @@ def create_app(
         )
         if database_runtime is not None
         else UnavailableAccountBootstrapper()
+    )
+    app.state.tenant_context_resolver = tenant_context_resolver or (
+        ResolveTenantContextUseCase(
+            SqlAlchemyMembershipResolver(database_runtime.session_factory)
+        )
+        if database_runtime is not None
+        else UnavailableTenantContextResolver()
     )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
