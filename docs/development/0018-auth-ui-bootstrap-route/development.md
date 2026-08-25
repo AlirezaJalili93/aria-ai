@@ -135,14 +135,15 @@ commands and case-level evidence. Supabase Staging was read-only verified as `AC
 `eu-central-1`; public Auth settings prove Email is enabled, other providers are disabled, Signup is
 enabled, and `mailer_autoconfirm=false` enforces confirmation. Its public JWKS exposes the approved
 EC/ES256 signing key, and the RLS-enabled Identity tables remain present without test-user data.
+[GitHub Actions run 32821784345](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32821784345)
+passed both Quality and Security baseline on the implementation SHA, including all 99 API tests
+against the workflow's PostgreSQL 16 service.
 
 ## Remaining Risks
 
 - A successful delivered-email callback was not exercised because no authorized test mailbox was
   supplied. The valid callback path is covered by source-contract tests and production compilation;
   a real mailbox journey remains a hosted deployment acceptance check before external beta.
-- The local machine has no running PostgreSQL service, so the 10 real-PostgreSQL tests are skipped
-  locally. Pull-request CI provisions PostgreSQL 16 and is the mandatory execution target for them.
 - Project creation is outside S1-B05. The approved CTA is present but deliberately disabled until
   its documented Story supplies a command/navigation contract.
 - Public/real-user Signup remains blocked by the approved Legal/Consent increment even though the

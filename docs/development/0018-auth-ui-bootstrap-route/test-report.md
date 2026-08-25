@@ -9,6 +9,8 @@
 - Windows local workspace, branch `codex/s1-b05-auth-ui`.
 - Node.js `v24.11.1`; npm `11.6.2`; Python `3.12.14`; Next.js `16.3.1`.
 - Supabase Staging `aria-ai-staging`, Frankfurt `eu-central-1`, status `ACTIVE_HEALTHY`.
+- GitHub-hosted Ubuntu 24.04 Quality runner with PostgreSQL `16-alpine` service for the mandatory
+  database run.
 - Local Next.js development runtime connected with the active non-secret Supabase publishable key;
   no real user identity, mailbox, password, or JWT was used.
 - Browser widths: 375, 768, 1024 and 1440 CSS px at 900px height.
@@ -28,7 +30,7 @@
 | TC-1809 | API Auth | missing/malformed/expired JWT maps to 401 `AUTH_REQUIRED` | PASS |
 | TC-1810 | API provider failure | JWKS/provider failure maps to retryable 503 `AUTH_PROVIDER_UNAVAILABLE` | PASS |
 | TC-1811 | API bootstrap failure | internal Bootstrap failure maps to stable retryable infrastructure error | PASS |
-| TC-1812 | Database regression | existing concurrency/idempotency PostgreSQL cases still pass | PASS — mandatory PostgreSQL CI rerun follows push |
+| TC-1812 | Database regression | existing concurrency/idempotency PostgreSQL cases still pass | PASS — PostgreSQL 16 CI |
 | TC-1813 | Logging | exact approved Auth and Bootstrap event names carry request/correlation metadata | PASS |
 | TC-1814 | Logging privacy | Email, password, JWT, callback token/query and raw subject never enter logs | PASS |
 | TC-1815 | Legal scope | no Terms/Privacy URL, consent version or persistence is invented | PASS |
@@ -57,6 +59,7 @@
 | TC-1809, TC-1810 | Supabase public JWKS read-only check | Active signing key reports `kty=EC`, `alg=ES256`, `use=sig` | PASS |
 | TC-1820 | `git diff --check` | No whitespace error | PASS |
 | TC-1820 | `npm run quality` | Full lint, strict typecheck, 6 record tests, 41 contract tests, 11 Web tests, 89 API tests, 16 Worker tests, all builds, and 22 architecture checks passed | PASS |
+| TC-1812, TC-1820 | [GitHub Actions run 32821784345](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32821784345) | Quality passed with PostgreSQL 16: 99 API tests, 16 Worker tests, 11 Web tests, 41 contract tests, all builds and 22 architecture checks; Security baseline passed | PASS |
 
 ## Failure and Correction History
 
