@@ -8,6 +8,26 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /auth/bootstrap:
+    post:
+      operationId: bootstrapAuthenticatedAccount
+      summary: Create or resolve the authenticated Account projection
+      description: >-
+        Identity-scoped, idempotent pre-tenant command. It accepts no request body,
+        requires no X-Account-ID, and never returns Account, Profile, Membership, or identity data.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Account Bootstrap completed or was already complete. The response is empty.
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "503":
+          description: Authentication or Account Bootstrap infrastructure is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /health/live:
     get:
       servers:
@@ -58,6 +78,22 @@ components:
         type: string
         format: uuid
   responses:
+    AuthenticationRequired:
+      description: The Bearer credential is missing or invalid.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, const: Bearer }
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: AUTH_REQUIRED
+              message: Authentication is required.
+              retryable: false
+            meta:
+              request_id: 00000000-0000-0000-0000-000000000000
     AccountContextRequired:
       description: The Account context header is missing, empty, or not a UUID.
       content:

@@ -1,5 +1,9 @@
 # Test Report: 0011 Account Bootstrap
 
+> Historical evidence notice (2026-08-25): TC-1110 records the then-approved implicit-only API
+> state. [ADR-009](../../adr/ADR-009-pre-tenant-account-bootstrap-command.md) supersedes only that
+> route decision; the remaining Bootstrap test evidence stays valid.
+
 - Increment ID: `0011-account-bootstrap`
 - Date: 2026-08-24
 - [Development record](./development.md)

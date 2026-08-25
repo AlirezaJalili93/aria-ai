@@ -34,7 +34,9 @@
   --primitive-duration-normal: 220ms;
   --primitive-duration-reduced: 1ms;
   --primitive-size-control: 2.75rem;
+  --primitive-size-header: 4rem;
   --primitive-size-content-max: 47.5rem;
+  --primitive-size-form-max: 30rem;
   --primitive-size-focus-ring: 0.125rem;
   --primitive-size-border: 0.0625rem;
   --primitive-font-family-body: Vazirmatn, system-ui, sans-serif;
@@ -62,6 +64,7 @@
   --color-danger-on-dark: var(--primitive-color-red-400);
   --responsive-gutter: var(--primitive-space-4);
   --content-max-width: var(--primitive-size-content-max);
+  --form-max-width: var(--primitive-size-form-max);
   --text-measure: var(--primitive-text-measure-body);
   --focus-ring-width: var(--primitive-size-focus-ring);
   --focus-ring-offset: var(--primitive-size-focus-ring);
@@ -75,6 +78,9 @@
   --button-primary-background: var(--color-primary-strong);
   --button-primary-background-hover: var(--color-primary-hover);
   --button-primary-text: var(--primitive-color-neutral-0);
+  --button-secondary-background: var(--color-surface);
+  --button-secondary-border: var(--color-border);
+  --button-secondary-text: var(--color-text);
   --button-focus-ring: var(--color-focus);
   --button-height: var(--primitive-size-control);
   --button-radius: var(--primitive-radius-md);
@@ -86,7 +92,9 @@
   --card-background: var(--color-surface);
   --card-border: var(--color-border);
   --card-radius: var(--primitive-radius-lg);
+  --auth-card-max-width: var(--form-max-width);
   --border-width-default: var(--primitive-size-border);
+  --header-height: var(--primitive-size-header);
 }
 
 [data-theme="dark"] {

@@ -1,5 +1,10 @@
 # Development Record: 0011 Account Bootstrap
 
+> Historical decision notice (2026-08-25): the implicit-only/no-route portion of this Increment,
+> including `REQ-055`, is superseded by
+> [ADR-009](../../adr/ADR-009-pre-tenant-account-bootstrap-command.md) and Increment 0018. The
+> transactional Bootstrap implementation and its safety constraints remain active.
+
 - Increment ID: `0011-account-bootstrap`
 - Date: 2026-08-24
 - Owner: Codex (implementation and senior review)

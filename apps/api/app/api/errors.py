@@ -11,6 +11,10 @@ class AuthenticationProviderUnavailableError(Exception):
     """API signal mapped to the owner-approved retryable Auth 503 envelope."""
 
 
+class AccountBootstrapFailedError(Exception):
+    """API signal mapped to the retryable Account Bootstrap 503 envelope."""
+
+
 class MembershipRequiredError(Exception):
     """API signal for an authenticated subject without active Membership authority."""
 
@@ -61,6 +65,30 @@ async def authentication_provider_unavailable_handler(
             "error": {
                 "code": "AUTH_PROVIDER_UNAVAILABLE",
                 "message": "Authentication provider is temporarily unavailable.",
+                "retryable": True,
+            },
+            "meta": {"request_id": request_id},
+        },
+    )
+
+
+async def account_bootstrap_failed_handler(
+    request: Request,
+    error: Exception,
+) -> JSONResponse:
+    if not isinstance(error, AccountBootstrapFailedError):
+        raise TypeError("Unexpected exception type for Account Bootstrap handler")
+    del request, error
+    trace_context = current_trace_context()
+    request_id = trace_context.request_id if trace_context is not None else None
+    if request_id is None:
+        raise RuntimeError("Account Bootstrap error requires an active request context")
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": {
+                "code": "ACCOUNT_BOOTSTRAP_FAILED",
+                "message": "Account bootstrap is temporarily unavailable.",
                 "retryable": True,
             },
             "meta": {"request_id": request_id},

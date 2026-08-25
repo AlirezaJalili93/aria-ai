@@ -187,7 +187,12 @@ def test_bootstrap_failure_emits_safe_failed_event() -> None:
         headers={"Authorization": f"Bearer {token}"},
     )
 
-    assert response.status_code == 500
+    assert response.status_code == 503
+    assert response.json()["error"] == {
+        "code": "ACCOUNT_BOOTSTRAP_FAILED",
+        "message": "Account bootstrap is temporarily unavailable.",
+        "retryable": True,
+    }
     events = [json.loads(line) for line in stream.getvalue().splitlines()]
     failed = next(event for event in events if event["event_name"] == "account.bootstrap_failed")
     assert failed["error_code"] == "ACCOUNT_BOOTSTRAP_FAILED"

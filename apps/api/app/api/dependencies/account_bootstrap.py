@@ -5,7 +5,7 @@ from aria_observability import StructuredEventLogger
 from fastapi import Depends, Request
 
 from app.api.dependencies.authentication import require_authenticated_identity
-from app.api.errors import MembershipRequiredError
+from app.api.errors import AccountBootstrapFailedError, MembershipRequiredError
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
     AccountBootstrapper,
@@ -85,7 +85,7 @@ async def _execute_bootstrap(
             error_code="ACCOUNT_BOOTSTRAP_FAILED",
             reason_code="bootstrap_failed",
         )
-        raise
+        raise AccountBootstrapFailedError from None
 
     event_logger.emit(
         "account.bootstrap_completed" if context.created else "account.bootstrap_resolved",

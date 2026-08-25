@@ -27,7 +27,8 @@ Application use case atomically projects Profile, creates Account, and creates t
 Membership through a SQLAlchemy UoW. Profile PK conflict handling and database constraints make
 concurrent first requests duplicate-safe; an existing projection resolves without writes. The
 FastAPI dependency emits safe started/completed/resolved/failed events and never logs JWT, Email,
-external subject, or Profile data. It adds no `/bootstrap` or `/me` endpoint.
+external subject, or Profile data. ADR-009 adds the narrow authenticated
+`POST /api/v1/auth/bootstrap` command, which returns only 204 and must not evolve into `/me`.
 
 S1-B03 adds internal multi-account Membership validation with persisted Role and Status. Current
 Account transport, Tenant Context, product routes and async jobs remain separate documented stories.
