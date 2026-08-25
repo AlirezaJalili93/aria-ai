@@ -21,11 +21,13 @@ from app.modules.identity.application.membership_resolution import (
     ResolveActiveMembershipUseCase,
 )
 from app.modules.identity.application.ports import AuthenticatedIdentity
+from app.modules.identity.application.tenant_context import ResolveTenantContextUseCase
 from app.modules.identity.infrastructure.account_bootstrap import (
     SqlAlchemyAccountBootstrapUnitOfWorkFactory,
 )
 from app.modules.identity.infrastructure.membership_resolution import (
     SqlAlchemyMembershipResolutionRepository,
+    SqlAlchemyMembershipResolver,
 )
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -267,7 +269,7 @@ def test_suspended_membership_denies_context_without_deleting_membership() -> No
                 "UPDATE account_memberships SET status = 'suspended' WHERE user_id = :user_id",
                 {"user_id": subject},
             )
-            with pytest.raises(ActiveMembershipRequired):
+            with pytest.raises(ActiveMembershipRequired) as captured:
                 await use_case.execute(AuthenticatedIdentity(subject=subject))
         finally:
             await runtime.close()
@@ -280,6 +282,7 @@ def test_suspended_membership_denies_context_without_deleting_membership() -> No
             == "suspended"
         )
         assert await _scalar("SELECT count(*) FROM account_memberships") == 1
+        assert captured.value.reason_code == "suspended"
 
     asyncio.run(scenario())
 
@@ -345,11 +348,13 @@ def test_membership_resolution_selects_only_requested_active_membership() -> Non
                     AuthenticatedIdentity(subject=subject),
                     selected_account,
                 )
-                with pytest.raises(ActiveMembershipRequired):
-                    await use_case.execute(
-                        AuthenticatedIdentity(subject=subject),
-                        unowned_account,
-                    )
+                tenant_context = await ResolveTenantContextUseCase(
+                    SqlAlchemyMembershipResolver(runtime.session_factory)
+                ).execute(AuthenticatedIdentity(subject=subject), selected_account)
+                with pytest.raises(ActiveMembershipRequired) as captured:
+                    await ResolveTenantContextUseCase(
+                        SqlAlchemyMembershipResolver(runtime.session_factory)
+                    ).execute(AuthenticatedIdentity(subject=subject), unowned_account)
         finally:
             await runtime.close()
 
@@ -364,6 +369,11 @@ def test_membership_resolution_selects_only_requested_active_membership() -> Non
         assert context.account_id == selected_account
         assert context.membership.role == "admin"
         assert context.membership.status == "active"
+        assert tenant_context.subject_id == subject
+        assert tenant_context.account_id == selected_account
+        assert tenant_context.role == "admin"
+        assert tenant_context.membership_status == "active"
+        assert captured.value.reason_code == "not_found"
         assert before == after
 
     asyncio.run(scenario())
@@ -396,11 +406,12 @@ def test_postgres_inactive_membership_cannot_be_selected(status: str) -> None:
                 use_case = ResolveActiveMembershipUseCase(
                     SqlAlchemyMembershipResolutionRepository(session)
                 )
-                with pytest.raises(ActiveMembershipRequired):
+                with pytest.raises(ActiveMembershipRequired) as captured:
                     await use_case.execute(
                         AuthenticatedIdentity(subject=subject),
                         account_id,
                     )
+                assert captured.value.reason_code == status
         finally:
             await runtime.close()
 

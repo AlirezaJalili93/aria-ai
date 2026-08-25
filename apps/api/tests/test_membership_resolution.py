@@ -94,13 +94,14 @@ def test_inactive_membership_cannot_be_selected(status: MembershipStatus) -> Non
         calls=[],
     )
 
-    with pytest.raises(ActiveMembershipRequired):
+    with pytest.raises(ActiveMembershipRequired) as captured:
         asyncio.run(
             ResolveActiveMembershipUseCase(repository).execute(
                 AuthenticatedIdentity(subject=subject),
                 account_id,
             )
         )
+    assert captured.value.reason_code == status
 
 
 def test_account_without_membership_is_denied() -> None:
@@ -111,13 +112,15 @@ def test_account_without_membership_is_denied() -> None:
         calls=[],
     )
 
-    with pytest.raises(ActiveMembershipRequired):
+    with pytest.raises(ActiveMembershipRequired) as captured:
         asyncio.run(
             ResolveActiveMembershipUseCase(repository).execute(
                 AuthenticatedIdentity(subject=subject),
                 requested_account,
             )
         )
+
+    assert captured.value.reason_code == "not_found"
 
     assert repository.calls == [(subject, requested_account)]
 
@@ -130,13 +133,14 @@ def test_other_users_membership_cannot_authorize_requested_account() -> None:
         calls=[],
     )
 
-    with pytest.raises(ActiveMembershipRequired):
+    with pytest.raises(ActiveMembershipRequired) as captured:
         asyncio.run(
             ResolveActiveMembershipUseCase(repository).execute(
                 AuthenticatedIdentity(subject=subject),
                 requested_account,
             )
         )
+    assert captured.value.reason_code == "not_found"
 
 
 def test_mismatched_repository_result_fails_closed() -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol, cast
 from uuid import UUID
 
 from app.modules.identity.application.membership_ports import (
@@ -12,9 +12,15 @@ from app.modules.identity.application.membership_ports import (
 from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.domain.membership import ACTIVE_MEMBERSHIP_STATUS
 
+MembershipDenialReason = Literal["not_found", "invited", "suspended"]
+
 
 class ActiveMembershipRequired(Exception):
     """The identity has no active Membership for the requested Account."""
+
+    def __init__(self, *, reason_code: MembershipDenialReason) -> None:
+        super().__init__(reason_code)
+        self.reason_code = reason_code
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,8 +54,12 @@ class ResolveActiveMembershipUseCase:
             user_id=identity.subject,
             account_id=account_id,
         )
-        if membership is None or membership.status != ACTIVE_MEMBERSHIP_STATUS:
-            raise ActiveMembershipRequired
+        if membership is None:
+            raise ActiveMembershipRequired(reason_code="not_found")
+        if membership.status != ACTIVE_MEMBERSHIP_STATUS:
+            raise ActiveMembershipRequired(
+                reason_code=cast(MembershipDenialReason, membership.status)
+            )
         if membership.user_id != identity.subject or membership.account_id != account_id:
             raise MembershipProjectionInvariantError
         return ActiveMembershipContext(subject=identity.subject, membership=membership)

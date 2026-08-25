@@ -131,7 +131,7 @@ def test_valid_jwt_runs_implicit_bootstrap_and_emits_safe_completed_event() -> N
         "http.request_completed",
     ]
     completed = events[2]
-    assert completed["account_id"] == str(account_id)
+    assert completed["account_id"] is None
     request_completed = events[3]
     assert completed["request_id"] == request_completed["request_id"]
     assert completed["correlation_id"] == request_completed["correlation_id"]
@@ -202,7 +202,9 @@ def test_suspended_membership_maps_to_standardized_403_without_deletion_semantic
     stream = StringIO()
     subject = uuid4()
     token = "suspended-membership-token"
-    bootstrapper = StubBootstrapper(error=ActiveMembershipRequired())
+    bootstrapper = StubBootstrapper(
+        error=ActiveMembershipRequired(reason_code="suspended")
+    )
     response = TestClient(
         _bootstrap_app(
             stream=stream,

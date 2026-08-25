@@ -46,6 +46,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ReadinessResponse"
 components:
+  parameters:
+    AccountContextHeader:
+      name: X-Account-ID
+      in: header
+      required: true
+      description: >-
+        Selects the Account context. The server authorizes the authenticated
+        identity against an active Membership before accepting the context.
+      schema:
+        type: string
+        format: uuid
+  responses:
+    AccountContextRequired:
+      description: The Account context header is missing, empty, or not a UUID.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: ACCOUNT_CONTEXT_REQUIRED
+              message: A valid account context is required.
+              retryable: false
+            meta:
+              request_id: 00000000-0000-0000-0000-000000000000
+    MembershipRequired:
+      description: The identity does not have an active Membership for the context.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: MEMBERSHIP_REQUIRED
+              message: An active account membership is required.
+              retryable: false
+            meta:
+              request_id: 00000000-0000-0000-0000-000000000000
   securitySchemes:
     bearerAuth:
       type: http

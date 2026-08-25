@@ -9,7 +9,10 @@ from app.modules.identity.application.bootstrap_ports import (
     AccountBootstrapUnitOfWorkFactory,
     ResolvedMembership,
 )
-from app.modules.identity.application.membership_resolution import ActiveMembershipRequired
+from app.modules.identity.application.membership_resolution import (
+    ActiveMembershipRequired,
+    MembershipDenialReason,
+)
 from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.domain.membership import ACTIVE_MEMBERSHIP_STATUS
 
@@ -84,6 +87,17 @@ class BootstrapAccountUseCase:
             )
 
 
+def inactive_account_bootstrap_context(
+    identity: AuthenticatedIdentity,
+) -> AccountBootstrapContext:
+    """Represent an existing identity whose Account authorization is deferred."""
+    return AccountBootstrapContext(
+        subject=identity.subject,
+        active_memberships=(),
+        created=False,
+    )
+
+
 def _context_from_memberships(
     subject: UUID,
     memberships: tuple[ResolvedMembership, ...],
@@ -94,7 +108,12 @@ def _context_from_memberships(
         membership for membership in memberships if membership.status == ACTIVE_MEMBERSHIP_STATUS
     )
     if not active:
-        raise ActiveMembershipRequired
+        reason_code: MembershipDenialReason = (
+            "invited"
+            if any(membership.status == "invited" for membership in memberships)
+            else "suspended"
+        )
+        raise ActiveMembershipRequired(reason_code=reason_code)
     return AccountBootstrapContext(
         subject=subject,
         active_memberships=active,
