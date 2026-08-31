@@ -28,7 +28,8 @@ Canonical Google Drive documents reviewed on 2026-08-25:
 - [Test Strategy & Test Case Master v1.0](https://docs.google.com/document/d/1ctrP7TTfaHrOPBB-sYIm0aruruTPov9t6MKUTtXg0Fk/edit) — frontend state, accessibility, identity and end-to-end coverage.
 - [Dependency & Vendor Register v1.0](https://docs.google.com/document/d/1AVZdOzMahLmNL9c38q9DObuR1C4R787ROc85FBnLgHE/edit) — Supabase Auth and Vercel boundaries.
 - Owner clarifications dated 2026-08-25 approving the exact S1-B05 scope, safe logging events,
-  mandatory verification, `/auth/callback`, `/projects`, and `POST /api/v1/auth/bootstrap` contract.
+  mandatory verification, `/auth/callback`, `/projects`, `POST /api/v1/auth/bootstrap`, and
+  SHA-verified hosted Preview acceptance contracts.
 - Repository `AGENTS.md`, [system architecture](../../architecture/system-architecture.md),
   [design-system master](../../../design-system/MASTER.md), and
   [document-driven development policy](../../governance/document-driven-development.md).
@@ -49,6 +50,7 @@ Canonical Google Drive documents reviewed on 2026-08-25:
 | REQ-081 | UX IA; owner clarification | `/projects` first-use empty state contains «ایجاد اولین پروژه» without onboarding | TC-1804 |
 | REQ-082 | Owner legal scope decision | No invented Terms/Privacy URL or consent version; external signup remains blocked | TC-1802, TC-1815 |
 | REQ-083 | Design System; WCAG/RTL requirements | RTL-first, visible labels/focus, logical CSS, 44px targets, reduced motion | TC-1816–TC-1819 |
+| REQ-084 | Owner Preview acceptance decision | Vercel Web and Railway API/Worker deploy the exact PR SHA before merge; hosted smoke and safe-log evidence pass | TC-1821, TC-1822 |
 
 ## Assumptions and Clarifications
 
@@ -135,9 +137,20 @@ commands and case-level evidence. Supabase Staging was read-only verified as `AC
 `eu-central-1`; public Auth settings prove Email is enabled, other providers are disabled, Signup is
 enabled, and `mailer_autoconfirm=false` enforces confirmation. Its public JWKS exposes the approved
 EC/ES256 signing key, and the RLS-enabled Identity tables remain present without test-user data.
-[GitHub Actions run 32821784345](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32821784345)
-passed both Quality and Security baseline on the implementation SHA, including all 99 API tests
-against the workflow's PostgreSQL 16 service.
+[GitHub Actions run 32822141009](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32822141009)
+passed both Quality and Security baseline on PR SHA
+`e8a048e4c727b769c8d9d83f799bb711fa310232`, including all 99 API tests against the workflow's
+PostgreSQL 16 service.
+
+Hosted acceptance was repeated on 2026-08-31. Vercel deployment
+`D5pcva4roeTm2b4mGAHJcsrdQCwd` is Ready and identifies the exact branch and full PR SHA. Railway's
+independent `aria-staging-api` deployment `5f6e2aa1-7b54-4582-8fb8-52f1f6ceca54` and
+`aria-staging-worker` deployment `03fa122f-1b35-4abc-aa3f-cab962adb756` both report success for the
+same SHA. Hosted `/health/live` and `/health/ready` return that full SHA; configuration, database and
+queue are all `pass`. Browser smoke verified the Login rejection path, scrubbed invalid Callback,
+unauthenticated `/projects` redirect, RTL layout and 44px control. Deployment-scoped runtime logs
+contain the approved safe events, no synthetic Email/password/token, and zero Warning/Error/Fatal
+entries.
 
 ## Remaining Risks
 

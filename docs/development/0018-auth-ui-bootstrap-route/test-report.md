@@ -11,9 +11,16 @@
 - Supabase Staging `aria-ai-staging`, Frankfurt `eu-central-1`, status `ACTIVE_HEALTHY`.
 - GitHub-hosted Ubuntu 24.04 Quality runner with PostgreSQL `16-alpine` service for the mandatory
   database run.
+- Hosted verification SHA: `e8a048e4c727b769c8d9d83f799bb711fa310232`.
+- Vercel Preview deployment `D5pcva4roeTm2b4mGAHJcsrdQCwd`, status Ready, branch
+  `codex/s1-b05-auth-ui`.
+- Railway Staging API deployment `5f6e2aa1-7b54-4582-8fb8-52f1f6ceca54` and private Worker
+  deployment `03fa122f-1b35-4abc-aa3f-cab962adb756`, both successful for the hosted verification
+  SHA.
 - Local Next.js development runtime connected with the active non-secret Supabase publishable key;
   no real user identity, mailbox, password, or JWT was used.
 - Browser widths: 375, 768, 1024 and 1440 CSS px at 900px height.
+- Hosted verification date: 2026-08-31.
 
 ## Test Cases
 
@@ -39,6 +46,8 @@
 | TC-1818 | Responsive | 375, 768, 1024 and 1440px layouts have no overflow or clipped controls | PASS |
 | TC-1819 | Design tokens/motion | no raw component colors; 44px controls and reduced-motion handling remain enforced | PASS |
 | TC-1820 | Repository gates | `npm test` and `npm run validate` pass with complete records | PASS |
+| TC-1821 | Hosted exact-SHA deployment | Vercel Web and Railway API/Worker deployment contexts identify the full PR SHA; API live/ready and internal checks pass | PASS |
+| TC-1822 | Hosted Auth smoke/privacy | Login rejection, invalid Callback, protected route, Auth API errors and deployment logs preserve the approved contracts without sensitive data | PASS |
 
 ## Execution Results
 
@@ -59,7 +68,12 @@
 | TC-1809, TC-1810 | Supabase public JWKS read-only check | Active signing key reports `kty=EC`, `alg=ES256`, `use=sig` | PASS |
 | TC-1820 | `git diff --check` | No whitespace error | PASS |
 | TC-1820 | `npm run quality` | Full lint, strict typecheck, 6 record tests, 41 contract tests, 11 Web tests, 89 API tests, 16 Worker tests, all builds, and 22 architecture checks passed | PASS |
-| TC-1812, TC-1820 | [GitHub Actions run 32821784345](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32821784345) | Quality passed with PostgreSQL 16: 99 API tests, 16 Worker tests, 11 Web tests, 41 contract tests, all builds and 22 architecture checks; Security baseline passed | PASS |
+| TC-1820 | Final documentation rerun: `npm test`; `npm run validate` on 2026-08-31 | 6 record tests, 41 contract tests, 11 Web tests, 89 API tests with 10 documented local PostgreSQL skips, 16 Worker tests, and 22 architecture checks passed | PASS |
+| TC-1812, TC-1820 | [GitHub Actions run 32822141009](https://github.com/AlirezaJalili93/aria-ai/actions/runs/32822141009) | Quality passed with PostgreSQL 16: 99 API tests, 16 Worker tests, 11 Web tests, 41 contract tests, all builds and 22 architecture checks; Security baseline passed | PASS |
+| TC-1821 | GitHub commit/deployment status APIs; Railway hosted GET `/health/live` and `/health/ready`; Vercel deployment dashboard | Vercel Ready on exact branch/SHA; Railway API deployment `5f6e2aa1-7b54-4582-8fb8-52f1f6ceca54` and Worker deployment `03fa122f-1b35-4abc-aa3f-cab962adb756` success; live/ready HTTP 200 with full SHA match and configuration/database/queue=`pass` | PASS |
+| TC-1809, TC-1822 | Hosted `POST /api/v1/auth/bootstrap` without Authorization and with a synthetic malformed Bearer | Both returned 401 `AUTH_REQUIRED`, `retryable=false`, with request IDs and no tenant-header requirement | PASS |
+| TC-1801, TC-1806, TC-1816–TC-1818, TC-1822 | Exact-SHA Vercel Preview browser smoke | Login rendered with RTL root, no overflow and 44px control; synthetic invalid Login showed the safe Persian error; invalid Callback redirected to `/auth/callback/error?reason=invalid_or_expired`; unauthenticated `/projects` redirected to Login; browser console had no Warning/Error | PASS |
+| TC-1814, TC-1822 | Deployment-scoped Vercel Runtime Logs | `auth.login_failed` and `auth.callback_failed` contained only safe IDs, reason and duration; synthetic Email/password/token were absent; Warning/Error/Fatal counts were zero | PASS |
 
 ## Failure and Correction History
 
@@ -73,6 +87,10 @@
 - Browser review found Next.js development request logging exposed callback query strings. The
   callback path is now excluded from incoming request logs, credentials are scrubbed before every
   redirect, and the exact browser scenario was rerun without token disclosure.
+- The first final-documentation `npm test` attempt was stopped before API execution because the
+  restricted workspace could not open the existing external `uv` cache. The identical command was
+  rerun with approved cache access; all executable local tests passed with only the documented ten
+  PostgreSQL-dependent skips. No source or test configuration was changed to obtain the pass.
 
 ## Final Status
 
