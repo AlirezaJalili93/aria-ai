@@ -21,6 +21,13 @@
   no real user identity, mailbox, password, or JWT was used.
 - Browser widths: 375, 768, 1024 and 1440 CSS px at 900px height.
 - Hosted verification date: 2026-08-31.
+- Post-merge verification branch: `codex/s1-b05-final-seal`; merge SHA
+  `fdcd9d3f617a1afa328d5ccb1cd30f34b5926ac9`.
+- Post-merge Railway deployments: API `e43f7b64-208f-48e6-adaf-2bc2691b7506`; Worker
+  `3cf3165e-714b-45bd-997d-105816fb234a`.
+- Corrected Vercel main deployment: `9RRDRSGatdcxmhJ4mQqy1uAKZuhj`, current Production channel for
+  the exact merge SHA. The Vercel channel consumes the approved Staging public dependencies; it is
+  not a product-Production acceptance environment.
 
 ## Test Cases
 
@@ -48,6 +55,8 @@
 | TC-1820 | Repository gates | `npm test` and `npm run validate` pass with complete records | PASS |
 | TC-1821 | Hosted exact-SHA deployment | Vercel Web and Railway API/Worker deployment contexts identify the full PR SHA; API live/ready and internal checks pass | PASS |
 | TC-1822 | Hosted Auth smoke/privacy | Login rejection, invalid Callback, protected route, Auth API errors and deployment logs preserve the approved contracts without sensitive data | PASS |
+| TC-1823 | Post-merge exact-SHA promotion | Main CI, Railway API/Worker and Vercel Web identify the merge SHA; hosted API readiness passes | PASS |
+| TC-1824 | Post-merge runtime regression | A build-ready/runtime-broken Vercel deployment is detected, corrected through environment scoping, redeployed, and fully re-smoked | PASS |
 
 ## Execution Results
 
@@ -74,6 +83,12 @@
 | TC-1809, TC-1822 | Hosted `POST /api/v1/auth/bootstrap` without Authorization and with a synthetic malformed Bearer | Both returned 401 `AUTH_REQUIRED`, `retryable=false`, with request IDs and no tenant-header requirement | PASS |
 | TC-1801, TC-1806, TC-1816–TC-1818, TC-1822 | Exact-SHA Vercel Preview browser smoke | Login rendered with RTL root, no overflow and 44px control; synthetic invalid Login showed the safe Persian error; invalid Callback redirected to `/auth/callback/error?reason=invalid_or_expired`; unauthenticated `/projects` redirected to Login; browser console had no Warning/Error | PASS |
 | TC-1814, TC-1822 | Deployment-scoped Vercel Runtime Logs | `auth.login_failed` and `auth.callback_failed` contained only safe IDs, reason and duration; synthetic Email/password/token were absent; Warning/Error/Fatal counts were zero | PASS |
+| TC-1823 | [Main CI run 33363686425](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33363686425); GitHub commit statuses | Quality and Security passed; Vercel, Railway API and Railway Worker statuses all succeeded for merge SHA `fdcd9d3f617a1afa328d5ccb1cd30f34b5926ac9` | PASS |
+| TC-1823 | Railway post-merge hosted smoke | API deployment `e43f7b64-208f-48e6-adaf-2bc2691b7506` and Worker deployment `3cf3165e-714b-45bd-997d-105816fb234a` succeeded; live/ready returned HTTP 200 and the full merge SHA; configuration/database/queue=`pass`; missing and malformed Bootstrap credentials each returned 401 `AUTH_REQUIRED`, `retryable=false` | PASS |
+| TC-1824 | Initial Vercel main deployment `Hoa4xrTr2t3qWu8vf1bGt985FfrJ`; direct HTTP and deployment logs | Build status was Ready, but `/`, `/auth/login`, `/projects` and Callback requests returned 500; deployment log reported `AuthConfigurationError` because the four required Auth runtime keys were Preview-branch scoped only | FAIL — detected and corrected |
+| TC-1824 | Vercel environment-scope readback and redeploy `9RRDRSGatdcxmhJ4mQqy1uAKZuhj` | Separate Config entries for `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_API_BASE_URL`, `PUBLIC_APP_URL` and `NEXT_PUBLIC_SUPABASE_URL` exist in Production scope; redeploy is Ready/current for exact merge SHA; no value was committed or copied into test evidence | PASS |
+| TC-1801, TC-1806, TC-1809, TC-1814, TC-1824 | Corrected Vercel Production HTTP/browser/log smoke | Login HTTP 200 and safe Persian invalid-credential message; invalid Callback HTTP 303 to `/auth/callback/error?reason=invalid_or_expired`; unauthenticated `/projects` resolved to `/auth/login`; approved safe events present; synthetic Email/password, `AuthConfigurationError` and post-correction GET 500 absent | PASS |
+| TC-1820, TC-1823, TC-1824 | Post-merge final-seal rerun: `npm test`; `npm run validate`; `npm run scan:secrets`; `git diff --check` | 6 record, 41 contract, 11 Web, 89 API with 10 documented local PostgreSQL skips, and 16 Worker tests passed; 22 architecture checks passed; 218 files passed secret scan; no whitespace error | PASS |
 
 ## Failure and Correction History
 
@@ -91,6 +106,11 @@
   restricted workspace could not open the existing external `uv` cache. The identical command was
   rerun with approved cache access; all executable local tests passed with only the documented ten
   PostgreSQL-dependent skips. No source or test configuration was changed to obtain the pass.
+- The first post-merge Vercel deployment was build-ready but runtime-broken. Direct HTTP returned
+  500 and deployment logs reported `AuthConfigurationError`; environment readback proved all four
+  required keys were limited to the PR Preview branch. Separate Production-scoped Config entries
+  were created without committing or logging their values. Redeploy `9RRDRSGatdcxmhJ4mQqy1uAKZuhj`
+  at the same merge SHA passed the repeated HTTP, browser, redirect and log checks.
 
 ## Final Status
 
