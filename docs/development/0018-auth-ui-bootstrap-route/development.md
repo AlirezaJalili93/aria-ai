@@ -30,6 +30,9 @@ Canonical Google Drive documents reviewed on 2026-08-25:
 - Owner clarifications dated 2026-08-25 approving the exact S1-B05 scope, safe logging events,
   mandatory verification, `/auth/callback`, `/projects`, `POST /api/v1/auth/bootstrap`, and
   SHA-verified hosted Preview acceptance contracts.
+- Owner hosted-acceptance sequence confirmed 2026-08-31: merge only after exact-SHA Preview
+  acceptance, promote `main`, and repeat a bounded post-merge smoke on the official Staging
+  runtime.
 - Repository `AGENTS.md`, [system architecture](../../architecture/system-architecture.md),
   [design-system master](../../../design-system/MASTER.md), and
   [document-driven development policy](../../governance/document-driven-development.md).
@@ -51,6 +54,7 @@ Canonical Google Drive documents reviewed on 2026-08-25:
 | REQ-082 | Owner legal scope decision | No invented Terms/Privacy URL or consent version; external signup remains blocked | TC-1802, TC-1815 |
 | REQ-083 | Design System; WCAG/RTL requirements | RTL-first, visible labels/focus, logical CSS, 44px targets, reduced motion | TC-1816–TC-1819 |
 | REQ-084 | Owner Preview acceptance decision | Vercel Web and Railway API/Worker deploy the exact PR SHA before merge; hosted smoke and safe-log evidence pass | TC-1821, TC-1822 |
+| REQ-085 | Owner post-merge acceptance sequence | Railway Staging services follow `main`; Vercel's main/Production channel carries the approved Staging public configuration; exact merge SHA and post-merge smoke pass | TC-1823, TC-1824 |
 
 ## Assumptions and Clarifications
 
@@ -84,6 +88,10 @@ inspection showed no callable route for the required frontend sequence.
   RTL-first, responsive, focus-visible, 44px-target and reduced-motion styles.
 - Added API behavior tests, Web contract tests, Bootstrap contract regression tests, dependency
   updates and non-secret environment placeholders.
+- Promoted both Railway Staging services from the temporary PR branch to `main`. Added separate
+  Vercel Production-scoped entries for the four already-approved public Staging runtime keys, then
+  redeployed the exact merge SHA. No value was committed to the repository or included in the
+  development/test evidence.
 
 ## Architecture and Design Decisions
 
@@ -110,6 +118,9 @@ inspection showed no callable route for the required frontend sequence.
   guard does not weaken S1-B04 authorization.
 - `npm run validate` continues to enforce all repository structure and development-record rules; no
   gate was bypassed or weakened.
+- The Vercel `Production` deployment channel remains the official main-branch Web target for this
+  Staging increment. Reusing the approved Staging dependencies there is not approval of product
+  Production, external beta, or public Signup.
 
 ## Senior Review
 
@@ -129,6 +140,12 @@ inspection showed no callable route for the required frontend sequence.
   boundaries, no effect-derived state, accessible status/errors, and no unnecessary client modules.
 - Re-ran Ruff, MyPy, ESLint, TypeScript Strict, production build, contract tests, secret scan and
   dependency audit after the corrections. No unresolved HIGH/MEDIUM implementation finding remains.
+- Post-merge review detected a false-green deployment boundary: Vercel reported the first
+  main-branch build Ready, but every real route returned 500 because the four Auth runtime keys
+  existed only in the PR-scoped Preview environment. Runtime logs identified
+  `AuthConfigurationError` without exposing a value. Separate Production-scoped Config entries
+  were added, the same merge SHA was redeployed, and HTTP, browser and safe-log checks were repeated
+  successfully. The failed attempt remains recorded in the test report.
 
 ## Verification
 
@@ -152,6 +169,28 @@ unauthenticated `/projects` redirect, RTL layout and 44px control. Deployment-sc
 contain the approved safe events, no synthetic Email/password/token, and zero Warning/Error/Fatal
 entries.
 
+Post-merge promotion was verified against merge SHA
+`fdcd9d3f617a1afa328d5ccb1cd30f34b5926ac9`. Main CI run
+`33363686425` passed Quality and Security. Railway API deployment
+`e43f7b64-208f-48e6-adaf-2bc2691b7506` and Worker deployment
+`3cf3165e-714b-45bd-997d-105816fb234a` both report success for that SHA. Hosted live/ready return
+the full merge SHA and pass configuration, database and queue checks; missing and malformed
+Bootstrap credentials retain the approved 401 envelope.
+
+The first Vercel main deployment `Hoa4xrTr2t3qWu8vf1bGt985FfrJ` was build-ready but failed runtime
+smoke with HTTP 500 because required Auth configuration was absent from the Production scope.
+After the scope correction, deployment `9RRDRSGatdcxmhJ4mQqy1uAKZuhj` became the current Production
+deployment for the same merge SHA. Login returns 200, invalid Login shows the safe Persian error,
+invalid Callback redirects to the scrubbed error route, and unauthenticated `/projects` resolves to
+Login in the browser. Deployment-scoped logs contain `auth.login_failed` and
+`auth.callback_failed`, contain no synthetic Email/password, and contain no post-correction
+configuration error or HTTP 500.
+
+The post-merge final-seal working tree then passed `npm test`, `npm run validate`,
+`npm run scan:secrets` and `git diff --check`: 6 development-record tests, 41 contract tests,
+11 Web tests, 89 API tests with the 10 documented local PostgreSQL skips, 16 Worker tests,
+22 architecture checks, and a 218-file secret scan. No product source changed during this seal.
+
 ## Remaining Risks
 
 - A successful delivered-email callback was not exercised because no authorized test mailbox was
@@ -161,3 +200,6 @@ entries.
   its documented Story supplies a command/navigation contract.
 - Public/real-user Signup remains blocked by the approved Legal/Consent increment even though the
   Supabase Staging project permits internal Signup.
+- The Vercel dashboard labels the main-branch Web target `Production`, but it is connected to the
+  approved Staging API/Auth resources for this Sprint. Product Production topology, backups, legal
+  readiness and external availability remain outside this increment.
