@@ -18,11 +18,12 @@ test("account bootstrap preserves API/Application/Infrastructure layering", asyn
   assert.match(repository, /sqlalchemy/i);
 });
 
-test("account bootstrap has the approved implicit route and logging contract", async () => {
+test("account bootstrap has the approved explicit command and logging contract", async () => {
   const dependency = await read("apps/api/app/api/dependencies/account_bootstrap.py");
+  const router = await read("apps/api/app/api/routers/auth.py");
   const main = await read("apps/api/app/main.py");
   const openApi = await read("packages/contracts/openapi.yaml");
-  const combinedRoutes = `${main}\n${openApi}`;
+  const combinedRoutes = `${router}\n${main}\n${openApi}`;
 
   for (const event of [
     "account.bootstrap_started",
@@ -32,8 +33,17 @@ test("account bootstrap has the approved implicit route and logging contract", a
   ]) {
     assert.match(dependency, new RegExp(event.replaceAll(".", "\\.")));
   }
-  assert.doesNotMatch(combinedRoutes, /["']\/(?:api\/v1\/)?(?:bootstrap|me)["']/i);
+  assert.match(router, /@router\.post\([\s\S]*["']\/bootstrap["']/);
+  assert.match(router, /Depends\(ensure_bootstrapped_identity\)/);
+  assert.match(router, /HTTP_204_NO_CONTENT/);
+  assert.doesNotMatch(router, /X-Account-ID|response_model|account_id|profile_data/i);
+  assert.doesNotMatch(combinedRoutes, /["']\/(?:api\/v1\/)?me["']/i);
   assert.doesNotMatch(dependency, /profile_data|email|credentials|\.subject/);
+  const routeContract = openApi.split("  /auth/bootstrap:")[1]?.split("  /health/live:")[0] ?? "";
+  assert.match(routeContract, /bearerAuth/);
+  assert.match(routeContract, /["']204["']/);
+  assert.doesNotMatch(routeContract, /["']403["']/);
+  assert.doesNotMatch(routeContract, /requestBody:/);
 });
 
 test("M001 enforces the approved Profile and Membership schema", async () => {

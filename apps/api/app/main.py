@@ -6,16 +6,19 @@ from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
 
 from app.api.errors import (
+    AccountBootstrapFailedError,
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
     MembershipRequiredError,
+    account_bootstrap_failed_handler,
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
     membership_required_handler,
 )
 from app.api.middleware.observability import ObservabilityMiddleware
+from app.api.routers.auth import create_auth_router
 from app.api.routers.health import create_health_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
@@ -114,6 +117,7 @@ def create_app(
         authentication_provider_unavailable_handler,
     )
     app.add_exception_handler(MembershipRequiredError, membership_required_handler)
+    app.add_exception_handler(AccountBootstrapFailedError, account_bootstrap_failed_handler)
     app.add_exception_handler(AccountContextRequiredError, account_context_required_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
@@ -137,6 +141,7 @@ def create_app(
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
+    app.include_router(create_auth_router(), prefix="/api/v1")
     return app
 
 

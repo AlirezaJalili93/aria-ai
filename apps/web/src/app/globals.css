@@ -17,9 +17,21 @@ body {
 }
 
 a:focus-visible,
+button:focus-visible,
+input:focus-visible,
 [tabindex="-1"]:focus-visible {
   outline: var(--focus-ring-width) solid hsl(var(--color-focus));
   outline-offset: var(--focus-ring-offset);
+}
+
+a {
+  color: hsl(var(--color-primary));
+  text-underline-offset: var(--primitive-space-1);
+}
+
+button,
+input {
+  font: inherit;
 }
 
 .skip-link {
@@ -106,6 +118,171 @@ a:focus-visible,
   color: hsl(var(--color-text-muted));
 }
 
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--button-height);
+  padding-inline: var(--primitive-space-4);
+  border: var(--border-width-default) solid transparent;
+  border-radius: var(--button-radius);
+  font-weight: var(--font-weight-label);
+  line-height: var(--line-height-body);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--primitive-duration-fast) ease-out,
+    border-color var(--primitive-duration-fast) ease-out;
+}
+
+.button--primary {
+  background: hsl(var(--button-primary-background));
+  color: hsl(var(--button-primary-text));
+}
+
+.button--primary:hover:not(:disabled) {
+  background: hsl(var(--button-primary-background-hover));
+}
+
+.button--secondary {
+  border-color: hsl(var(--button-secondary-border));
+  background: hsl(var(--button-secondary-background));
+  color: hsl(var(--button-secondary-text));
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-shell {
+  min-block-size: 100dvh;
+}
+
+.auth-header {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--header-height);
+  padding-inline: var(--responsive-gutter);
+  border-block-end: var(--border-width-default) solid hsl(var(--color-border));
+  background: hsl(var(--color-surface));
+}
+
+.auth-main,
+.projects-main {
+  display: grid;
+  place-items: center;
+  min-block-size: calc(100dvh - var(--header-height));
+  padding: var(--primitive-space-8) var(--responsive-gutter);
+}
+
+.auth-card,
+.empty-state {
+  inline-size: min(100%, var(--auth-card-max-width));
+  padding: var(--primitive-space-8);
+  border: var(--border-width-default) solid hsl(var(--card-border));
+  border-radius: var(--card-radius);
+  background: hsl(var(--card-background));
+}
+
+.auth-card h1,
+.auth-card h2,
+.auth-card p,
+.empty-state h1,
+.empty-state p,
+.status-card h1 {
+  margin-block-start: var(--primitive-space-0);
+}
+
+.auth-card h1,
+.auth-card h2,
+.empty-state h1 {
+  margin-block-end: var(--primitive-space-3);
+}
+
+.auth-intro,
+.empty-state > p:not(.eyebrow) {
+  margin-block-end: var(--primitive-space-6);
+  color: hsl(var(--color-text-muted));
+}
+
+.auth-form,
+.field-group,
+.auth-state {
+  display: grid;
+}
+
+.auth-form {
+  gap: var(--primitive-space-4);
+}
+
+.field-group {
+  gap: var(--primitive-space-2);
+}
+
+.field-group label {
+  font-weight: var(--font-weight-label);
+}
+
+.text-field {
+  min-block-size: var(--field-height);
+  inline-size: 100%;
+  padding-inline: var(--primitive-space-3);
+  border: var(--border-width-default) solid hsl(var(--field-border));
+  border-radius: var(--button-radius);
+  background: hsl(var(--field-background));
+  color: hsl(var(--field-text));
+}
+
+.text-field:focus-visible {
+  border-color: hsl(var(--color-focus));
+}
+
+.text-field--ltr {
+  direction: ltr;
+  text-align: left;
+}
+
+.inline-alert {
+  margin-block: var(--primitive-space-0);
+  color: hsl(var(--field-error));
+}
+
+.form-status {
+  min-block-size: var(--primitive-space-6);
+  margin-block: var(--primitive-space-0);
+}
+
+.auth-alternative {
+  margin-block-end: var(--primitive-space-0);
+  color: hsl(var(--color-text-muted));
+  text-align: center;
+}
+
+.auth-state {
+  gap: var(--primitive-space-4);
+}
+
+.auth-state p {
+  margin-block-end: var(--primitive-space-0);
+  color: hsl(var(--color-text-muted));
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--primitive-space-3);
+}
+
+.empty-state {
+  text-align: center;
+}
+
+.app-header form {
+  margin: var(--primitive-space-0);
+}
+
 @media (max-width: 47.999rem) {
   .app-header {
     align-items: flex-start;
@@ -116,6 +293,15 @@ a:focus-visible,
 
   .main-content {
     padding-block: var(--primitive-space-8);
+  }
+
+  .auth-card,
+  .empty-state {
+    padding: var(--primitive-space-6);
+  }
+
+  .button-row .button {
+    inline-size: 100%;
   }
 }
 
