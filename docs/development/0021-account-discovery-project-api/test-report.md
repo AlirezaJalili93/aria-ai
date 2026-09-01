@@ -53,6 +53,7 @@ when `TEST_DATABASE_URL` is configured. Secrets are not recorded.
 | TC-2115, TC-2116 | `npm run scan:secrets` | 248 publishable text files inspected; no secret found | PASS |
 | TC-2101–TC-2116 | `npm test` | Full repository test command passed | PASS |
 | TC-2101–TC-2116 | `npm run validate` | Architecture and development-record gates passed | PASS |
+| TC-2101–TC-2116 | [GitHub PR #15 checks](https://github.com/AlirezaJalili93/aria-ai/pull/15/checks) | Quality 1m26s, Security baseline 27s, Vercel and Preview Comments passed | PASS |
 
 ## Failures and Corrections
 

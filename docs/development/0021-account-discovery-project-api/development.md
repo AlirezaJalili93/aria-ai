@@ -105,11 +105,12 @@ commit. No new deployable or cross-module write is added.
 
 All focused tests, 19 real PostgreSQL integration tests, monorepo lint/typecheck, 53 CI contract
 tests, 12 Web tests, 16 Worker tests, production builds and both security scans passed. The final
-mandatory `npm test` and `npm run validate` results are recorded in the linked test report.
+mandatory `npm test` and `npm run validate` passed. GitHub PR #15 then passed Quality, Security
+baseline and the Vercel Preview deployment; details are recorded in the linked test report.
 
 ## Remaining Risks
 
-- Hosted CI and staging smoke evidence follow after publication; local implementation and migration
-  gates are complete.
+- Main/staging migration and post-merge smoke evidence remain gated on PR approval and merge; PR
+  Quality, Security and Vercel Preview checks are complete.
 - Idempotency reservation retention has no cleanup policy in S1-C02. No automatic deletion was
   invented; a future retention requirement may add an explicit maintenance policy.
