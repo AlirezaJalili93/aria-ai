@@ -59,6 +59,35 @@ test("Auth failures and logout expose the approved safe event vocabulary", async
     assert.match(combined, new RegExp(event.replaceAll(".", "\\.")));
   }
   assert.doesNotMatch(logging, /email|password|access_token|refresh_token|token_hash|raw_sub/i);
+  for (const field of [
+    "schema_version",
+    "service",
+    "environment",
+    "app_version",
+    "release_commit_sha",
+    "request_id",
+    "correlation_id"
+  ]) {
+    assert.match(logging, new RegExp(field));
+  }
+});
+
+test("Callback keeps safe internal failure classes distinct", async () => {
+  const callback = await read("../src/app/auth/callback/route.ts");
+
+  for (const reason of [
+    "invalid_or_expired",
+    "configuration_unavailable",
+    "rate_limited",
+    "auth_provider_unavailable",
+    "auth_required",
+    "bootstrap_unavailable",
+    "unexpected_failure"
+  ]) {
+    assert.match(callback, new RegExp(reason));
+  }
+  assert.match(callback, /error instanceof BootstrapRequestError/);
+  assert.match(callback, /callbackProviderFailureReason\(result\.error\.status\)/);
 });
 
 test("framework request logging excludes the credential-bearing callback URL", async () => {
@@ -75,6 +104,7 @@ test("Protected projects route and SSR proxy verify claims", async () => {
   assert.match(projects, /redirect\(["']\/auth\/login["']\)/);
   assert.match(projects, /ایجاد اولین پروژه/);
   assert.doesNotMatch(projects, /\/onboarding/);
+  assert.doesNotMatch(projects, /bootstrapSession|getSession\(\)/);
   assert.match(proxy, /getClaims\(\)/);
 });
 

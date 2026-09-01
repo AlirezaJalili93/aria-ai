@@ -1,0 +1,1 @@
+"""Project modular-monolith boundary."""

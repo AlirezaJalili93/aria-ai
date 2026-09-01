@@ -10,7 +10,8 @@ test("tenant dependency preserves the approved authentication and layering flow"
     "apps/api/app/modules/identity/application/tenant_context.py"
   );
 
-  assert.match(dependency, /Depends\(ensure_bootstrapped_identity\)/);
+  assert.match(dependency, /Depends\(require_authenticated_identity\)/);
+  assert.doesNotMatch(dependency, /ensure_bootstrapped_identity|AccountBootstrapContext/);
   assert.match(dependency, /tenant_context_resolver\.execute/);
   assert.doesNotMatch(dependency, /sqlalchemy|AsyncSession|\bselect\s*\(/i);
   assert.doesNotMatch(useCase, /fastapi|sqlalchemy|supabase/i);

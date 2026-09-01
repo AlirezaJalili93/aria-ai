@@ -1,8 +1,9 @@
 # مدل داده‌ی Sprint 1 — Architecture v2
 
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
+- فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-08-24
+- تاریخ همگام‌سازی: 2026-09-01
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -11,6 +12,7 @@
 - PostgreSQL منبع حقیقت تراکنشی Domain، Version، Job، Outbox و Usage است.
 - Tenant Anchor برابر `account_id` است و در جدول‌های محتوایی مستقیم ذخیره می‌شود.
 - timestampها `timestamptz` و UTC هستند.
+- `updated_at` جدول‌های mutable را PostgreSQL با trigger مصوب ADR-010 مدیریت می‌کند.
 - UUIDها server-side تولید می‌شوند.
 - Shared/Approved ScopeVersion تغییرناپذیر و UsageRecord append-only است.
 - Redis فقط Queue/Cache/Quota Projection است.
@@ -47,7 +49,7 @@ M000 extensions
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| projects | id, account_id, owner_id, project_type, status, current_context_version, title | project_type فقط landing/corporate/portfolio |
+| projects | id, account_id, owner_id, title, project_type, status, current_context_version=`0`, created_at, updated_at, deleted_at | `owner_id` به Profile وصل است؛ type فقط landing/corporate/portfolio؛ status فقط draft/active/awaiting_approval/approved/generating/delivered/archived؛ version نامنفی؛ حذف نرم |
 | context_sources | id, account_id, project_id, source_type, status, storage metadata | storage key از filename کاربر ساخته نمی‌شود |
 | context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical text/ref | `UNIQUE(source_id,version_no)` و history حفظ می‌شود |
 | context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status | item_type: fact/assumption/decision/constraint/reference/unknown |
@@ -78,6 +80,10 @@ M000 extensions
 - Entityهای Context/Requirement/Gap/Scope با account/project/version یا status index می‌شوند.
 - RLS روی جدول‌های tenant-owned فعال است؛ Backend authorization مستقل از RLS باقی می‌ماند.
 - Cross-Tenant tests برای SELECT/UPDATE/DELETE و child tableها Release Blocker هستند.
+- Queryهای عادی Project فقط `deleted_at IS NULL` را می‌خوانند؛ بازیابی حذف‌شده مسیر داخلی
+  صریح می‌خواهد.
+- Create Project فقط با Membership فعال همان Account مجاز است و `owner_id` از subject احرازشده
+  می‌آید.
 
 ## Migration Guardrails
 

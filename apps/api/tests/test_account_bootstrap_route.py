@@ -11,6 +11,7 @@ from app.core.config import ApiSettings
 from app.main import create_app
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
+    AccountBootstrapInfrastructureError,
     AccountBootstrapper,
 )
 from app.modules.identity.application.bootstrap_ports import ResolvedMembership
@@ -54,7 +55,7 @@ class StubBootstrapper(AccountBootstrapper):
     async def execute(self, identity: AuthenticatedIdentity) -> AccountBootstrapContext:
         self.calls += 1
         if self._fail:
-            raise RuntimeError("sensitive database detail")
+            raise AccountBootstrapInfrastructureError
         if self._inactive:
             raise ActiveMembershipRequired(reason_code="suspended")
         assert identity.subject == self._context.subject

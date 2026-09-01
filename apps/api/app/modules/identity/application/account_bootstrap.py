@@ -21,6 +21,10 @@ class AccountBootstrapInvariantError(Exception):
     """The persisted projection is incomplete despite transactional bootstrap."""
 
 
+class AccountBootstrapInfrastructureError(Exception):
+    """A declared persistence failure prevented Account Bootstrap."""
+
+
 @dataclass(frozen=True, slots=True)
 class AccountBootstrapContext:
     subject: UUID

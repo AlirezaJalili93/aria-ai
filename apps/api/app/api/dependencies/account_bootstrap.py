@@ -8,6 +8,8 @@ from app.api.dependencies.authentication import require_authenticated_identity
 from app.api.errors import AccountBootstrapFailedError, MembershipRequiredError
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
+    AccountBootstrapInfrastructureError,
+    AccountBootstrapInvariantError,
     AccountBootstrapper,
     ActiveMembershipRequired,
     inactive_account_bootstrap_context,
@@ -77,7 +79,7 @@ async def _execute_bootstrap(
             reason_code="active_membership_required",
         )
         raise MembershipRequiredError from None
-    except Exception:
+    except (AccountBootstrapInfrastructureError, AccountBootstrapInvariantError):
         event_logger.emit(
             "account.bootstrap_failed",
             level="ERROR",

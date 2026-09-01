@@ -13,11 +13,6 @@ from fastapi.testclient import TestClient
 from app.api.dependencies.tenant_context import require_tenant_context
 from app.core.config import ApiSettings
 from app.main import create_app
-from app.modules.identity.application.account_bootstrap import (
-    AccountBootstrapContext,
-    AccountBootstrapper,
-)
-from app.modules.identity.application.bootstrap_ports import ResolvedMembership
 from app.modules.identity.application.membership_resolution import ActiveMembershipRequired
 from app.modules.identity.application.ports import AuthenticatedIdentity, InvalidAccessToken
 from app.modules.identity.application.tenant_context import TenantContext, TenantContextResolver
@@ -34,23 +29,6 @@ class StubTokenVerifier:
         if token != self._token:
             raise InvalidAccessToken(reason_code="invalid_signature")
         return AuthenticatedIdentity(subject=self._subject)
-
-
-class StubBootstrapper(AccountBootstrapper):
-    def __init__(
-        self,
-        context: AccountBootstrapContext,
-        *,
-        error: ActiveMembershipRequired | None = None,
-    ) -> None:
-        self._context = context
-        self._error = error
-
-    async def execute(self, identity: AuthenticatedIdentity) -> AccountBootstrapContext:
-        assert identity.subject == self._context.subject
-        if self._error is not None:
-            raise self._error
-        return self._context
 
 
 class StubTenantContextResolver(TenantContextResolver):
@@ -80,22 +58,6 @@ class StubTenantContextResolver(TenantContextResolver):
         return self.context
 
 
-def _bootstrap_context(subject: UUID, account_id: UUID) -> AccountBootstrapContext:
-    return AccountBootstrapContext(
-        subject=subject,
-        active_memberships=(
-            ResolvedMembership(
-                membership_id=uuid4(),
-                account_id=account_id,
-                user_id=subject,
-                role="owner",
-                status="active",
-            ),
-        ),
-        created=False,
-    )
-
-
 def _tenant_context(subject: UUID, account_id: UUID) -> TenantContext:
     return TenantContext(
         subject_id=subject,
@@ -111,9 +73,7 @@ def _app(
     stream: StringIO,
     token: str,
     subject: UUID,
-    bootstrap_account_id: UUID,
     resolver: StubTenantContextResolver,
-    bootstrap_error: ActiveMembershipRequired | None = None,
 ) -> FastAPI:
     logger = create_event_logger(
         service="aria-api",
@@ -127,10 +87,6 @@ def _app(
         ApiSettings(app_env="test", app_version="0.1.0", log_level="INFO"),
         event_logger=logger,
         access_token_verifier=StubTokenVerifier(token=token, subject=subject),
-        account_bootstrapper=StubBootstrapper(
-            _bootstrap_context(subject, bootstrap_account_id),
-            error=bootstrap_error,
-        ),
         tenant_context_resolver=resolver,
     )
 
@@ -171,7 +127,6 @@ def test_missing_empty_or_invalid_account_header_returns_stable_400(
             stream=stream,
             token=token,
             subject=subject,
-            bootstrap_account_id=uuid4(),
             resolver=resolver,
         )
     ).get("/test/tenant", headers=headers)
@@ -211,7 +166,6 @@ def test_membership_denials_share_one_non_enumerating_403(reason_code: str) -> N
             stream=stream,
             token=token,
             subject=subject,
-            bootstrap_account_id=uuid4(),
             resolver=resolver,
         )
     ).get(
@@ -248,7 +202,6 @@ def test_active_membership_enriches_trace_only_after_authorization() -> None:
             stream=stream,
             token=token,
             subject=subject,
-            bootstrap_account_id=uuid4(),
             resolver=resolver,
         )
     ).get(
@@ -280,7 +233,7 @@ def test_active_membership_enriches_trace_only_after_authorization() -> None:
 
 
 @pytest.mark.parametrize("reason_code", ["invited", "suspended"])
-def test_selected_inactive_membership_is_decided_by_tenant_resolver(
+def test_selected_inactive_membership_is_decided_without_bootstrap(
     reason_code: str,
 ) -> None:
     stream = StringIO()
@@ -292,8 +245,6 @@ def test_selected_inactive_membership_is_decided_by_tenant_resolver(
             stream=stream,
             token=token,
             subject=subject,
-            bootstrap_account_id=uuid4(),
-            bootstrap_error=ActiveMembershipRequired(reason_code=reason_code),
             resolver=StubTenantContextResolver(
                 error=ActiveMembershipRequired(reason_code=reason_code)
             ),
@@ -308,7 +259,7 @@ def test_selected_inactive_membership_is_decided_by_tenant_resolver(
 
     assert response.status_code == 403
     events = _events(stream)
-    assert "account.bootstrap_resolved" in {event["event_name"] for event in events}
+    assert not any(str(event["event_name"]).startswith("account.bootstrap_") for event in events)
     denied = next(
         event for event in events if event["event_name"] == "tenant.membership_denied"
     )

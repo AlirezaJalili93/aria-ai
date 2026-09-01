@@ -14,6 +14,7 @@ from app.core.config import ApiSettings
 from app.main import create_app
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
+    AccountBootstrapInfrastructureError,
     AccountBootstrapper,
     ActiveMembershipRequired,
 )
@@ -50,7 +51,7 @@ class StubBootstrapper(AccountBootstrapper):
         if self.error is not None:
             raise self.error
         if self.context is None:
-            raise RuntimeError("safe injected failure")
+            raise AccountBootstrapInfrastructureError
         return self.context
 
 
@@ -201,6 +202,26 @@ def test_bootstrap_failure_emits_safe_failed_event() -> None:
     assert failed["duration_ms"] >= 0
     for forbidden in (token, str(subject), "safe injected failure", "profile_data", "email"):
         assert forbidden not in stream.getvalue().lower()
+
+
+def test_unexpected_bootstrap_programming_error_is_not_mapped_to_declared_503() -> None:
+    stream = StringIO()
+    subject = uuid4()
+    token = "unexpected-bootstrap-token"
+    bootstrapper = StubBootstrapper(error=RuntimeError("never expose this detail"))
+    response = TestClient(
+        _bootstrap_app(
+            stream=stream,
+            verifier=StubTokenVerifier(token=token, subject=subject),
+            bootstrapper=bootstrapper,
+        ),
+        raise_server_exceptions=False,
+    ).get("/test/bootstrapped", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 500
+    assert "ACCOUNT_BOOTSTRAP_FAILED" not in response.text
+    assert "account.bootstrap_failed" not in stream.getvalue()
+    assert "never expose this detail" not in stream.getvalue()
 
 
 def test_suspended_membership_maps_to_standardized_403_without_deletion_semantics() -> None:
