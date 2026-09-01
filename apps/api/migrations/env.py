@@ -12,8 +12,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from app.infrastructure.db.models import Base
 from app.infrastructure.db.readiness import normalize_async_database_url
 from app.modules.identity.infrastructure import models as identity_models
+from app.modules.projects.infrastructure import models as project_models
 
 del identity_models
+del project_models
 
 config = context.config
 if config.config_file_name is not None:

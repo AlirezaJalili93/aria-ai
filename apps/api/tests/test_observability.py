@@ -58,6 +58,7 @@ def test_request_ids_are_generated_returned_and_logged_as_structured_json() -> N
         "correlation_id": correlation_id,
         "account_id": None,
         "project_id": None,
+        "actor_id": None,
         "job_id": None,
         "route": "/health/live",
         "task_type": None,

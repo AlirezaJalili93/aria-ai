@@ -13,6 +13,7 @@ from aria_observability import TraceContext, bind_trace_context, create_event_lo
 
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.projects.application.ports import (
+    ProjectCreateReservation,
     ProjectRepository,
     ProjectRepositoryError,
     ProjectUnitOfWork,
@@ -20,8 +21,10 @@ from app.modules.projects.application.ports import (
 from app.modules.projects.application.project_service import (
     CreateProjectCommand,
     ProjectApplicationService,
+    ProjectIdempotencyConflict,
     ProjectPermissionDenied,
     ProjectReadOnly,
+    ProjectVersionConflict,
     UpdateProjectCommand,
 )
 from app.modules.projects.domain.project import (
@@ -36,10 +39,43 @@ class FakeProjectRepository(ProjectRepository):
     def __init__(self) -> None:
         self.projects: dict[UUID, Project] = {}
         self.fail = False
+        self.reservations: dict[tuple[UUID, str], tuple[str, UUID, Project | None]] = {}
 
     def _maybe_fail(self) -> None:
         if self.fail:
             raise ProjectRepositoryError
+
+    async def reserve_create(
+        self,
+        *,
+        account_id: UUID,
+        actor_id: UUID,
+        idempotency_key: str,
+        payload_hash: str,
+        project_id: UUID,
+    ) -> ProjectCreateReservation:
+        self._maybe_fail()
+        del actor_id
+        key = (account_id, idempotency_key)
+        existing = self.reservations.get(key)
+        if existing is not None:
+            old_hash, old_project_id, snapshot = existing
+            return ProjectCreateReservation(False, old_hash, old_project_id, snapshot)
+        self.reservations[key] = (payload_hash, project_id, None)
+        return ProjectCreateReservation(True, payload_hash, project_id, None)
+
+    async def complete_create_reservation(
+        self,
+        *,
+        account_id: UUID,
+        actor_id: UUID,
+        idempotency_key: str,
+        project: Project,
+    ) -> None:
+        del actor_id
+        key = (account_id, idempotency_key)
+        payload_hash, project_id, _ = self.reservations[key]
+        self.reservations[key] = (payload_hash, project_id, project)
 
     async def add(self, project: NewProject) -> Project:
         self._maybe_fail()
@@ -80,14 +116,22 @@ class FakeProjectRepository(ProjectRepository):
         *,
         account_id: UUID,
         limit: int,
-        offset: int,
+        cursor_created_at: datetime | None,
+        cursor_id: UUID | None,
     ) -> tuple[Project, ...]:
         rows = [
             project
             for project in self.projects.values()
             if project.account_id == account_id and not project.is_deleted
         ]
-        return tuple(rows[offset : offset + limit])
+        rows.sort(key=lambda item: (item.created_at, item.id), reverse=True)
+        if cursor_created_at is not None and cursor_id is not None:
+            rows = [
+                item
+                for item in rows
+                if (item.created_at, item.id) < (cursor_created_at, cursor_id)
+            ]
+        return tuple(rows[:limit])
 
     async def update(
         self,
@@ -96,9 +140,12 @@ class FakeProjectRepository(ProjectRepository):
         project_id: UUID,
         title: str | None = None,
         status: ProjectStatus | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> Project | None:
         project = await self.get(account_id=account_id, project_id=project_id)
         if project is None:
+            return None
+        if expected_updated_at is not None and project.updated_at != expected_updated_at:
             return None
         updated = replace(
             project,
@@ -192,7 +239,9 @@ def test_create_uses_active_tenant_subject_as_owner_and_emits_safe_event() -> No
         with bind_trace_context(_trace()):
             return await service.create(
                 context,
-                CreateProjectCommand(title="محرمانه", project_type="landing"),
+                CreateProjectCommand(
+                    title="  محرمانه  ", project_type="landing", idempotency_key="create-1"
+                ),
             )
 
     project = asyncio.run(scenario())
@@ -201,6 +250,7 @@ def test_create_uses_active_tenant_subject_as_owner_and_emits_safe_event() -> No
     assert project.owner_id == context.subject_id
     assert project.status == "draft"
     assert project.current_context_version == 0
+    assert project.title == "محرمانه"
     event = next(
         json.loads(line)
         for line in stream.getvalue().splitlines()
@@ -210,7 +260,7 @@ def test_create_uses_active_tenant_subject_as_owner_and_emits_safe_event() -> No
     assert event["project_id"] == str(project_id)
     assert event["correlation_id"]
     assert "محرمانه" not in stream.getvalue()
-    assert str(context.subject_id) not in stream.getvalue()
+    assert event["actor_id"] == str(context.subject_id)
 
 
 @pytest.mark.parametrize("status", ["invited", "suspended"])
@@ -222,7 +272,9 @@ def test_create_rejects_non_active_membership_before_repository_write(status: st
         with bind_trace_context(_trace()), pytest.raises(ProjectPermissionDenied):
             await service.create(
                 _context(status=status),
-                CreateProjectCommand(title="Project", project_type="corporate"),
+                CreateProjectCommand(
+                    title="Project", project_type="corporate", idempotency_key="inactive"
+                ),
             )
 
     asyncio.run(scenario())
@@ -241,12 +293,17 @@ def test_update_archive_and_soft_delete_emit_distinct_events_and_filter_deleted(
         with bind_trace_context(_trace()):
             await service.create(
                 context,
-                CreateProjectCommand(title="Original", project_type="portfolio"),
+                CreateProjectCommand(
+                    title="Original", project_type="portfolio", idempotency_key="lifecycle"
+                ),
             )
+            current = await service.get(context, project_id)
             updated = await service.update(
                 context,
                 project_id,
-                UpdateProjectCommand(title="Updated", status="active"),
+                UpdateProjectCommand(
+                    title="Updated", expected_updated_at=current.updated_at
+                ),
             )
             archived = await service.archive(context, project_id)
             deleted = await service.soft_delete(context, project_id)
@@ -283,31 +340,38 @@ def test_archived_project_blocks_general_update_and_member_cannot_archive() -> N
         with bind_trace_context(_trace()):
             await service.create(
                 owner,
-                CreateProjectCommand(title="Project", project_type="landing"),
+                CreateProjectCommand(
+                    title="Project", project_type="landing", idempotency_key="archive"
+                ),
             )
             await service.archive(owner, project_id)
             with pytest.raises(ProjectReadOnly):
-                await service.update(owner, project_id, UpdateProjectCommand(title="Blocked"))
+                current = repository.projects[project_id]
+                await service.update(
+                    owner,
+                    project_id,
+                    UpdateProjectCommand(
+                        title="Blocked", expected_updated_at=current.updated_at
+                    ),
+                )
             member = replace(owner, role="member")
             with pytest.raises(ProjectPermissionDenied):
                 await service.archive(member, project_id)
-            with pytest.raises(ProjectPermissionDenied):
-                await service.update(
-                    member,
-                    project_id,
-                    UpdateProjectCommand(status="archived"),
-                )
 
     asyncio.run(scenario())
 
 
-def test_empty_update_is_rejected_before_repository_access() -> None:
+def test_whitespace_update_is_rejected_before_repository_access() -> None:
     repository = FakeProjectRepository()
     service = _service(repository, StringIO(), uuid4())
 
     async def scenario() -> None:
-        with pytest.raises(ProjectValidationError):
-            await service.update(_context(), uuid4(), UpdateProjectCommand())
+        with bind_trace_context(_trace()), pytest.raises(ProjectValidationError):
+            await service.update(
+                _context(),
+                uuid4(),
+                UpdateProjectCommand(title="   ", expected_updated_at=datetime.now(UTC)),
+            )
 
     asyncio.run(scenario())
     assert repository.projects == {}
@@ -324,7 +388,11 @@ def test_declared_repository_failure_emits_safe_operational_event() -> None:
         with bind_trace_context(_trace()), pytest.raises(ProjectRepositoryError):
             await service.create(
                 context,
-                CreateProjectCommand(title="never-log-this", project_type="landing"),
+                CreateProjectCommand(
+                    title="never-log-this",
+                    project_type="landing",
+                    idempotency_key="failure",
+                ),
             )
 
     asyncio.run(scenario())
@@ -337,3 +405,79 @@ def test_declared_repository_failure_emits_safe_operational_event() -> None:
     assert event["error_code"] == "PROJECT_REPOSITORY_FAILURE"
     assert event["operation"] == "create"
     assert "never-log-this" not in stream.getvalue()
+
+
+def test_create_replays_exact_snapshot_and_rejects_changed_payload() -> None:
+    repository = FakeProjectRepository()
+    project_id = uuid4()
+    context = _context()
+    service = _service(repository, StringIO(), project_id)
+
+    async def scenario() -> tuple[Project, Project]:
+        with bind_trace_context(_trace()):
+            original = await service.create(
+                context,
+                CreateProjectCommand(
+                    title="Project", project_type="landing", idempotency_key="stable-key"
+                ),
+            )
+            repository.projects[project_id] = replace(
+                original,
+                title="Changed later",
+                updated_at=original.updated_at + timedelta(seconds=1),
+            )
+            second_actor = replace(
+                context,
+                subject_id=uuid4(),
+                membership_id=uuid4(),
+                role="admin",
+            )
+            replay = await service.create(
+                second_actor,
+                CreateProjectCommand(
+                    title=" Project ", project_type="landing", idempotency_key="stable-key"
+                ),
+            )
+            with pytest.raises(ProjectIdempotencyConflict):
+                await service.create(
+                    context,
+                    CreateProjectCommand(
+                        title="Different",
+                        project_type="landing",
+                        idempotency_key="stable-key",
+                    ),
+                )
+            return original, replay
+
+    original, replay = asyncio.run(scenario())
+    assert replay == original
+    assert len(repository.projects) == 1
+
+
+def test_stale_expected_updated_at_is_rejected_without_mutation() -> None:
+    repository = FakeProjectRepository()
+    project_id = uuid4()
+    context = _context()
+    service = _service(repository, StringIO(), project_id)
+
+    async def scenario() -> Project:
+        with bind_trace_context(_trace()):
+            project = await service.create(
+                context,
+                CreateProjectCommand(
+                    title="Original", project_type="corporate", idempotency_key="version"
+                ),
+            )
+            with pytest.raises(ProjectVersionConflict):
+                await service.update(
+                    context,
+                    project.id,
+                    UpdateProjectCommand(
+                        title="Rejected",
+                        expected_updated_at=project.updated_at - timedelta(seconds=1),
+                    ),
+                )
+            return project
+
+    original = asyncio.run(scenario())
+    assert repository.projects[project_id] == original

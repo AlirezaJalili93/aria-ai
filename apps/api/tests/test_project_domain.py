@@ -53,6 +53,7 @@ def test_project_accepts_only_the_documented_type_and_status_vocabularies() -> N
         {"status": "deleted"},
         {"current_context_version": -1},
         {"title": "x" * 256},
+        {"title": "   "},
         {"created_at": datetime.now()},
     ],
 )
@@ -63,9 +64,12 @@ def test_project_rejects_only_explicit_field_constraint_violations(
         _project(**overrides)
 
 
-def test_project_title_is_preserved_without_undocumented_normalization() -> None:
-    title = "  عنوان مستند  "
-    assert _project(title=title).title == title
+def test_project_title_validator_trims_and_rejects_empty_input() -> None:
+    from app.modules.projects.domain.project import validate_project_title
+
+    assert validate_project_title("  عنوان مستند  ") == "عنوان مستند"
+    with pytest.raises(ProjectValidationError):
+        validate_project_title("   ")
 
 
 def test_archived_or_deleted_projects_are_read_only() -> None:

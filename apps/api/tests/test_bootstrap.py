@@ -21,7 +21,7 @@ def test_create_app_uses_explicit_bootstrap_settings() -> None:
     assert app.openapi_url is None
 
 
-def test_bootstrap_exposes_only_the_approved_identity_command_and_no_project_route() -> None:
+def test_bootstrap_and_project_routes_enforce_authentication() -> None:
     settings = ApiSettings(app_env="test", app_version="0.1.0", log_level="INFO")
 
     app = create_app(settings)
@@ -30,7 +30,7 @@ def test_bootstrap_exposes_only_the_approved_identity_command_and_no_project_rou
 
     assert client.get("/health/live").status_code == 200
     assert client.post("/api/v1/auth/bootstrap").status_code == 401
-    assert client.get("/api/v1/projects").status_code == 404
+    assert client.get("/api/v1/projects").status_code == 401
 
 
 def test_staging_settings_fail_fast_when_service_bindings_are_missing() -> None:

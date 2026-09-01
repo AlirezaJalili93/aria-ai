@@ -4,22 +4,36 @@ from uuid import UUID
 
 from aria_observability import StructuredEventLogger, create_event_logger
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
 from app.api.errors import (
     AccountBootstrapFailedError,
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    ForbiddenError,
+    IdempotencyConflictError,
     MembershipRequiredError,
+    ResourceNotFoundError,
+    ValidationFailedError,
+    VersionConflictError,
     account_bootstrap_failed_handler,
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    forbidden_handler,
+    idempotency_conflict_handler,
     membership_required_handler,
+    request_validation_handler,
+    resource_not_found_handler,
+    validation_failed_handler,
+    version_conflict_handler,
 )
 from app.api.middleware.observability import ObservabilityMiddleware
+from app.api.routers.accounts import create_accounts_router
 from app.api.routers.auth import create_auth_router
 from app.api.routers.health import create_health_router
+from app.api.routers.projects import create_projects_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -34,6 +48,7 @@ from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapper,
     BootstrapAccountUseCase,
 )
+from app.modules.identity.application.account_discovery import AccountDiscovery
 from app.modules.identity.application.ports import AccessTokenVerifier, AuthenticatedIdentity
 from app.modules.identity.application.tenant_context import (
     ResolveTenantContextUseCase,
@@ -43,9 +58,12 @@ from app.modules.identity.application.tenant_context import (
 from app.modules.identity.infrastructure.account_bootstrap import (
     SqlAlchemyAccountBootstrapUnitOfWorkFactory,
 )
+from app.modules.identity.infrastructure.account_discovery import SqlAlchemyAccountDiscovery
 from app.modules.identity.infrastructure.membership_resolution import (
     SqlAlchemyMembershipResolver,
 )
+from app.modules.projects.application.project_service import ProjectApplicationService
+from app.modules.projects.infrastructure.repository import SqlAlchemyProjectUnitOfWorkFactory
 
 
 class UnavailableAccountBootstrapper:
@@ -72,6 +90,8 @@ def create_app(
     access_token_verifier: AccessTokenVerifier | None = None,
     account_bootstrapper: AccountBootstrapper | None = None,
     tenant_context_resolver: TenantContextResolver | None = None,
+    account_discovery: AccountDiscovery | None = None,
+    project_service: ProjectApplicationService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -120,6 +140,12 @@ def create_app(
     app.add_exception_handler(MembershipRequiredError, membership_required_handler)
     app.add_exception_handler(AccountBootstrapFailedError, account_bootstrap_failed_handler)
     app.add_exception_handler(AccountContextRequiredError, account_context_required_handler)
+    app.add_exception_handler(ResourceNotFoundError, resource_not_found_handler)
+    app.add_exception_handler(IdempotencyConflictError, idempotency_conflict_handler)
+    app.add_exception_handler(VersionConflictError, version_conflict_handler)
+    app.add_exception_handler(ForbiddenError, forbidden_handler)
+    app.add_exception_handler(ValidationFailedError, validation_failed_handler)
+    app.add_exception_handler(RequestValidationError, request_validation_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
         resolved_settings,
@@ -139,10 +165,25 @@ def create_app(
         if database_runtime is not None
         else UnavailableTenantContextResolver()
     )
+    app.state.account_discovery = account_discovery or (
+        SqlAlchemyAccountDiscovery(database_runtime.session_factory)
+        if database_runtime is not None
+        else None
+    )
+    app.state.project_service = project_service or (
+        ProjectApplicationService(
+            SqlAlchemyProjectUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
     app.include_router(create_auth_router(), prefix="/api/v1")
+    app.include_router(create_accounts_router(), prefix="/api/v1")
+    app.include_router(create_projects_router(), prefix="/api/v1")
     return app
 
 
