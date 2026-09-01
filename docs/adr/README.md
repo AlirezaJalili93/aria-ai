@@ -10,3 +10,5 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-007 — Railway Trial Staging Runtime](ADR-007-railway-staging-runtime.md)
 - [ADR-008 — Alembic Migration Strategy](ADR-008-alembic-migration-strategy.md)
 - [ADR-009 — Pre-tenant Account Bootstrap Command](ADR-009-pre-tenant-account-bootstrap-command.md)
+- [ADR-010 — Project Initial Context Version and Mutable Timestamps](ADR-010-project-initial-version-and-timestamps.md)
+- [ADR-011 — Pre-tenant Account Discovery and Selection](ADR-011-pre-tenant-account-discovery.md)

@@ -43,29 +43,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        f"""
-        DO $aria$
-        DECLARE
-            data_api_role text;
-        BEGIN
-            FOR data_api_role IN
-                SELECT rolname
-                FROM pg_catalog.pg_roles
-                WHERE rolname IN ('anon', 'authenticated')
-            LOOP
-                EXECUTE format(
-                    'ALTER DEFAULT PRIVILEGES IN SCHEMA public '
-                    'GRANT ALL PRIVILEGES ON TABLES TO %I',
-                    data_api_role
-                );
-                EXECUTE format(
-                    'GRANT ALL PRIVILEGES ON TABLE {IDENTITY_TABLES} TO %I',
-                    data_api_role
-                );
-            END LOOP;
-        END
-        $aria$;
-        """
-    )
+    # Privilege revocation is deliberately fail-closed and asymmetric. The migration cannot know
+    # which grants existed before upgrade, so restoring broad grants would manufacture authority.
     op.execute("ALTER TABLE public.alembic_version DISABLE ROW LEVEL SECURITY")

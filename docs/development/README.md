@@ -50,3 +50,5 @@ docs/development/NNNN-kebab-case/
 - [0004 — Repository bootstrap](./0004-repository-bootstrap/development.md)
 - [0005 — GitHub repository publication](./0005-github-repository-publication/development.md)
 - [0006 — CI baseline](./0006-ci-baseline/development.md)
+- [0019 — Architecture hardening](./0019-architecture-hardening/development.md)
+- [0020 — Project Domain and repository](./0020-project-domain-repository/development.md)

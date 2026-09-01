@@ -6,8 +6,12 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.modules.identity.application.account_bootstrap import (
+    AccountBootstrapInfrastructureError,
+)
 from app.modules.identity.application.bootstrap_ports import (
     AccountBootstrapUnitOfWork,
     ResolvedMembership,
@@ -91,12 +95,14 @@ class SqlAlchemyAccountBootstrapUnitOfWork:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        del exc_type, exc, traceback
+        del exc_type, traceback
         if self._session is None:
             return
         if not self._committed:
             await self._session.rollback()
         await self._session.close()
+        if isinstance(exc, SQLAlchemyError):
+            raise AccountBootstrapInfrastructureError from None
 
     async def commit(self) -> None:
         if self._session is None:

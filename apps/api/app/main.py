@@ -30,6 +30,7 @@ from app.infrastructure.db.runtime import DatabaseRuntime
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
+    AccountBootstrapInfrastructureError,
     AccountBootstrapper,
     BootstrapAccountUseCase,
 )
@@ -50,7 +51,7 @@ from app.modules.identity.infrastructure.membership_resolution import (
 class UnavailableAccountBootstrapper:
     async def execute(self, identity: AuthenticatedIdentity) -> AccountBootstrapContext:
         del identity
-        raise RuntimeError("Account bootstrap database is not configured")
+        raise AccountBootstrapInfrastructureError
 
 
 class UnavailableTenantContextResolver:

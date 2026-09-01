@@ -7,9 +7,8 @@ from uuid import UUID
 from aria_observability import StructuredEventLogger, enrich_trace_context
 from fastapi import Depends, Request
 
-from app.api.dependencies.account_bootstrap import ensure_bootstrapped_identity
+from app.api.dependencies.authentication import require_authenticated_identity
 from app.api.errors import AccountContextRequiredError, MembershipRequiredError
-from app.modules.identity.application.account_bootstrap import AccountBootstrapContext
 from app.modules.identity.application.membership_resolution import ActiveMembershipRequired
 from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.application.tenant_context import TenantContext, TenantContextResolver
@@ -25,10 +24,7 @@ def _event_logger(request: Request) -> StructuredEventLogger:
 
 async def require_tenant_context(
     request: Request,
-    bootstrap_context: Annotated[
-        AccountBootstrapContext,
-        Depends(ensure_bootstrapped_identity),
-    ],
+    identity: Annotated[AuthenticatedIdentity, Depends(require_authenticated_identity)],
     tenant_context_resolver: Annotated[
         TenantContextResolver,
         Depends(_tenant_context_resolver),
@@ -46,7 +42,6 @@ async def require_tenant_context(
     except (TypeError, ValueError, AttributeError):
         _reject_account_context(event_logger, started_at, reason_code="invalid_uuid")
 
-    identity = AuthenticatedIdentity(subject=bootstrap_context.subject)
     try:
         tenant_context = await tenant_context_resolver.execute(identity, account_id)
     except ActiveMembershipRequired as error:

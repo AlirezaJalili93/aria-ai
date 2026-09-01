@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
 from app.modules.identity.application.account_bootstrap import (
+    AccountBootstrapInfrastructureError,
     ActiveMembershipRequired,
     BootstrapAccountUseCase,
 )
@@ -246,7 +247,7 @@ def test_commit_failure_rolls_back_profile_account_and_membership() -> None:
         finally:
             await runtime.close()
 
-    with pytest.raises(IntegrityError):
+    with pytest.raises(AccountBootstrapInfrastructureError):
         asyncio.run(execute_and_close())
 
     assert asyncio.run(_scalar("SELECT count(*) FROM profiles")) == 0
@@ -497,6 +498,50 @@ def test_identity_access_hardening_revokes_data_api_roles() -> None:
         )
         == 0
     )
+
+    command.downgrade(config, "0001_identity_projection")
+    assert (
+        asyncio.run(
+            _scalar(
+                """
+                SELECT count(*)
+                FROM information_schema.role_table_grants
+                WHERE table_schema = 'public'
+                  AND table_name IN (
+                    'accounts', 'profiles', 'account_memberships', 'alembic_version'
+                  )
+                  AND grantee IN ('anon', 'authenticated')
+                """
+            )
+        )
+        == 0
+    )
+    assert (
+        asyncio.run(
+            _scalar(
+                """
+                SELECT count(*)
+                FROM pg_catalog.pg_default_acl AS defaults
+                CROSS JOIN LATERAL pg_catalog.aclexplode(defaults.defaclacl) AS acl
+                JOIN pg_catalog.pg_roles AS roles ON roles.oid = acl.grantee
+                WHERE defaults.defaclnamespace = 'public'::regnamespace
+                  AND defaults.defaclobjtype = 'r'
+                  AND roles.rolname IN ('anon', 'authenticated')
+                """
+            )
+        )
+        == 0
+    )
+    assert not asyncio.run(
+        _scalar(
+            """
+            SELECT relrowsecurity
+            FROM pg_catalog.pg_class
+            WHERE oid = 'public.alembic_version'::regclass
+            """
+        )
+    )
+    command.upgrade(config, "head")
     assert (
         asyncio.run(
             _scalar(
