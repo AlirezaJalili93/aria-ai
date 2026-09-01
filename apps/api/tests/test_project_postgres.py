@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -16,10 +17,13 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
+from app.modules.identity.application.ports import AuthenticatedIdentity
 from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.identity.infrastructure.account_discovery import SqlAlchemyAccountDiscovery
 from app.modules.projects.application.project_service import (
     CreateProjectCommand,
     ProjectApplicationService,
+    ProjectIdempotencyConflict,
 )
 from app.modules.projects.infrastructure.repository import (
     SqlAlchemyProjectRepository,
@@ -65,7 +69,8 @@ def clean_project_schema() -> Iterator[None]:
     command.upgrade(_migration_config(), "head")
     asyncio.run(
         _execute(
-            "TRUNCATE projects, account_memberships, profiles, accounts RESTART IDENTITY CASCADE"
+            "TRUNCATE project_create_requests, projects, account_memberships, profiles, accounts "
+            "RESTART IDENTITY CASCADE"
         )
     )
     yield
@@ -183,7 +188,11 @@ def test_create_persists_owner_default_status_and_context_zero_with_safe_event()
             ):
                 project = await service.create(
                     context,
-                    CreateProjectCommand(title="محتوای خصوصی", project_type="landing"),
+                    CreateProjectCommand(
+                        title="محتوای خصوصی",
+                        project_type="landing",
+                        idempotency_key="postgres-create",
+                    ),
                 )
         finally:
             await runtime.close()
@@ -264,7 +273,11 @@ def test_repository_is_tenant_scoped_and_soft_delete_is_excluded_by_default() ->
             ):
                 project = await service.create(
                     context,
-                    CreateProjectCommand(title="Project", project_type="corporate"),
+                    CreateProjectCommand(
+                        title="Project",
+                        project_type="corporate",
+                        idempotency_key="postgres-soft-delete",
+                    ),
                 )
                 deleted = await service.soft_delete(context, project.id)
             async with runtime.session_factory() as session:
@@ -276,7 +289,8 @@ def test_repository_is_tenant_scoped_and_soft_delete_is_excluded_by_default() ->
                 assert await repository.list_by_account(
                     account_id=context.account_id,
                     limit=10,
-                    offset=0,
+                    cursor_created_at=None,
+                    cursor_id=None,
                 ) == ()
                 assert (
                     await repository.get(account_id=other.account_id, project_id=project.id)
@@ -387,3 +401,153 @@ def test_m002_downgrade_and_reupgrade_preserve_fail_closed_privileges() -> None:
             """
         )
     ) == 0
+
+
+def test_account_discovery_returns_only_active_memberships() -> None:
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> tuple[tuple[UUID, str], ...]:
+        context = await _seed_identity(role="owner")
+        invited_account = uuid4()
+        suspended_account = uuid4()
+        await _execute(
+            "INSERT INTO accounts (id) VALUES (:invited), (:suspended)",
+            {"invited": invited_account, "suspended": suspended_account},
+        )
+        for account_id, status in (
+            (invited_account, "invited"),
+            (suspended_account, "suspended"),
+        ):
+            await _execute(
+                """
+                INSERT INTO account_memberships (id, account_id, user_id, role, status)
+                VALUES (:id, :account_id, :user_id, 'member', :status)
+                """,
+                {
+                    "id": uuid4(),
+                    "account_id": account_id,
+                    "user_id": context.subject_id,
+                    "status": status,
+                },
+            )
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            discovered = await SqlAlchemyAccountDiscovery(runtime.session_factory).execute(
+                AuthenticatedIdentity(subject=context.subject_id)
+            )
+        finally:
+            await runtime.close()
+        return tuple((item.id, item.role) for item in discovered)
+
+    values = asyncio.run(scenario())
+    assert len(values) == 1
+    assert values[0][1] == "owner"
+
+
+def test_project_create_idempotency_is_persistent_and_concurrency_safe() -> None:
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> tuple[UUID, UUID, int]:
+        context = await _seed_identity()
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        logger = create_event_logger(
+            service="aria-api",
+            environment="test",
+            app_version="0.1.0",
+            release_commit_sha=None,
+            level="INFO",
+            stream=StringIO(),
+        )
+        service = ProjectApplicationService(
+            SqlAlchemyProjectUnitOfWorkFactory(runtime.session_factory), logger
+        )
+
+        async def create_once() -> UUID:
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ):
+                project = await service.create(
+                    context,
+                    CreateProjectCommand(
+                        title="Concurrent",
+                        project_type="landing",
+                        idempotency_key="concurrent-create",
+                    ),
+                )
+                return project.id
+
+        try:
+            first, second = await asyncio.gather(create_once(), create_once())
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ), pytest.raises(ProjectIdempotencyConflict):
+                await service.create(
+                    context,
+                    CreateProjectCommand(
+                        title="Different",
+                        project_type="landing",
+                        idempotency_key="concurrent-create",
+                    ),
+                )
+            count = int(
+                await _scalar(
+                    "SELECT count(*) FROM projects WHERE account_id = :account_id",
+                    {"account_id": context.account_id},
+                )
+            )
+            return first, second, count
+        finally:
+            await runtime.close()
+
+    first, second, count = asyncio.run(scenario())
+    assert first == second
+    assert count == 1
+
+
+def test_project_repository_uses_descending_keyset_without_gaps() -> None:
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> tuple[tuple[UUID, ...], tuple[UUID, ...]]:
+        context = await _seed_identity()
+        project_ids = sorted((uuid4(), uuid4(), uuid4()), reverse=True)
+        created_at = datetime.now(UTC)
+        for project_id in project_ids:
+            await _execute(
+                """
+                INSERT INTO projects (
+                    id, account_id, owner_id, title, project_type, created_at, updated_at
+                ) VALUES (
+                    :id, :account_id, :owner_id, 'Project', 'portfolio', :created_at, :created_at
+                )
+                """,
+                {
+                    "id": project_id,
+                    "account_id": context.account_id,
+                    "owner_id": context.subject_id,
+                    "created_at": created_at,
+                },
+            )
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            async with runtime.session_factory() as session:
+                repository = SqlAlchemyProjectRepository(session)
+                first = await repository.list_by_account(
+                    account_id=context.account_id,
+                    limit=2,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                second = await repository.list_by_account(
+                    account_id=context.account_id,
+                    limit=2,
+                    cursor_created_at=first[-1].created_at,
+                    cursor_id=first[-1].id,
+                )
+        finally:
+            await runtime.close()
+        return tuple(item.id for item in first), tuple(item.id for item in second)
+
+    first, second = asyncio.run(scenario())
+    assert len(first) == 2
+    assert len(second) == 1
+    assert first + second == tuple(sorted(first + second, reverse=True))

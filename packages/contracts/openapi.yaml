@@ -8,6 +8,116 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /accounts:
+    get:
+      operationId: listActiveAccounts
+      summary: Discover active Account memberships for the authenticated identity
+      description: >-
+        Pre-tenant query. X-Account-ID is not consumed. Only Account id and active Membership role
+        are returned in the standard collection envelope.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Active Account selections.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountsCollection" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+  /projects:
+    post:
+      operationId: createProject
+      summary: Create a Project idempotently in the selected Account
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectRequest" }
+      responses:
+        "201":
+          description: Project created, or the original result replayed for the same key and input.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "409":
+          description: `IDEMPOTENCY_CONFLICT` when the key has different normalized input.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    get:
+      operationId: listProjects
+      summary: List non-deleted Projects in descending keyset order
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Project collection ordered by created_at DESC and id DESC.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectsCollection" }
+  /projects/{project_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    get:
+      operationId: getProject
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tenant-authorized non-deleted Project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+    patch:
+      operationId: updateProjectTitle
+      summary: Update only the Project title with optimistic concurrency
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProjectRequest" }
+      responses:
+        "200":
+          description: Updated Project with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: `VERSION_CONFLICT` when expected_updated_at is stale.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    delete:
+      operationId: softDeleteProject
+      summary: Soft delete a Project as an active owner or admin
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Project soft-deleted; response is empty. }
+        "403": { description: Active Membership role is not owner or admin. }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -77,7 +187,24 @@ components:
       schema:
         type: string
         format: uuid
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1 }
   responses:
+    ResourceNotFound:
+      description: Missing, deleted, or cross-tenant resources share this safe response.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: The requested resource was not found.
+              retryable: false
+            meta:
+              request_id: 00000000-0000-0000-0000-000000000000
     AuthenticationRequired:
       description: The Bearer credential is missing or invalid.
       headers:
@@ -126,6 +253,67 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AccountSelection:
+      type: object
+      additionalProperties: false
+      required: [id, role]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [owner, admin, member] }
+    AccountsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AccountSelection" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [title, project_type]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 255 }
+        project_type: { type: string, enum: [landing, corporate, portfolio] }
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [title, expected_updated_at]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 255 }
+        expected_updated_at: { type: string, format: date-time }
+    Project:
+      type: object
+      additionalProperties: false
+      required: [id, account_id, owner_id, title, project_type, status, current_context_version, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 255 }
+        project_type: { type: string, enum: [landing, corporate, portfolio] }
+        status: { type: string, enum: [draft, active, awaiting_approval, approved, generating, delivered, archived] }
+        current_context_version: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ProjectsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    CollectionMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id, next_cursor, has_more]
+      properties:
+        request_id: { type: string, format: uuid }
+        next_cursor: { type: [string, "null"] }
+        has_more: { type: boolean }
     LivenessResponse:
       type: object
       additionalProperties: false

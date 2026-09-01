@@ -88,9 +88,12 @@ class Project:
 def validate_project_title(value: str) -> str:
     if not isinstance(value, str):
         raise ProjectValidationError("Project title must be text")
-    if len(value) > MAX_PROJECT_TITLE_LENGTH:
+    normalized = value.strip()
+    if not normalized:
+        raise ProjectValidationError("Project title must not be empty")
+    if len(normalized) > MAX_PROJECT_TITLE_LENGTH:
         raise ProjectValidationError("Project title exceeds VARCHAR(255)")
-    return value
+    return normalized
 
 
 def validate_project_type(value: str) -> ProjectType:

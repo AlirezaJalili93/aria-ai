@@ -28,7 +28,7 @@ dev = [
 package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "../../packages/observability/src"]
 testpaths = ["tests"]
 
 [tool.ruff]

@@ -7,6 +7,7 @@ import sys
 from datetime import UTC, datetime
 from itertools import count
 from typing import TextIO
+from uuid import UUID
 
 from aria_observability.context import current_trace_context
 
@@ -39,6 +40,8 @@ _OPTIONAL_FIELDS = {
     "component",
     "operation",
     "queue_adapter_configured",
+    "actor_id",
+    "project_id",
 }
 
 
@@ -79,6 +82,15 @@ def _safe_non_negative_number(value: object) -> int | float | None:
     return round(value, 6)
 
 
+def _safe_uuid(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return str(UUID(value))
+    except ValueError:
+        return None
+
+
 def _safe_status(value: object) -> int | str | None:
     if isinstance(value, bool):
         return None
@@ -96,6 +108,8 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
+    if field in {"actor_id", "project_id"}:
+        return _safe_uuid(value)
     if field in {"attempt", "input_tokens", "output_tokens"}:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":
@@ -149,6 +163,7 @@ class StructuredEventLogger:
             "correlation_id": context.correlation_id if context else None,
             "account_id": context.account_id if context else None,
             "project_id": context.project_id if context else None,
+            "actor_id": None,
             "job_id": context.job_id if context else None,
             "route": None,
             "task_type": None,
