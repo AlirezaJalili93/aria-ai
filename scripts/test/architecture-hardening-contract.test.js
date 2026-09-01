@@ -40,9 +40,11 @@ test("Account discovery is a separate read-only pre-tenant contract", async () =
     "docs/adr/ADR-009-pre-tenant-account-bootstrap-command.md"
   );
 
-  assert.match(decision, /GET \/api\/v1\/account-contexts/);
+  assert.match(decision, /GET \/api\/v1\/accounts/);
   assert.match(decision, /returns only active Memberships/i);
-  assert.match(decision, /`account_id` and `role`/);
+  assert.match(decision, /`id` and `role`/);
+  assert.match(decision, /meta\.next_cursor` is `null`/);
+  assert.match(decision, /meta\.has_more` is `false`/);
   assert.match(decision, /does not accept\s+`X-Account-ID`/);
   assert.match(decision, /performs no Bootstrap or mutation/i);
   assert.match(bootstrapDecision, /Return no Account, Profile, Membership/);

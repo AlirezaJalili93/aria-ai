@@ -36,13 +36,14 @@ increment defines but does not implement the separate read-only Account Discover
 | REQ-084 | Owner P2-6 | One documented and tested `updated_at` ownership strategy | TC-1908 |
 | REQ-085 | Owner P2-7 | Web events use a stable structured schema and safe fields | TC-1909 |
 | REQ-086 | Owner P3-8 | Callback internal failure reasons distinguish approved failure classes | TC-1910 |
-| REQ-096 | Owner P2-5 | Account Discovery stays separate from Bootstrap and exposes only the approved selection fields | TC-1912 |
+| REQ-096 | Owner P2-5 and clarification | Canonical `GET /accounts` stays separate from Bootstrap, returns active Memberships and exposes only `id/role` in the Collection Envelope | TC-1912 |
 
 ## Assumptions and Clarifications
 
-ADR-011 records Account Discovery as a separate pre-tenant query. It exposes only active
-Membership `account_id` and `role`; Account naming and multi-Account selector UX remain outside
-scope until independently documented. No discovery endpoint is implemented in this increment.
+ADR-011 records canonical `GET /api/v1/accounts` as a separate pre-tenant query. It exposes only
+active Membership `id` and `role` items in the standard Collection Envelope; Account naming and
+multi-Account selector UX remain outside scope until independently documented. No discovery
+endpoint is implemented in this increment.
 
 **Unapproved assumptions:** None
 

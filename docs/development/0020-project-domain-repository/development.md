@@ -42,7 +42,8 @@ M002 schema, tenant/active-Membership create guard, soft-delete filtering, datab
 
 Project Title normalization is not defined by the approved documents. This Increment enforces only
 the documented `NOT NULL` and `VARCHAR(255)` constraints and does not trim, rewrite, or invent a
-minimum length. Project API normalization remains blocked pending a dedicated contract.
+minimum length. The owner clarification for S1-C02 defines trim plus length `1..255` at the API
+boundary and formally defers the older optional `description`; neither changes the M002 schema.
 
 **Unapproved assumptions:** None
 

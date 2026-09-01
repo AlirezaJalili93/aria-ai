@@ -4,6 +4,8 @@
 - **Date:** 2026-09-01
 - **Required before:** S1-C02 — Project API
 - **Related:** ADR-009 pre-tenant Account Bootstrap command
+- **Supersedes:** the initial `/api/v1/account-contexts` route recorded in this ADR before owner
+  clarification
 
 ## Context
 
@@ -14,12 +16,14 @@ Bootstrap and discovery have different command/query responsibilities.
 
 ## Decision
 
-- Account discovery is a separate authenticated pre-tenant query:
-  `GET /api/v1/account-contexts`.
+- Account discovery uses the canonical authenticated pre-tenant query:
+  `GET /api/v1/accounts`.
 - It requires the existing Bearer JWT verification dependency and does not accept
   `X-Account-ID`.
 - It returns only active Memberships for the authenticated identity.
-- Each item exposes only the fields already approved for selection: `account_id` and `role`.
+- Each item exposes only the fields already approved for selection: `id` and `role`.
+- The response always uses the standard Collection Envelope. During Sprint 1,
+  `meta.next_cursor` is `null` and `meta.has_more` is `false`.
 - Zero items means no active Account context. One item may be selected automatically. More than one
   item requires explicit selection before a tenant-scoped request is sent.
 - The selected `account_id` is transported on subsequent tenant routes through the already accepted
@@ -47,5 +51,7 @@ display contract is approved.
 
 - S1-B04 approved Tenant Context contract
 - S1-B05 approved Bootstrap flow and ADR-009
+- API Contract Specification v1.0 — canonical `GET /accounts`
 - Access Control Matrix v1.0
-- Owner-accepted architecture-hardening sequence dated 2026-09-01
+- Owner clarification dated 2026-09-01 rejecting `/account-contexts` and approving the exact
+  route, envelope and field allowlist

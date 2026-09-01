@@ -10,8 +10,8 @@ remains an Application dependency. ADR-009 exposes it only through the authentic
 
 The S1-B04 API dependency resolves request-scoped Tenant Context from `X-Account-ID` directly after
 JWT verification; it does not invoke Account Bootstrap. Product routes consume it only when their
-own Story and contract are approved. ADR-011 reserves Account discovery as a separate authenticated,
-read-only pre-tenant query before S1-C02; it is not part of Bootstrap.
+own Story and contract are approved. ADR-011 reserves canonical `GET /api/v1/accounts` as a
+separate authenticated, read-only pre-tenant query before S1-C02; it is not part of Bootstrap.
 
 `projects/domain` owns the S1-C01 Project vocabulary and invariants. `projects/application` owns
 tenant-authorized create/update/archive/soft-delete orchestration through ports, and

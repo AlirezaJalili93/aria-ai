@@ -25,7 +25,7 @@
 | TC-1909 | Web/Logging | Auth event emission | Versioned safe schema; no Email/JWT/callback query/secret fields |
 | TC-1910 | Web | Callback failures | Safe internal reason codes distinguish invalid callback, Auth service, and Bootstrap failure |
 | TC-1911 | Regression | Full repository gates | `npm test` and `npm run validate` pass |
-| TC-1912 | Contract | Inspect ADR-009/ADR-011 separation | Bootstrap returns no Account data; discovery is read-only, active-only and pre-tenant |
+| TC-1912 | Contract | Inspect ADR-009/ADR-011 separation | Bootstrap returns no Account data; canonical `GET /accounts` is active-only, pre-tenant and envelope-stable |
 
 ## Execution Results
 
