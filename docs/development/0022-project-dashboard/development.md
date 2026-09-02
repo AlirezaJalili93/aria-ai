@@ -121,6 +121,12 @@ all 22 architecture/development-record checks. After the final accessibility har
 Vercel Preview on exact commit `1260fea9c4de822acf48c7e76cfce5f2d9cb8bf4`; exact results are in
 the linked test report.
 
+PR #16 was subsequently squash-merged to `main` as
+`40bca5ad302a43f2f8bbf342ec938cecf60d86ed`. The post-merge CI run passed Quality and Security,
+Vercel completed the deployment for that exact SHA, and both Railway API and Worker deployments
+reported success. Hosted `/health/live` and `/health/ready` returned HTTP 200 with the exact merge
+SHA; readiness reported configuration, database and queue as `pass`.
+
 ## Remaining Risks
 
 - Multi-Account selection is intentionally blocked until an approved Account label and selection UX

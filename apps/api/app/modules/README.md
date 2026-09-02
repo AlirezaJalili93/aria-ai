@@ -18,3 +18,8 @@ tenant-authorized create/update/archive/soft-delete orchestration through ports,
 `projects/infrastructure` supplies the SQLAlchemy repository. Ordinary repository reads are both
 tenant-scoped and soft-delete filtered; the explicit including-deleted method is internal recovery
 surface only. S1-C01 exposes no HTTP route.
+
+`context/domain` owns the S1-D01 Source/Version vocabulary and immutable-ready invariants.
+`context/application` admits only text Sources in this increment and records safe lifecycle events;
+`context/infrastructure` implements tenant/project-scoped persistence and derives the current ready
+Version. No Context HTTP route, parser, queue or file ingestion is exposed by S1-D01.

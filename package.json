@@ -26,7 +26,7 @@
     "typecheck:worker": "node scripts/run-uv.mjs --project apps/worker run mypy apps/worker/app",
     "test": "npm run test:records && npm run test:ci && npm run test:web && npm run test:api && npm run test:worker",
     "test:records": "node --test scripts/test/development-records.test.js",
-    "test:ci": "node --test scripts/test/account-bootstrap-contract.test.js scripts/test/architecture-hardening-contract.test.js scripts/test/auth-contract.test.js scripts/test/ci-config.test.js scripts/test/deployment-config.test.js scripts/test/membership-resolution-contract.test.js scripts/test/observability-contract.test.js scripts/test/project-api-contract.test.js scripts/test/project-domain-contract.test.js scripts/test/secret-scan.test.js scripts/test/staging-migration-cicd.test.js scripts/test/tenant-context-contract.test.js",
+    "test:ci": "node --test scripts/test/account-bootstrap-contract.test.js scripts/test/architecture-hardening-contract.test.js scripts/test/auth-contract.test.js scripts/test/ci-config.test.js scripts/test/context-source-contract.test.js scripts/test/deployment-config.test.js scripts/test/membership-resolution-contract.test.js scripts/test/observability-contract.test.js scripts/test/project-api-contract.test.js scripts/test/project-domain-contract.test.js scripts/test/secret-scan.test.js scripts/test/staging-migration-cicd.test.js scripts/test/tenant-context-contract.test.js",
     "test:web": "npm test --workspace @aria/web",
     "test:api": "node scripts/run-uv.mjs --project apps/api run pytest -q apps/api/tests",
     "test:worker": "node scripts/run-uv.mjs --project apps/worker run pytest -q apps/worker/tests",

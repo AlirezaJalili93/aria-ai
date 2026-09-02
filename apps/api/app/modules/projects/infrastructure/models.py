@@ -24,6 +24,7 @@ from app.infrastructure.db.models import Base
 class ProjectModel(Base):
     __tablename__ = "projects"
     __table_args__ = (
+        UniqueConstraint("id", "account_id", name="uq_projects_id_account_id"),
         CheckConstraint(
             "project_type IN ('landing','corporate','portfolio')",
             name="project_type",

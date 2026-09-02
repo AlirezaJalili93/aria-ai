@@ -155,6 +155,7 @@ def test_m002_schema_has_approved_constraints_indexes_and_rls() -> None:
         "ix_projects_account_id_created_at",
         "ix_projects_account_id_status",
         "ix_projects_account_id_project_type",
+        "uq_projects_id_account_id",
     } == indexes
     assert {
         "fk_projects_account_id_accounts",

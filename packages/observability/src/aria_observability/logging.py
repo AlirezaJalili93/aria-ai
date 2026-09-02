@@ -42,6 +42,8 @@ _OPTIONAL_FIELDS = {
     "queue_adapter_configured",
     "actor_id",
     "project_id",
+    "source_id",
+    "version_no",
     "event_category",
     "project_type",
     "role",
@@ -111,9 +113,9 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
-    if field in {"actor_id", "project_id"}:
+    if field in {"actor_id", "project_id", "source_id"}:
         return _safe_uuid(value)
-    if field in {"attempt", "input_tokens", "output_tokens"}:
+    if field in {"attempt", "input_tokens", "output_tokens", "version_no"}:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":
         return _safe_non_negative_number(value)
@@ -140,7 +142,9 @@ class StructuredEventLogger:
             "app_version": app_version,
             "release_commit_sha": release_commit_sha,
         }
-        logger = logging.getLogger(f"aria.structured.{service}.{next(_LOGGER_SEQUENCE)}")
+        logger = logging.getLogger(
+            f"aria.structured.{service}.{next(_LOGGER_SEQUENCE)}"
+        )
         logger.handlers.clear()
         logger.propagate = False
         logger.setLevel(_LEVELS[level])
