@@ -50,8 +50,8 @@ M000 extensions
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
 | projects | id, account_id, owner_id, title, project_type, status, current_context_version=`0`, created_at, updated_at, deleted_at | `owner_id` به Profile وصل است؛ type فقط landing/corporate/portfolio؛ status فقط draft/active/awaiting_approval/approved/generating/delivered/archived؛ version نامنفی؛ حذف نرم |
-| context_sources | id, account_id, project_id, source_type, status, storage metadata | storage key از filename کاربر ساخته نمی‌شود |
-| context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical text/ref | `UNIQUE(source_id,version_no)` و history حفظ می‌شود |
+| context_sources | id, account_id, project_id, source_type, status, original_name, mime_type, storage_ref, raw_text, checksum, created_by, created_at, updated_at | type در DB برابر text/file/message/url_reference و در S1-D01 Application فقط text؛ status برابر uploaded/parsing/ready/failed/deleted؛ query عادی deleted را حذف می‌کند |
+| context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical_text/storage_ref, metadata, parse_status, created_at | parse status برابر pending/parsing/ready/failed؛ `version_no>=1` و `UNIQUE(source_id,version_no)`؛ ready immutable و دارای canonical text/ref؛ history حفظ می‌شود |
 | context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status | item_type: fact/assumption/decision/constraint/reference/unknown |
 
 ## Requirement، Gap و Scope
@@ -82,6 +82,9 @@ M000 extensions
 - Cross-Tenant tests برای SELECT/UPDATE/DELETE و child tableها Release Blocker هستند.
 - Queryهای عادی Project فقط `deleted_at IS NULL` را می‌خوانند؛ بازیابی حذف‌شده مسیر داخلی
   صریح می‌خواهد.
+- Current Source Version برابر بیشترین `version_no` با `parse_status=ready` است؛ pointer ذخیره‌شده
+  ندارد. Version با composite FK نمی‌تواند Account/Project متفاوت از Source داشته باشد و حذف
+  فیزیکی Source دارای Version با `RESTRICT` متوقف می‌شود.
 - Create Project فقط با Membership فعال همان Account مجاز است و `owner_id` از subject احرازشده
   می‌آید.
 
