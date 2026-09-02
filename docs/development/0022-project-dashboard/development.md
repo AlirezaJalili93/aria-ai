@@ -117,7 +117,9 @@ Full monorepo lint/typecheck/build, 18 Web tests, focused API analytics tests an
 The mandatory repository-wide `npm test` passed (6 record tests, 53 CI contracts, 18 Web tests,
 114 API tests with 19 documented integration skips, and 16 Worker tests). `npm run validate` passed
 all 22 architecture/development-record checks. After the final accessibility hardening, the complete
-`npm run quality` pipeline was repeated and passed; exact results are in the linked test report.
+`npm run quality` pipeline was repeated and passed. GitHub PR #16 then passed Quality, Security and
+Vercel Preview on exact commit `1260fea9c4de822acf48c7e76cfce5f2d9cb8bf4`; exact results are in
+the linked test report.
 
 ## Remaining Risks
 
@@ -125,3 +127,6 @@ all 22 architecture/development-record checks. After the final accessibility har
   contract exists.
 - Product Analytics currently uses the internal event sink. Provider delivery remains deferred by the
   owner and therefore external analytics dashboard evidence is outside this increment.
+- The Vercel Preview is protected by Vercel Authentication. Its SHA-bound deployment status passed,
+  but an unauthenticated hosted journey smoke cannot cross that protection; local browser journey
+  states and the production build are the executable UI evidence for this branch.

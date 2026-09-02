@@ -45,6 +45,8 @@ Windows workspace; Node.js 24+; Next.js 16/React 19; Python 3.12/FastAPI. Secret
 | TC-2213 | `npm run validate` | All 22 architecture and development-record checks passed | PASS |
 | TC-2201–TC-2213 | final `npm run quality` | Lint, typecheck, full tests, all builds and 22 architecture checks passed after the last code correction | PASS |
 | TC-2210, TC-2213 | `npm run scan:secrets` | 265 publishable text files inspected; no secret detected | PASS |
+| TC-2213 | [GitHub PR #16](https://github.com/AlirezaJalili93/aria-ai/pull/16/checks) | Quality passed in 1m29s; Security baseline passed in 31s; Vercel and Preview Comments passed | PASS |
+| TC-2213 | GitHub deployment `6216643251` | Vercel Preview succeeded on exact SHA `1260fea9c4de822acf48c7e76cfce5f2d9cb8bf4` | PASS |
 
 ## Failures and Corrections
 
@@ -61,6 +63,9 @@ Windows workspace; Node.js 24+; Next.js 16/React 19; Python 3.12/FastAPI. Secret
 - The first temporary visual fixture path began with `__` and Next returned 404. The uncommitted
   fixture was exposed once at a conventional temporary path; all browser checks passed, then the
   fixture and proxy exception were removed before the final code/test run.
+- Direct unauthenticated HTTP smoke of the Vercel Preview followed the deployment-protection redirect
+  to Vercel login. No hosted application response was claimed; the exact-SHA deployment/check result
+  and local authenticated-boundary/fixture tests remain recorded separately.
 
 ## Final Status
 
