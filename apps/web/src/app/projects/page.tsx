@@ -1,31 +1,65 @@
 import { redirect } from "next/navigation"
 
-import { LogoutButton } from "../../features/auth/logout-button"
-import { createClient } from "../../features/auth/supabase/server"
+import { fetchProjects, ProjectApiError, resolveProjectAccess } from "../../features/projects/api"
+import { ProjectList } from "../../features/projects/project-list"
+import { AccountBlockedState, ProjectRequestFailure } from "../../features/projects/project-state"
 
 export default async function ProjectsPage() {
-  const supabase = await createClient()
-  const { data: claimsData } = await supabase.auth.getClaims()
-  if (!claimsData?.claims) redirect("/auth/login")
-
-  return (
-    <div className="app-shell">
-      <header className="app-header" aria-label="سربرگ محصول">
-        <span className="product-name" lang="en">
-          Aria AI
-        </span>
-        <LogoutButton />
-      </header>
-      <main id="main-content" className="projects-main" tabIndex={-1}>
-        <section className="empty-state" aria-labelledby="projects-title">
-          <p className="eyebrow">پروژه‌ها</p>
-          <h1 id="projects-title">هنوز پروژه‌ای ندارید</h1>
-          <p>اولین پروژه را بسازید تا Context و Scope آن را در یک فضای قابل ردیابی مدیریت کنید.</p>
-          <button className="button button--primary" type="button" disabled>
-            ایجاد اولین پروژه
-          </button>
-        </section>
+  let access
+  let accessFailure: unknown
+  try {
+    access = await resolveProjectAccess()
+  } catch (error) {
+    accessFailure = error
+  }
+  if (accessFailure || !access) {
+    return (
+      <main id="main-content" className="projects-main projects-main--centered" tabIndex={-1}>
+        <ProjectRequestFailure
+          message="یک خطای موقت رخ داد. دوباره تلاش کنید."
+          {...(accessFailure instanceof ProjectApiError ? { requestId: accessFailure.requestId } : {})}
+        />
       </main>
-    </div>
+    )
+  }
+  if (access.status === "auth_required") redirect("/auth/login")
+  if (access.status !== "selected") {
+    return (
+      <main id="main-content" className="projects-main projects-main--centered" tabIndex={-1}>
+        <AccountBlockedState reason={access.status} />
+      </main>
+    )
+  }
+  let page
+  let pageFailure: unknown
+  try {
+    page = await fetchProjects(access.accessToken, access.account.id)
+  } catch (error) {
+    pageFailure = error
+  }
+  if (pageFailure || !page) {
+    return (
+      <main id="main-content" className="projects-main projects-main--centered" tabIndex={-1}>
+        <ProjectRequestFailure
+          message="یک خطای موقت رخ داد. دوباره تلاش کنید."
+          {...(pageFailure instanceof ProjectApiError ? { requestId: pageFailure.requestId } : {})}
+        />
+      </main>
+    )
+  }
+  return (
+    <main id="main-content" className="projects-main" tabIndex={-1}>
+      <ProjectList
+        initialProjects={page.data.map((project) => ({
+          id: project.id,
+          title: project.title,
+          project_type: project.project_type,
+          status: project.status,
+          updated_at: project.updated_at
+        }))}
+        initialNextCursor={page.meta.next_cursor}
+        initialHasMore={page.meta.has_more}
+      />
+    </main>
   )
 }

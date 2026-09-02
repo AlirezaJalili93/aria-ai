@@ -98,13 +98,15 @@ test("framework request logging excludes the credential-bearing callback URL", a
 
 test("Protected projects route and SSR proxy verify claims", async () => {
   const projects = await read("../src/app/projects/page.tsx");
+  const projectApi = await read("../src/features/projects/api.ts");
   const proxy = await read("../src/features/auth/supabase/proxy.ts");
 
-  assert.match(projects, /getClaims\(\)/);
+  assert.match(projects, /resolveProjectAccess\(\)/);
+  assert.match(projectApi, /getClaims\(\)[\s\S]*getSession\(\)/);
   assert.match(projects, /redirect\(["']\/auth\/login["']\)/);
-  assert.match(projects, /ایجاد اولین پروژه/);
   assert.doesNotMatch(projects, /\/onboarding/);
   assert.doesNotMatch(projects, /bootstrapSession|getSession\(\)/);
+  assert.doesNotMatch(projectApi, /bootstrapSession/);
   assert.match(proxy, /getClaims\(\)/);
 });
 

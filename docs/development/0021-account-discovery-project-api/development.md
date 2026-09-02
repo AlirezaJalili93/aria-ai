@@ -35,6 +35,7 @@ owner/admin soft delete. Project description and public status transitions remai
 | REQ-102 | Owner; API Contract | owner/admin soft delete; deleted resources invisible to ordinary API | TC-2113, TC-2114 |
 | REQ-103 | Owner | safe structured mutation/security events with required identifiers | TC-2115 |
 | REQ-104 | Repository governance | OpenAPI, implementation and canonical contract remain aligned | TC-2116 |
+| REQ-105 | Repository release workflow; owner-approved hosted staging contract | Exact merge SHA is migrated, deployed and verified through hosted health checks | TC-2117 |
 
 ## Assumptions and Clarifications
 
@@ -105,12 +106,13 @@ commit. No new deployable or cross-module write is added.
 
 All focused tests, 19 real PostgreSQL integration tests, monorepo lint/typecheck, 53 CI contract
 tests, 12 Web tests, 16 Worker tests, production builds and both security scans passed. The final
-mandatory `npm test` and `npm run validate` passed. GitHub PR #15 then passed Quality, Security
-baseline and the Vercel Preview deployment; details are recorded in the linked test report.
+mandatory `npm test` and `npm run validate` passed. GitHub PR #15 passed Quality, Security baseline
+and Vercel Preview, then merged as `49f1b3029e8a0cc95701f3d80a12725abf28581a`. Main Quality,
+Security and the protected Staging migration run passed. Vercel Production returned HTTP 200, and
+Railway `/health/live` plus `/health/ready` returned HTTP 200 with the exact merge SHA and
+configuration/database/queue checks all `pass`; details are recorded in the linked test report.
 
 ## Remaining Risks
 
-- Main/staging migration and post-merge smoke evidence remain gated on PR approval and merge; PR
-  Quality, Security and Vercel Preview checks are complete.
 - Idempotency reservation retention has no cleanup policy in S1-C02. No automatic deletion was
   invented; a future retention requirement may add an explicit maintenance policy.
