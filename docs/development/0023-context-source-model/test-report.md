@@ -43,6 +43,7 @@ Secrets are not recorded.
 | TC-2317 | `npm run build` | Next.js production build and Python compilation passed | PASS |
 | TC-2307, TC-2314, TC-2317 | `npm run scan:secrets`; `npm run scan:dependencies` | 282 publishable files clean; npm/API/Worker audits found no blocking vulnerabilities | PASS |
 | TC-2301–TC-2317 | `npm run quality` with the isolated PostgreSQL target | 246 tests passed; lint, typecheck, build and 22 architecture checks passed | PASS |
+| TC-2301–TC-2317 | [PR #17 CI](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33622019480) | Quality passed in 1m27s; Security Baseline passed in 30s; Vercel Preview passed | PASS |
 
 ## Failures and Corrections
 
