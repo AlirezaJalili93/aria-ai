@@ -29,6 +29,7 @@ when `TEST_DATABASE_URL` is configured. Secrets are not recorded.
 | TC-2114 | Soft delete | Read/list/update deleted Project | Ordinary API returns safe 404 and does not mutate it |
 | TC-2115 | Privacy/Logging | Mutations and denied access | Approved events/IDs emitted; title/JWT/raw payload absent |
 | TC-2116 | Contract/Gate | OpenAPI, architecture, full repository gates | Canonical paths/schemas present and all mandatory gates pass |
+| TC-2117 | Hosted/Release | Merge, migrate and deploy the exact accepted SHA | Main gates and migration pass; Vercel and Railway serve the accepted SHA; API live/ready are healthy |
 
 ## Execution Results
 
@@ -54,6 +55,11 @@ when `TEST_DATABASE_URL` is configured. Secrets are not recorded.
 | TC-2101–TC-2116 | `npm test` | Full repository test command passed | PASS |
 | TC-2101–TC-2116 | `npm run validate` | Architecture and development-record gates passed | PASS |
 | TC-2101–TC-2116 | [GitHub PR #15 checks](https://github.com/AlirezaJalili93/aria-ai/pull/15/checks) | Quality 1m26s, Security baseline 27s, Vercel and Preview Comments passed | PASS |
+| TC-2117 | Merge PR #15 | Squash merge `49f1b3029e8a0cc95701f3d80a12725abf28581a` created on `main` | PASS |
+| TC-2117 | [Main CI run 33510103305](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33510103305) | Quality passed in 1m32s; Security baseline passed in 31s on exact merge SHA | PASS |
+| TC-2117 | [Staging migration run 33510103282](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33510103282) | M003 applied and Alembic head verified against protected Staging database | PASS |
+| TC-2117 | Railway API deployment `46c5b9cc-99b9-4f80-807b-2d62974053ea` | Deployment successful; `/health/live` and `/health/ready` returned 200 with exact merge SHA; configuration/database/queue=`pass` | PASS |
+| TC-2117 | Vercel Production deployment `BmFdKdcjRyRAYL9uUAsLbU7Yyag9` | GitHub status bound deployment to exact merge SHA; `/` and `/auth/login` returned HTTP 200 | PASS |
 
 ## Failures and Corrections
 
@@ -69,6 +75,10 @@ when `TEST_DATABASE_URL` is configured. Secrets are not recorded.
 - The first final architecture validation scanned the task-local `.uv-cache` and reported two broken
   links inside downloaded third-party package metadata. The exact generated cache was removed;
   re-running the unchanged validator passed all 22 repository checks.
+- The first post-merge Railway smoke returned the old API SHA `fdcd9d3f...`. Railway showed the API
+  service was connected to `main` but Auto Deploy was disabled. Auto Deploy was enabled, the latest
+  repository version was applied, deployment `46c5b9cc-99b9-4f80-807b-2d62974053ea` succeeded and
+  the repeated live/ready smoke matched the exact merge SHA.
 
 ## Final Status
 

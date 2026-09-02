@@ -120,6 +120,14 @@ class ProjectApplicationService:
             duration_ms=(perf_counter() - started_at) * 1000,
             status="succeeded",
         )
+        self._event_logger.emit(
+            "project_created",
+            actor_id=str(context.subject_id),
+            event_category="product_analytics",
+            project_type=persisted.project_type,
+            role=context.role,
+            status="succeeded",
+        )
         return persisted
 
     async def get(self, context: TenantContext, project_id: UUID) -> Project:

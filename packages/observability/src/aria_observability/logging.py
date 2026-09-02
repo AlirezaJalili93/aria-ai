@@ -42,6 +42,9 @@ _OPTIONAL_FIELDS = {
     "queue_adapter_configured",
     "actor_id",
     "project_id",
+    "event_category",
+    "project_type",
+    "role",
 }
 
 

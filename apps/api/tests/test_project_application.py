@@ -261,6 +261,18 @@ def test_create_uses_active_tenant_subject_as_owner_and_emits_safe_event() -> No
     assert event["correlation_id"]
     assert "محرمانه" not in stream.getvalue()
     assert event["actor_id"] == str(context.subject_id)
+    analytics_event = next(
+        json.loads(line)
+        for line in stream.getvalue().splitlines()
+        if json.loads(line)["event_name"] == "project_created"
+    )
+    assert analytics_event["schema_version"] == "1"
+    assert analytics_event["event_category"] == "product_analytics"
+    assert analytics_event["account_id"] == str(context.account_id)
+    assert analytics_event["project_id"] == str(project_id)
+    assert analytics_event["project_type"] == "landing"
+    assert analytics_event["role"] == "owner"
+    assert "محرمانه" not in json.dumps(analytics_event, ensure_ascii=False)
 
 
 @pytest.mark.parametrize("status", ["invited", "suspended"])
@@ -324,6 +336,7 @@ def test_update_archive_and_soft_delete_emit_distinct_events_and_filter_deleted(
     names = {json.loads(line)["event_name"] for line in stream.getvalue().splitlines()}
     assert {
         "project.created",
+        "project_created",
         "project.updated",
         "project.archived",
         "project.soft_deleted",
