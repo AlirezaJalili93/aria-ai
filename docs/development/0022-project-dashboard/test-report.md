@@ -48,6 +48,11 @@ Windows workspace; Node.js 24+; Next.js 16/React 19; Python 3.12/FastAPI. Secret
 | TC-2213 | [GitHub PR #16](https://github.com/AlirezaJalili93/aria-ai/pull/16/checks) | Quality passed in 1m29s; Security baseline passed in 31s; Vercel and Preview Comments passed | PASS |
 | TC-2213 | GitHub deployment `6216643251` | Vercel Preview succeeded on exact SHA `1260fea9c4de822acf48c7e76cfce5f2d9cb8bf4` | PASS |
 
+| TC-2213 | [PR #16 merge](https://github.com/AlirezaJalili93/aria-ai/pull/16) | Squash merge completed on `main` as `40bca5ad302a43f2f8bbf342ec938cecf60d86ed` | PASS |
+| TC-2213 | [Post-merge CI run 33601221997](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33601221997) | Quality passed in 1m33s and Security baseline passed in 26s on the exact merge SHA | PASS |
+| TC-2213 | GitHub commit deployment status | Vercel plus Railway API deployment `f9608af6-0338-43f7-83d4-9fdacf76a1b2` and Worker deployment `23bde160-98d8-44ea-baab-4731bf42f94d` succeeded on the merge SHA | PASS |
+| TC-2213 | Hosted Railway GET `/health/live` and `/health/ready` | Both returned HTTP 200 with exact SHA `40bca5ad302a43f2f8bbf342ec938cecf60d86ed`; configuration/database/queue were `pass` | PASS |
+
 ## Failures and Corrections
 
 - The first Web lint run found JSX returned inside `try/catch` and invalid `aria-disabled` on a
