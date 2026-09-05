@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from types import TracebackType
 from typing import cast
 from uuid import UUID
@@ -55,6 +56,15 @@ class SqlAlchemyJobRepository:
         model = await self._session.scalar(select(JobModel).where(JobModel.id == job_id))
         return _job_from_model(model) if model is not None else None
 
+    async def get_for_account(self, account_id: UUID, job_id: UUID) -> Job | None:
+        model = await self._session.scalar(
+            select(JobModel).where(
+                JobModel.id == job_id,
+                JobModel.account_id == account_id,
+            )
+        )
+        return _job_from_model(model) if model is not None else None
+
 
 class SqlAlchemyOutboxRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -82,6 +92,16 @@ class SqlAlchemyOutboxRepository:
             select(OutboxEventModel).where(OutboxEventModel.id == event_id)
         )
         return _outbox_from_model(model) if model is not None else None
+
+    async def mark_published(self, event_id: UUID, published_at: datetime) -> None:
+        model = await self._session.scalar(
+            select(OutboxEventModel).where(OutboxEventModel.id == event_id)
+        )
+        if model is None:
+            raise JobsRepositoryError from None
+        model.status = "published"
+        model.published_at = published_at
+        await self._session.flush()
 
 
 class SqlAlchemyJobsUnitOfWork:

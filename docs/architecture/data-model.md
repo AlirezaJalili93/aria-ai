@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-02
+- تاریخ همگام‌سازی: 2026-09-05
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -30,7 +30,7 @@ M000 extensions
 → M006 gaps / clarifications
 → M007 scope_drafts / scope_versions
 → M008 jobs / outbox_events
-→ M009 provider_price_versions / usage_records
+→ M009 usage_records (S1-G05) / provider_price_versions deferred to S1-G06
 → M010 RLS baseline
 ```
 
@@ -52,7 +52,7 @@ M000 extensions
 | projects | id, account_id, owner_id, title, project_type, status, current_context_version=`0`, created_at, updated_at, deleted_at | `owner_id` به Profile وصل است؛ type فقط landing/corporate/portfolio؛ status فقط draft/active/awaiting_approval/approved/generating/delivered/archived؛ version نامنفی؛ حذف نرم |
 | context_sources | id, account_id, project_id, source_type, status, original_name, mime_type, storage_ref, raw_text, checksum, created_by, created_at, updated_at | type در DB برابر text/file/message/url_reference و در S1-D01 Application فقط text؛ status برابر uploaded/parsing/ready/failed/deleted؛ query عادی deleted را حذف می‌کند |
 | context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical_text/storage_ref, metadata, parse_status, created_at | parse status برابر pending/parsing/ready/failed؛ `version_no>=1` و `UNIQUE(source_id,version_no)`؛ ready immutable و دارای canonical text/ref؛ history حفظ می‌شود |
-| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status | item_type: fact/assumption/decision/constraint/reference/unknown |
+| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_by, created_at | version >=1؛ item type برابر fact/assumption/decision/constraint/reference/unknown؛ status برابر proposed/confirmed/rejected/superseded؛ Fact تأییدشده حداقل یک provenance معتبر دارد؛ user-created دارای created_by است |
 
 ## Requirement، Gap و Scope
 
@@ -72,7 +72,7 @@ M000 extensions
 | outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
 | provider_price_versions | id, provider, model, unit prices, currency, validity | Historical price version تغییر نمی‌کند |
-| usage_records | id, account_id, project_id, job_id, provider/model/task/workflow/prompt/pricing versions, tokens, latency, cost, status | append-only و traceable |
+| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ status فقط success/failed/partial؛ مقدارهای عددی نامنفی؛ cost بدون default؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Account/Project/Job همگی `ON DELETE RESTRICT` |
 
 ## Index و RLS Baseline
 
@@ -91,6 +91,14 @@ M000 extensions
 - `jobs` و `outbox_events` با `(status, available_at)` و tenant-created-at index می‌شوند؛ Project Job
   باید Account همان Project را حمل کند. نام‌های قدیمی `task_type/attempt_no/input_ref/output_ref` طبق
   [ADR-013](../adr/ADR-013-jobs-outbox-persistence.md) superseded هستند.
+- Usage Ledger با `(account_id, created_at desc)` و FKهای Project/Job index می‌شود. واژهٔ
+  `retry_no` برای Usage canonical است و `attempt_no` قدیمی را supersede می‌کند. Provider و Model
+  دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application.
+- Context Item با `(account_id, project_id, context_version)` index می‌شود. `context_version`
+  عدد صحیح canonical است و `context_version_id` قدیمی را supersede می‌کند. هر عنصر `source_refs`
+  به Source و Source Version آماده در همان Tenant اشاره می‌کند و offset اختیاری آن نیم‌بازهٔ
+  صفرمبنا روی `canonical_text` است. `source_ref` مفرد و `state=active` قدیمی supersede شده‌اند؛
+  جزئیات در [ADR-025](../adr/ADR-025-context-item-provenance-contract.md) ثبت شده است.
 
 ## Migration Guardrails
 
@@ -99,3 +107,5 @@ M000 extensions
 - تغییر destructive از Expand/Contract و recovery plan استفاده می‌کند.
 - Seed فقط Local/Staging و شامل Tenant A/B است.
 - Schema دستی در Staging/Production ممنوع است.
+- `aria_worker` تنها نقش Runtime دارای `INSERT` مستقیم روی Usage Ledger است؛ `aria_api`، `anon` و
+  `authenticated` هیچ دسترسی مستقیم ندارند و Worker نباید با super/service bypass اجرا شود.

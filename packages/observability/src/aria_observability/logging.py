@@ -36,6 +36,9 @@ _OPTIONAL_FIELDS = {
     "output_tokens",
     "estimated_cost",
     "provider_request_id",
+    "outbox_event_id",
+    "aggregate_type",
+    "aggregate_id",
     "exception_type",
     "component",
     "operation",
@@ -113,7 +116,7 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
-    if field in {"actor_id", "project_id", "source_id"}:
+    if field in {"actor_id", "project_id", "source_id", "outbox_event_id", "aggregate_id"}:
         return _safe_uuid(value)
     if field in {"attempt", "input_tokens", "output_tokens", "version_no"}:
         return _safe_non_negative_integer(value)

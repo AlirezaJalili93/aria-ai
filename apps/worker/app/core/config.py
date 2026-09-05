@@ -1,9 +1,11 @@
+from dataclasses import dataclass
 from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
+    Field,
     PostgresDsn,
     RedisDsn,
     SecretStr,
@@ -17,6 +19,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 CommitSha = Annotated[str, StringConstraints(pattern=r"^[0-9a-fA-F]{40}$")]
 NonEmptyString = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+PositiveInteger = Annotated[int, Field(gt=0)]
+
+
+@dataclass(frozen=True, slots=True)
+class QueueRuntimeConfiguration:
+    broker_url: SecretStr
+    queue_name: str
+    visibility_timeout_seconds: int
+    concurrency: int
 
 
 def _validated_postgres_secret(value: SecretStr) -> SecretStr:
@@ -51,6 +62,9 @@ RedisSecret = Annotated[SecretStr, AfterValidator(_validated_redis_secret)]
 WORKER_STAGING_REQUIRED_SETTINGS = (
     "database_url",
     "queue_broker_url",
+    "queue_name",
+    "queue_visibility_timeout_seconds",
+    "worker_concurrency",
     "storage_endpoint",
     "storage_bucket",
     "storage_access_key",
@@ -65,6 +79,9 @@ class WorkerSettings(BaseSettings):
     log_level: LogLevel
     database_url: PostgresSecret | None = None
     queue_broker_url: RedisSecret | None = None
+    queue_name: NonEmptyString | None = None
+    queue_visibility_timeout_seconds: PositiveInteger | None = None
+    worker_concurrency: PositiveInteger | None = None
     storage_endpoint: AnyHttpUrl | None = None
     storage_bucket: NonEmptyString | None = None
     storage_access_key: SecretStr | None = None
@@ -101,6 +118,30 @@ class WorkerSettings(BaseSettings):
                 "Missing required hosted worker configuration: " + ", ".join(sorted(missing))
             )
         return self
+
+    def require_queue_runtime_configuration(self) -> QueueRuntimeConfiguration:
+        required = (
+            "queue_broker_url",
+            "queue_name",
+            "queue_visibility_timeout_seconds",
+            "worker_concurrency",
+        )
+        missing = [setting for setting in required if getattr(self, setting) is None]
+        if missing:
+            raise ValueError(
+                "Missing required Worker Queue runtime configuration: " + ", ".join(sorted(missing))
+            )
+
+        assert self.queue_broker_url is not None
+        assert self.queue_name is not None
+        assert self.queue_visibility_timeout_seconds is not None
+        assert self.worker_concurrency is not None
+        return QueueRuntimeConfiguration(
+            broker_url=self.queue_broker_url,
+            queue_name=self.queue_name,
+            visibility_timeout_seconds=self.queue_visibility_timeout_seconds,
+            concurrency=self.worker_concurrency,
+        )
 
 
 def load_worker_settings() -> WorkerSettings:

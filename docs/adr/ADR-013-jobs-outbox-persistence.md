@@ -20,7 +20,8 @@
 - `outbox_events.payload` بعد از commit تغییرناپذیر است و event UUID کلید پایدار انتشار آینده است.
 - RLS برای هر دو جدول فعال و Data API بدون policy/grant صریح fail-closed می‌ماند.
 - relay، queue adapter، retry/backoff، dead-letter و duplicate-delivery handler در این تصمیم انتخاب
-  نمی‌شوند؛ آن‌ها به قراردادهای S1-E02/E04 نیاز دارند.
+  نمی‌شوند؛ قرارداد جزئی Relay در [ADR-016](ADR-016-outbox-relay-contract.md) ثبت شده و Queue
+  Producer/Consumer semantics همچنان به ADRهای بعدی نیاز دارد.
 
 ## Consequences
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
@@ -16,11 +17,21 @@ class JobRepository(Protocol):
 
     async def get(self, job_id: UUID) -> Job | None: ...
 
+    async def get_for_account(self, account_id: UUID, job_id: UUID) -> Job | None: ...
+
 
 class OutboxRepository(Protocol):
     async def add(self, event: NewOutboxEvent) -> OutboxEvent: ...
 
     async def get(self, event_id: UUID) -> OutboxEvent | None: ...
+
+    async def mark_published(self, event_id: UUID, published_at: datetime) -> None: ...
+
+
+class QueuePublisher(Protocol):
+    """Provider-neutral publication boundary for a committed Outbox event."""
+
+    async def publish(self, event: OutboxEvent) -> None: ...
 
 
 class JobsUnitOfWork(Protocol):

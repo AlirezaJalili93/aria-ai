@@ -309,10 +309,14 @@ if (!failures.some((item) => /Domain imports|Application imports/.test(item))) {
 
 const apiPyproject = await read("apps/api/pyproject.toml");
 const workerPyproject = await read("apps/worker/pyproject.toml");
-if (/celery|dramatiq|\brq\b/i.test(`${apiPyproject}\n${workerPyproject}`)) {
-  fail("Queue framework was selected before the required queue spike/ADR");
+if (/celery|dramatiq|\brq\b/i.test(apiPyproject)) {
+  fail("API deployable must remain Queue-framework neutral");
+} else if (/dramatiq|\brq\b/i.test(workerPyproject)) {
+  fail("Worker Queue dependency conflicts with accepted ADR-015");
+} else if (/celery/i.test(workerPyproject) && !/"celery\[redis\]==5\.6\.3"/.test(workerPyproject)) {
+  fail("Worker Celery dependency must use the exact ADR-015 pin with Redis transport");
 } else {
-  pass("Worker bootstrap preserves the documented open queue decision");
+  pass("Queue dependencies respect accepted ADR-015 and the API/Worker boundary");
 }
 
 const openApi = await read("packages/contracts/openapi.yaml");

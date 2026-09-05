@@ -43,6 +43,10 @@ class FakeJobRepository(JobRepository):
     async def get(self, job_id: UUID) -> Job | None:
         return self.rows.get(job_id)
 
+    async def get_for_account(self, account_id: UUID, job_id: UUID) -> Job | None:
+        row = self.rows.get(job_id)
+        return row if row is not None and row.account_id == account_id else None
+
 
 class FakeOutboxRepository(OutboxRepository):
     def __init__(self) -> None:
@@ -55,6 +59,12 @@ class FakeOutboxRepository(OutboxRepository):
 
     async def get(self, event_id: UUID) -> OutboxEvent | None:
         return self.rows.get(event_id)
+
+    async def mark_published(self, event_id: UUID, published_at: datetime) -> None:
+        row = self.rows[event_id]
+        self.rows[event_id] = OutboxEvent(
+            **{**asdict(row), "status": "published", "published_at": published_at}
+        )
 
 
 class FakeJobsUnitOfWork(JobsUnitOfWork):

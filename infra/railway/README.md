@@ -46,6 +46,9 @@ screenshots, or development records.
 - `LOG_LEVEL=INFO`
 - `DATABASE_URL`
 - `QUEUE_BROKER_URL`
+- `QUEUE_NAME`
+- `QUEUE_VISIBILITY_TIMEOUT_SECONDS`
+- `WORKER_CONCURRENCY`
 - `STORAGE_ENDPOINT`
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`

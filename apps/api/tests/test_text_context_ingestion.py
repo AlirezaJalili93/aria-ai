@@ -90,6 +90,15 @@ class FakeOutbox:
         self.rows.append(persisted)
         return persisted
 
+    async def mark_published(self, event_id: UUID, published_at: datetime) -> None:
+        for index, row in enumerate(self.rows):
+            if row.id == event_id:
+                self.rows[index] = OutboxEvent(
+                    **{**asdict(row), "status": "published", "published_at": published_at}
+                )
+                return
+        raise KeyError(event_id)
+
 
 class FakeIdempotency:
     def __init__(self) -> None:

@@ -34,6 +34,7 @@ from app.api.routers.accounts import create_accounts_router
 from app.api.routers.auth import create_auth_router
 from app.api.routers.context_sources import create_context_sources_router
 from app.api.routers.health import create_health_router
+from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
@@ -67,6 +68,8 @@ from app.modules.identity.infrastructure.account_discovery import SqlAlchemyAcco
 from app.modules.identity.infrastructure.membership_resolution import (
     SqlAlchemyMembershipResolver,
 )
+from app.modules.jobs.application.job_status import JobStatusApplicationService
+from app.modules.jobs.infrastructure.repository import SqlAlchemyJobsUnitOfWorkFactory
 from app.modules.projects.application.project_service import ProjectApplicationService
 from app.modules.projects.infrastructure.repository import SqlAlchemyProjectUnitOfWorkFactory
 
@@ -98,6 +101,7 @@ def create_app(
     account_discovery: AccountDiscovery | None = None,
     project_service: ProjectApplicationService | None = None,
     text_context_use_case: CreateTextContextUseCase | None = None,
+    job_status_service: JobStatusApplicationService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -192,6 +196,13 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.job_status_service = job_status_service or (
+        JobStatusApplicationService(
+            SqlAlchemyJobsUnitOfWorkFactory(database_runtime.session_factory)
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -199,6 +210,7 @@ def create_app(
     app.include_router(create_accounts_router(), prefix="/api/v1")
     app.include_router(create_projects_router(), prefix="/api/v1")
     app.include_router(create_context_sources_router(), prefix="/api/v1")
+    app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 
 

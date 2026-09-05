@@ -7,6 +7,11 @@ from app.core.config import WorkerSettings
 from app.main import run_worker
 
 
+class RuntimeProbe:
+    def run(self) -> None:
+        pass
+
+
 def _logger(stream: StringIO):
     return create_event_logger(
         service="aria-worker",
@@ -20,16 +25,24 @@ def _logger(stream: StringIO):
 
 def test_worker_startup_uses_structured_logging_instead_of_print() -> None:
     stream = StringIO()
-    settings = WorkerSettings(app_env="test", app_version="0.1.0", log_level="INFO")
+    settings = WorkerSettings(
+        app_env="test",
+        app_version="0.1.0",
+        log_level="INFO",
+        queue_broker_url="redis://queue.test:6379/0",
+        queue_name="aria-test-jobs",
+        queue_visibility_timeout_seconds=60,
+        worker_concurrency=1,
+    )
 
-    run_worker(settings, wait=lambda: None, event_logger=_logger(stream))
+    run_worker(settings, queue_runtime=RuntimeProbe(), event_logger=_logger(stream))
 
     event = json.loads(stream.getvalue())
     assert event["event_name"] == "worker.runtime_started"
     assert event["service"] == "aria-worker"
     assert event["environment"] == "test"
     assert event["status"] == "started"
-    assert event["queue_adapter_configured"] is False
+    assert event["queue_adapter_configured"] is True
 
 
 def test_job_context_preserves_correlation_through_worker_and_provider_boundary() -> None:
