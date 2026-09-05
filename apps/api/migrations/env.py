@@ -10,13 +10,17 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.infrastructure.db.models import Base
+from app.infrastructure.db import idempotency as idempotency_models
 from app.infrastructure.db.readiness import normalize_async_database_url
 from app.modules.context.infrastructure import models as context_models
 from app.modules.identity.infrastructure import models as identity_models
+from app.modules.jobs.infrastructure import models as job_models
 from app.modules.projects.infrastructure import models as project_models
 
 del context_models
+del idempotency_models
 del identity_models
+del job_models
 del project_models
 
 config = context.config

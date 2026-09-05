@@ -118,6 +118,54 @@ paths:
         "204": { description: Project soft-deleted; response is empty. }
         "403": { description: Active Membership role is not owner or admin. }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/context-sources:
+    post:
+      operationId: createTextContextSource
+      summary: Accept exact text Context and schedule its asynchronous parse
+      description: >-
+        Creates Source version 1, a queued context_source_parse Job, and a transactional
+        context_added.v1 Outbox Event. The raw text is preserved exactly and is never copied into
+        the Job or Outbox payload.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTextContextRequest" }
+      responses:
+        "202":
+          description: >-
+            Text Context accepted, or the original result replayed for the same unexpired key and
+            complete request input.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TextContextAccepted" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: >-
+            `IDEMPOTENCY_CONFLICT` when the key is reused within 24 hours for different request
+            input or a different Project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: >-
+            `VALIDATION_FAILED` for a non-text or extra-field body, blank text, more than 50,000
+            Unicode characters, NUL, another disallowed control, or a missing/empty key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -283,6 +331,32 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 255 }
         expected_updated_at: { type: string, format: date-time }
+    CreateTextContextRequest:
+      type: object
+      additionalProperties: false
+      required: [source_type, raw_text]
+      properties:
+        source_type: { type: string, const: text }
+        raw_text: { type: string, minLength: 1, maxLength: 50000 }
+    TextContextAccepted:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [source_id, status, job_id]
+          properties:
+            source_id: { type: string, format: uuid }
+            status: { type: string, const: uploaded }
+            job_id: { type: string, format: uuid }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
     Project:
       type: object
       additionalProperties: false
