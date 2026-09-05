@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
@@ -10,6 +11,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -117,6 +119,75 @@ class ContextSourceVersionModel(Base):
         "metadata", JSONB, nullable=True
     )
     parse_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ContextItemModel(Base):
+    __tablename__ = "context_items"
+    __table_args__ = (
+        CheckConstraint("context_version >= 1", name="context_item_context_version"),
+        CheckConstraint(
+            "item_type IN ('fact','assumption','decision','constraint','reference','unknown')",
+            name="context_item_type",
+        ),
+        CheckConstraint(
+            "status IN ('proposed','confirmed','rejected','superseded')",
+            name="context_item_status",
+        ),
+        CheckConstraint(
+            "created_by_type IN ('ai','user','system')",
+            name="context_item_created_by_type",
+        ),
+        CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="context_item_confidence",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(source_refs) = 'array'",
+            name="context_item_source_refs_array",
+        ),
+        CheckConstraint(
+            "item_type <> 'fact' OR status <> 'confirmed' "
+            "OR CASE WHEN jsonb_typeof(source_refs) = 'array' "
+            "THEN jsonb_array_length(source_refs) > 0 ELSE false END",
+            name="context_item_confirmed_fact_provenance",
+        ),
+        CheckConstraint(
+            "created_by_type <> 'user' OR created_by IS NOT NULL",
+            name="context_item_user_creator",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "account_id"],
+            ["projects.id", "projects.account_id"],
+            name="fk_context_items_project_id_account_id_projects",
+            ondelete="RESTRICT",
+        ),
+        Index(
+            "ix_context_items_account_project_version",
+            "account_id",
+            "project_id",
+            "context_version",
+        ),
+        Index("ix_context_items_created_by", "created_by"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    context_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    item_type: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_refs: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="proposed")
+    created_by_type: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
