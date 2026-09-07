@@ -66,7 +66,13 @@ export function ProjectOverview({
             ].map(([key, label]) => (
               <section className="module-card" key={key}>
                 <h3>{label}</h3>
-                {key === "Context" ? <Link href={`/projects/${project.id}/context`}>مرور زمینه</Link> : <p>هنوز شروع نشده</p>}
+                {key === "Context" ? (
+                  <Link href={`/projects/${project.id}/context`}>مرور زمینه</Link>
+                ) : key === "Requirements" ? (
+                  <Link href={`/projects/${project.id}/requirements`}>مرور نیازمندی‌ها</Link>
+                ) : (
+                  <p>هنوز شروع نشده</p>
+                )}
               </section>
             ))}
           </div>
