@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-06
+- تاریخ همگام‌سازی: 2026-09-07
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -58,7 +58,7 @@ M000 extensions
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ provenance و creator tenant-safe |
+| requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, acceptance_note, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ acceptance note nullable است؛ provenance و creator tenant-safe |
 | gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, accepted_assumption | accepted assumption فقط با action صریح |
 | clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
@@ -125,6 +125,10 @@ M000 extensions
   `(account_id, project_id, generation_job_id)` همراه status نهایی Job همان Tenant replay را
   پشتیبانی می‌کند. جدول result یا Snapshot تاریخی Generation در I02 ایجاد نمی‌شود؛ جزئیات در
   [ADR-031](../adr/ADR-031-requirement-generation-contract.md) ثبت شده است.
+- I03 افزودن دستی را به Context Version فعلی و Idempotency ۲۴ساعته متصل می‌کند؛ ویرایش با
+  `expected_updated_at` انجام می‌شود و ویرایش Requirement تأییدشده آن را به draft برمی‌گرداند.
+  حذف عمومی فقط draft را به removed تبدیل می‌کند؛ `acceptance_note` nullable است و Snapshot/restore
+  همچنان خارج Scope است. جزئیات در [ADR-032](../adr/ADR-032-requirement-crud-contract.md) ثبت شده است.
 
 ## Migration Guardrails
 

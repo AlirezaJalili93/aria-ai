@@ -8,7 +8,7 @@ is never stored in this directory.
 → 0002_projects → 0003_project_create_idempotency → 0004_context_sources
 → 0005_jobs_outbox → 0006_idempotency_records → 0007_usage_records
 → 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
-→ 0011_requirements → 0012_requirement_generation
+→ 0011_requirements → 0012_requirement_generation → 0013_requirement_crud
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -56,3 +56,8 @@ provider-output duplicate key and a non-unique Job reference plus tenant-first r
 does not add a conflict or Gap table. Requirement rows and safe conflict Outbox events commit in
 one transaction; exact Context snapshot and merge rules are recorded in
 [ADR-031](../../../docs/adr/ADR-031-requirement-generation-contract.md).
+
+`0013_requirement_crud` adds nullable `acceptance_note` and the tenant-first descending pagination
+index used by S1-I03. It preserves the existing RLS/grants and four-state soft lifecycle; public
+commands never hard-delete Requirement rows. See
+[ADR-032](../../../docs/adr/ADR-032-requirement-crud-contract.md).

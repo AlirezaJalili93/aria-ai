@@ -79,6 +79,7 @@ class NewRequirement:
     is_unsupported: bool = False
     duplicate_group_key: str | None = None
     generation_job_id: UUID | None = None
+    acceptance_note: str | None = None
     status: RequirementStatus = "draft"
 
     def __post_init__(self) -> None:
@@ -88,12 +89,18 @@ class NewRequirement:
         validate_status(self.status)
         validate_creator_type(self.created_by_type)
         validate_confidence(self.confidence)
+        if not isinstance(self.title, str) or len(self.title) > 255:
+            raise RequirementValidationError("Requirement title exceeds its data contract")
+        if not isinstance(self.description, str):
+            raise RequirementValidationError("Requirement description must be text")
         if not isinstance(self.is_unsupported, bool):
             raise RequirementValidationError("is_unsupported must be boolean")
         if self.duplicate_group_key is not None and not isinstance(
             self.duplicate_group_key, str
         ):
             raise RequirementValidationError("duplicate_group_key must be text")
+        if self.acceptance_note is not None and not isinstance(self.acceptance_note, str):
+            raise RequirementValidationError("acceptance_note must be text or null")
         if self.created_by_type == "user" and self.created_by is None:
             raise RequirementValidationError("A user-created Requirement requires created_by")
 

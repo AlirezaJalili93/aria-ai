@@ -45,16 +45,15 @@ test("Requirement persistence enforces context and provenance boundaries", async
   assert.match(repository, /ContextSourceVersionModel\.project_id == project_id/);
 });
 
-test("I01 keeps deferred Requirement behavior out of scope", async () => {
+test("I01 keeps later Requirement behavior out of its domain foundation", async () => {
   const migration = await read("apps/api/migrations/versions/0011_requirements.py");
   const application = await read(
     "apps/api/app/modules/requirements/application/requirement_service.py"
   );
-  const main = await read("apps/api/app/main.py");
 
   assert.doesNotMatch(migration, /unique.*requirement|acceptance_note/i);
   assert.doesNotMatch(application, /merge|dedup|generate|deactivate|restore/i);
-  assert.doesNotMatch(main, /requirements.*router|create_requirements_router/i);
+  assert.doesNotMatch(application, /fastapi|APIRouter|create_requirements_router/i);
 });
 
 test("Requirement logging excludes customer content and provenance", async () => {

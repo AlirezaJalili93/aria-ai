@@ -49,7 +49,8 @@ tenant consistency, creator consistency and top-level JSON shape.
 
 - S1-I02 generation, unsupported classification, duplicate detection and merge semantics are now
   defined by ADR-031.
-- S1-I03 HTTP CRUD, lifecycle transitions, audit metadata and `acceptance_note`.
+- S1-I03 HTTP CRUD, lifecycle transitions, audit metadata and `acceptance_note` are defined by
+  ADR-032.
 - S1-I04 UI and S1-I05 model-quality evaluation.
 - Manual Requirements before the first valid Context Version.
 - Restore/reactivation of a removed Requirement.

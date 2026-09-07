@@ -68,7 +68,7 @@ visibility without prematurely creating the J01 Gap domain.
 
 - Concrete Provider adapters and model-quality evaluation (G02/G03 and I05).
 - Queue message, scheduler, retry and ACK wiring.
-- Requirement HTTP lifecycle, `acceptance_note` and UI (I03/I04).
+- Requirement HTTP lifecycle and `acceptance_note` are defined by ADR-032; UI remains I04.
 - Conflict-to-Gap transformation (J01/J02).
 - Fuzzy/linguistic deduplication, confidence aggregation and removed-item restoration.
 - Immutable historical generation payload/batch audit or replay after I03 mutations.

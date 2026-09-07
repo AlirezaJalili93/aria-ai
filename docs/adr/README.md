@@ -30,5 +30,6 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-029 — Context Structuring Evaluation Set Contract](ADR-029-context-evaluation-set-contract.md)
 - [ADR-030 — Requirement Domain and Provenance Contract](ADR-030-requirement-domain-contract.md)
 - [ADR-031 — Requirement Generation and Merge Contract](ADR-031-requirement-generation-contract.md)
+- [ADR-032 — Requirement CRUD and Human Review Contract](ADR-032-requirement-crud-contract.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

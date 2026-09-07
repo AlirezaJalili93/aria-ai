@@ -261,6 +261,154 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/requirements:
+    get:
+      operationId: listRequirements
+      summary: List tenant-scoped active Requirements in descending keyset order
+      description: >-
+        Removed and superseded Requirements are hidden by default. An explicit status filter may
+        retrieve either terminal state. The category and status filters are whitelist-only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: category
+          in: query
+          schema: { $ref: "#/components/schemas/RequirementCategory" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/RequirementStatus" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor for created_at DESC, id DESC ordering.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Requirement collection in the standard collection envelope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementsCollection" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: A filter or cursor failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    post:
+      operationId: createManualRequirement
+      summary: Add a manual draft Requirement to the current Project Context Version
+      description: >-
+        The current_context_version must be at least one. The server owns status=draft,
+        created_by_type=user, empty source_refs, null confidence, and unsupported=false.
+        Reusing the same unexpired Idempotency-Key and exact input returns the same Requirement.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateManualRequirementRequest" }
+      responses:
+        "201":
+          description: Manual Requirement created or the original resource replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT for the same key with different exact input.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: VALIDATION_FAILED or CONTEXT_VERSION_REQUIRED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/requirements/{requirement_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: requirement_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    patch:
+      operationId: updateRequirement
+      summary: Edit or confirm a Requirement with optimistic concurrency
+      description: >-
+        Only title, description, priority, acceptance_note and draft-to-confirmed status are
+        mutable. Editing a confirmed Requirement demotes it to draft. Removed and superseded
+        Requirements are immutable. Source references and origin metadata are read-only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateRequirementRequest" }
+      responses:
+        "200":
+          description: Updated Requirement with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT or INVALID_REQUIREMENT_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The partial update body failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    delete:
+      operationId: deactivateDraftRequirement
+      summary: Soft-deactivate a draft Requirement
+      description: >-
+        This command changes draft to removed and never hard-deletes the row. Confirmed,
+        superseded and already removed Requirements return INVALID_REQUIREMENT_STATE.
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Draft Requirement changed to removed; response is empty. }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: INVALID_REQUIREMENT_STATE or a concurrent VERSION_CONFLICT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -549,6 +697,83 @@ components:
             command: { type: string, const: edit }
             expected_updated_at: { type: string, format: date-time }
             content: { type: string }
+    RequirementCategory:
+      type: string
+      enum: [functional, content, visual, technical, constraint, business]
+    RequirementPriority:
+      type: string
+      enum: [must, should, could]
+    RequirementStatus:
+      type: string
+      enum: [draft, confirmed, superseded, removed]
+    RequirementCreatorType:
+      type: string
+      enum: [ai, user]
+    Requirement:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, created_by_type, acceptance_note, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        category: { $ref: "#/components/schemas/RequirementCategory" }
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+        status: { $ref: "#/components/schemas/RequirementStatus" }
+        source_refs:
+          type: array
+          items: { $ref: "#/components/schemas/SourceReference" }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        is_unsupported: { type: boolean }
+        created_by_type: { $ref: "#/components/schemas/RequirementCreatorType" }
+        acceptance_note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RequirementsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Requirement" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    RequirementEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Requirement" }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
+    CreateManualRequirementRequest:
+      type: object
+      additionalProperties: false
+      required: [title, description, category, priority]
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        category: { $ref: "#/components/schemas/RequirementCategory" }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+    UpdateRequirementRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_updated_at]
+      description: >-
+        At least one of title, description, priority, status or acceptance_note is required.
+        Explicit null is accepted only for acceptance_note and clears it.
+      properties:
+        expected_updated_at: { type: string, format: date-time }
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+        status: { type: string, const: confirmed }
+        acceptance_note: { type: [string, "null"] }
     CollectionMeta:
       type: object
       additionalProperties: false

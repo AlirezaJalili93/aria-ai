@@ -94,6 +94,7 @@ class RequirementModel(Base):
     generation_job_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("jobs.id", ondelete="RESTRICT"), nullable=True
     )
+    acceptance_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by_type: Mapped[str] = mapped_column(String(10), nullable=False)
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=True

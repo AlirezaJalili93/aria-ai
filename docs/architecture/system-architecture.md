@@ -97,6 +97,9 @@ Requirementها و signal تعارض Outbox را اتمیک می‌نویسد. R
 تکراری جلوگیری می‌کند، اما فقط پس از resolve شدن Job همان Tenant با status نهایی
 `succeeded|failed`. Snapshot تاریخی payload و جدول result مستقل در I02 وجود ندارد؛ Provider واقعی،
 Queue wiring، Gap و API همچنان خارج این Story هستند.
+مطابق ADR-032، I03 یک Router نازک روی Application Service و Repository tenant-scoped اضافه می‌کند؛
+manual create از Idempotency store موجود استفاده می‌کند، PATCH با CAS انجام می‌شود و DELETE فقط
+soft deactivation است. API به metadata داخلی Generation یا دادهٔ Tenant authority دسترسی نمی‌دهد.
 
 ## AI و Generation Guardrails
 

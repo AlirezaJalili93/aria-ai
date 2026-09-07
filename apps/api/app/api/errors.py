@@ -40,6 +40,14 @@ class InvalidContextItemStateError(Exception):
     """API signal for a Context Item command rejected by its immutable state."""
 
 
+class InvalidRequirementStateError(Exception):
+    """API signal for a Requirement command rejected by its lifecycle state."""
+
+
+class ContextVersionRequiredError(Exception):
+    """API signal for a manual Requirement without a valid Project Context Version."""
+
+
 class ForbiddenError(Exception):
     """API signal for an authenticated caller lacking role authority."""
 
@@ -215,6 +223,34 @@ async def invalid_context_item_state_handler(
         status_code=409,
         code="INVALID_CONTEXT_ITEM_STATE",
         message="The Context Item is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def invalid_requirement_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidRequirementStateError):
+        raise TypeError("Unexpected exception type for Requirement state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_REQUIREMENT_STATE",
+        message="The Requirement is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def context_version_required_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ContextVersionRequiredError):
+        raise TypeError("Unexpected exception type for Context Version handler")
+    del request, error
+    return _error_response(
+        status_code=422,
+        code="CONTEXT_VERSION_REQUIRED",
+        message="A valid Project Context Version is required.",
         retryable=False,
     )
 

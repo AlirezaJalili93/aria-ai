@@ -15,6 +15,15 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
+from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.requirements.application.requirement_crud_service import (
+    CreateManualRequirementCommand,
+    RequirementCrudService,
+    RequirementIdempotencyConflict,
+    RequirementInvalidState,
+    RequirementNotFound,
+    UpdateRequirementCommand,
+)
 from app.modules.requirements.application.requirement_service import (
     PersistRequirementUseCase,
     RequirementContextVersionError,
@@ -25,6 +34,7 @@ from app.modules.requirements.domain.requirement import (
     RequirementSourceReference,
 )
 from app.modules.requirements.infrastructure.repository import (
+    SqlAlchemyRequirementCrudUnitOfWorkFactory,
     SqlAlchemyRequirementUnitOfWorkFactory,
 )
 
@@ -203,6 +213,7 @@ def test_m005_schema_fields_indexes_rls_and_restrictive_foreign_keys() -> None:
         "is_unsupported",
         "duplicate_group_key",
         "generation_job_id",
+        "acceptance_note",
         "created_by_type",
         "created_by",
         "created_at",
@@ -216,6 +227,7 @@ def test_m005_schema_fields_indexes_rls_and_restrictive_foreign_keys() -> None:
     assert {
         "ix_requirements_account_project_status_category",
         "ix_requirements_account_project_generation_job",
+        "ix_requirements_account_project_created",
         "ix_requirements_created_by",
     }.issubset(indexes)
     assert foreign_keys == {
@@ -428,7 +440,7 @@ def test_application_rejects_cross_tenant_or_non_ready_provenance() -> None:
         created_by=None,
     )
 
-    async def scenario() -> None:
+    async def scenario() -> UUID:
         runtime = DatabaseRuntime(TEST_DATABASE_URL)
         logger = create_event_logger(
             service="test",
@@ -476,3 +488,163 @@ def test_requirement_updated_at_trigger_and_migration_recovery() -> None:
     assert asyncio.run(_scalar("SELECT to_regclass('public.requirements') IS NULL")) is True
     command.upgrade(_migration_config(), "head")
     assert asyncio.run(_scalar("SELECT to_regclass('public.requirements') IS NOT NULL")) is True
+
+
+def test_requirement_crud_is_idempotent_tenant_scoped_and_lifecycle_safe() -> None:
+    user_id, account_id, project_id = asyncio.run(
+        _seed_project(current_context_version=2)
+    )
+    _, other_account_id, other_project_id = asyncio.run(
+        _seed_project(current_context_version=2)
+    )
+    assert TEST_DATABASE_URL is not None
+
+    async def scenario() -> None:
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        stream = StringIO()
+        logger = create_event_logger(
+            service="test",
+            environment="test",
+            app_version="test",
+            release_commit_sha=None,
+            level="INFO",
+            stream=stream,
+        )
+        service = RequirementCrudService(
+            SqlAlchemyRequirementCrudUnitOfWorkFactory(runtime.session_factory), logger
+        )
+        context = TenantContext(
+            subject_id=user_id,
+            account_id=account_id,
+            membership_id=uuid4(),
+            role="member",
+            membership_status="active",
+        )
+        create_command = CreateManualRequirementCommand(
+            title="عنوان خصوصی",
+            description="شرح خصوصی",
+            category="functional",
+            priority="must",
+            idempotency_key="manual-postgres-1",
+        )
+        try:
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ):
+                created = await service.create_manual(
+                    context, project_id=project_id, command=create_command
+                )
+                replayed = await service.create_manual(
+                    context, project_id=project_id, command=create_command
+                )
+                with pytest.raises(RequirementIdempotencyConflict):
+                    await service.create_manual(
+                        context,
+                        project_id=project_id,
+                        command=CreateManualRequirementCommand(
+                            title="عنوان دیگر",
+                            description="شرح خصوصی",
+                            category="functional",
+                            priority="must",
+                            idempotency_key="manual-postgres-1",
+                        ),
+                    )
+
+                assert replayed.id == created.id
+                assert created.context_version == 2
+                assert created.created_by == user_id
+
+                confirmed = await service.update(
+                    context,
+                    project_id=project_id,
+                    requirement_id=created.id,
+                    command=UpdateRequirementCommand(
+                        expected_updated_at=created.updated_at,
+                        status="confirmed",
+                    ),
+                )
+                await asyncio.sleep(0.01)
+                edited = await service.update(
+                    context,
+                    project_id=project_id,
+                    requirement_id=confirmed.id,
+                    command=UpdateRequirementCommand(
+                        expected_updated_at=confirmed.updated_at,
+                        acceptance_note="معیار پذیرش خصوصی",
+                        acceptance_note_set=True,
+                    ),
+                )
+                assert edited.status == "draft"
+                assert edited.acceptance_note == "معیار پذیرش خصوصی"
+
+                rows = await service.list(
+                    context,
+                    project_id=project_id,
+                    category="functional",
+                    status=None,
+                    limit=20,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                assert [row.id for row in rows] == [created.id]
+
+                await service.remove_draft(
+                    context, project_id=project_id, requirement_id=created.id
+                )
+                visible = await service.list(
+                    context,
+                    project_id=project_id,
+                    category=None,
+                    status=None,
+                    limit=20,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                removed = await service.list(
+                    context,
+                    project_id=project_id,
+                    category=None,
+                    status="removed",
+                    limit=20,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                assert visible == ()
+                assert [row.id for row in removed] == [created.id]
+
+                with pytest.raises(RequirementNotFound):
+                    await service.list(
+                        context,
+                        project_id=other_project_id,
+                        category=None,
+                        status=None,
+                        limit=20,
+                        cursor_created_at=None,
+                        cursor_id=None,
+                    )
+
+                with pytest.raises(RequirementInvalidState):
+                    await service.remove_draft(
+                        context,
+                        project_id=project_id,
+                        requirement_id=created.id,
+                    )
+        finally:
+            await runtime.close()
+
+        assert "عنوان خصوصی" not in stream.getvalue()
+        assert "شرح خصوصی" not in stream.getvalue()
+        assert "معیار پذیرش خصوصی" not in stream.getvalue()
+        assert str(other_account_id) not in stream.getvalue()
+        return created.id
+
+    created_id = asyncio.run(scenario())
+    assert (
+        asyncio.run(
+            _scalar(
+                "SELECT count(*) FROM requirements WHERE id=:id AND status='removed'",
+                {"id": created_id},
+            )
+        )
+        == 1
+    )

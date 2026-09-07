@@ -11,9 +11,11 @@ from app.api.errors import (
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    ContextVersionRequiredError,
     ForbiddenError,
     IdempotencyConflictError,
     InvalidContextItemStateError,
+    InvalidRequirementStateError,
     MembershipRequiredError,
     ResourceNotFoundError,
     ValidationFailedError,
@@ -22,9 +24,11 @@ from app.api.errors import (
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    context_version_required_handler,
     forbidden_handler,
     idempotency_conflict_handler,
     invalid_context_item_state_handler,
+    invalid_requirement_state_handler,
     membership_required_handler,
     request_validation_handler,
     resource_not_found_handler,
@@ -39,6 +43,7 @@ from app.api.routers.context_sources import create_context_sources_router
 from app.api.routers.health import create_health_router
 from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
+from app.api.routers.requirements import create_requirements_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -79,6 +84,12 @@ from app.modules.jobs.application.job_status import JobStatusApplicationService
 from app.modules.jobs.infrastructure.repository import SqlAlchemyJobsUnitOfWorkFactory
 from app.modules.projects.application.project_service import ProjectApplicationService
 from app.modules.projects.infrastructure.repository import SqlAlchemyProjectUnitOfWorkFactory
+from app.modules.requirements.application.requirement_crud_service import (
+    RequirementCrudService,
+)
+from app.modules.requirements.infrastructure.repository import (
+    SqlAlchemyRequirementCrudUnitOfWorkFactory,
+)
 
 
 class UnavailableAccountBootstrapper:
@@ -110,6 +121,7 @@ def create_app(
     text_context_use_case: CreateTextContextUseCase | None = None,
     job_status_service: JobStatusApplicationService | None = None,
     context_item_review_service: ContextItemReviewService | None = None,
+    requirement_crud_service: RequirementCrudService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -163,6 +175,12 @@ def create_app(
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(
         InvalidContextItemStateError, invalid_context_item_state_handler
+    )
+    app.add_exception_handler(
+        InvalidRequirementStateError, invalid_requirement_state_handler
+    )
+    app.add_exception_handler(
+        ContextVersionRequiredError, context_version_required_handler
     )
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
@@ -222,6 +240,14 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.requirement_crud_service = requirement_crud_service or (
+        RequirementCrudService(
+            SqlAlchemyRequirementCrudUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -230,6 +256,7 @@ def create_app(
     app.include_router(create_projects_router(), prefix="/api/v1")
     app.include_router(create_context_sources_router(), prefix="/api/v1")
     app.include_router(create_context_items_router(), prefix="/api/v1")
+    app.include_router(create_requirements_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 
