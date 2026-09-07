@@ -27,7 +27,7 @@ M000 extensions
 → M003 context_sources / context_source_versions
 → M004 context_items
 → M005 requirements
-→ M006 gaps / clarifications
+→ M006 gaps (J01) / clarifications (J03 deferred)
 → M007 scope_drafts / scope_versions
 → M008 jobs / outbox_events
 → M009 usage_records (S1-G05) / provider_price_versions deferred to S1-G06
@@ -59,7 +59,7 @@ M000 extensions
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
 | requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, acceptance_note, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ acceptance note nullable است؛ provenance و creator tenant-safe |
-| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, accepted_assumption | accepted assumption فقط با action صریح |
+| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, created_at, updated_at, resolved_at | type برابر missing_information/ambiguity/conflict/decision_required/unsupported_assumption/scope_risk؛ severity برابر critical/high/medium/low؛ status برابر open/resolved/dismissed؛ `resolved_at` فقط در status resolved و برای open/dismissed تهی؛ `dismissed` با resolved یکی نیست؛ حذف فیزیکی ممنوع |
 | clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
 | scope_versions | id, account_id, project_id, version_no, context_version, snapshot_data, snapshot_hash | `UNIQUE(project_id,version_no)` و Snapshot immutable است |
@@ -129,6 +129,10 @@ M000 extensions
   `expected_updated_at` انجام می‌شود و ویرایش Requirement تأییدشده آن را به draft برمی‌گرداند.
   حذف عمومی فقط draft را به removed تبدیل می‌کند؛ `acceptance_note` nullable است و Snapshot/restore
   همچنان خارج Scope است. جزئیات در [ADR-032](../adr/ADR-032-requirement-crud-contract.md) ثبت شده است.
+- J01 از `context_version INTEGER` و provenance مصوب H01 استفاده می‌کند. `missing_info`،
+  `context_version_id` و accepted-assumption Boolean قدیمی supersede شده‌اند. Account/Project
+  deletion با RESTRICT متوقف می‌شود؛ detection/linkage در J02 و Clarification/resolution behavior
+  در J03 می‌مانند. جزئیات در [ADR-035](../adr/ADR-035-gap-domain-contract.md) ثبت شده است.
 
 ## Migration Guardrails
 
