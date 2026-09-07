@@ -17,6 +17,20 @@ fixture input and expected/provider output. A passing Fake Provider run validate
 schemas, provenance checks and metric calculations; it is not evidence of model quality. Real-model
 evaluation remains blocked until the separate G02/G03 Provider Selection decision.
 
+## Requirement extraction v1
+
+`requirement-extraction/requirement_extraction_eval_v1` contains the frozen S1-I05 synthetic
+Persian fixtures, deterministic annotations, threshold matrix and two-dimension review rubric.
+
+```text
+npm run test:eval
+node scripts/requirement-evaluation.mjs --output .tmp/i05-fake-report.json
+```
+
+The Fake Provider report proves only annotation matching, formulas, denominator/`N/A` handling,
+critical blocker detection and report privacy. Real-provider quality execution remains deferred to
+G02/G03.
+
 Platform candidate experiments live under `durable-queue/`. Celery, Dramatiq and RQ are locked and
 tested in separate Compose projects. They remain isolated from runtime dependencies until measured
 evidence and an accepted ADR authorize adoption.
