@@ -57,7 +57,9 @@ test("Usage Ledger database authority is worker-only and fail-closed", async () 
 });
 
 test("UsageLedger Application port remains provider-neutral and append-only", async () => {
-  const application = await read("apps/worker/app/application/usage_ledger.py");
+  const application = await read(
+    "packages/backend-application/src/aria_backend_application/usage_ledger.py",
+  );
   const adapter = await read("apps/worker/app/infrastructure/db/usage_ledger.py");
   const openapi = await read("packages/contracts/openapi.yaml");
 

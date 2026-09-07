@@ -20,6 +20,9 @@ would bypass the intended Ledger boundary.
 - `usage_records` is the append-only Usage Ledger defined by the S1-G05 field, type, nullability,
   precision, status and non-negative constraint contract.
 - `retry_no` is canonical and supersedes the older `attempt_no` vocabulary.
+- ADR-027 adds `repair_no`: Provider `retry_no` and semantic `repair_no` are independent. The
+  original execution is Repair `0`; the database enforces only non-negativity because the Sprint
+  Repair limit belongs to a versioned Application policy.
 - `prompt_version` and `correlation_id` are required.
 - `estimated_cost` has no default. A real zero must be supplied explicitly by the caller.
 - `provider` and `model` are recorded data. Domain/Application code does not branch on a provider.
@@ -47,4 +50,3 @@ would bypass the intended Ledger boundary.
 - Runtime password creation/rotation and secret distribution stay outside migrations. No password
   is stored in the repository.
 - No paid Provider is integrated by this decision; G02/G03 and G06 remain deferred.
-

@@ -170,6 +170,20 @@ class ContextItemModel(Base):
             "project_id",
             "context_version",
         ),
+        Index(
+            "ix_context_items_current_page",
+            "account_id",
+            "project_id",
+            "context_version",
+            text("created_at DESC"),
+            text("id DESC"),
+        ),
+        Index(
+            "ix_context_items_source_refs_gin",
+            "source_refs",
+            postgresql_using="gin",
+            postgresql_ops={"source_refs": "jsonb_path_ops"},
+        ),
         Index("ix_context_items_created_by", "created_by"),
     )
 
@@ -189,5 +203,8 @@ class ContextItemModel(Base):
         ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

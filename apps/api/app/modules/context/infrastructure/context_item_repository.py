@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from types import TracebackType
-from typing import cast
+from typing import Literal, cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -12,6 +13,7 @@ from app.modules.context.application.context_item_ports import (
     ContextItemRepository,
     ContextItemRepositoryError,
     ContextItemUnitOfWork,
+    CurrentContextItems,
     ProvenanceTarget,
 )
 from app.modules.context.domain.context_item import (
@@ -31,6 +33,7 @@ from app.modules.context.infrastructure.models import (
     ContextSourceModel,
     ContextSourceVersionModel,
 )
+from app.modules.projects.infrastructure.models import ProjectModel
 
 
 class SqlAlchemyContextItemRepository:
@@ -95,6 +98,122 @@ class SqlAlchemyContextItemRepository:
         await self._session.flush()
         await self._session.refresh(model)
         return _context_item_from_model(model)
+
+    async def list_current(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        item_type: ContextItemType | None,
+        status: ContextItemStatus | None,
+        source_id: UUID | None,
+        limit: int,
+        cursor_created_at: datetime | None,
+        cursor_id: UUID | None,
+    ) -> CurrentContextItems | None:
+        current_version = (
+            await self._session.execute(
+                select(ProjectModel.current_context_version).where(
+                    ProjectModel.id == project_id,
+                    ProjectModel.account_id == account_id,
+                    ProjectModel.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if current_version is None:
+            return None
+
+        statement = select(ContextItemModel).where(
+            ContextItemModel.account_id == account_id,
+            ContextItemModel.project_id == project_id,
+            ContextItemModel.context_version == current_version,
+        )
+        if item_type is not None:
+            statement = statement.where(ContextItemModel.item_type == item_type)
+        if status is not None:
+            statement = statement.where(ContextItemModel.status == status)
+        if source_id is not None:
+            statement = statement.where(
+                ContextItemModel.source_refs.contains([{"source_id": str(source_id)}])
+            )
+        if cursor_created_at is not None and cursor_id is not None:
+            statement = statement.where(
+                or_(
+                    ContextItemModel.created_at < cursor_created_at,
+                    (ContextItemModel.created_at == cursor_created_at)
+                    & (ContextItemModel.id < cursor_id),
+                )
+            )
+        rows = (
+            await self._session.scalars(
+                statement.order_by(
+                    ContextItemModel.created_at.desc(), ContextItemModel.id.desc()
+                ).limit(limit)
+            )
+        ).all()
+        return CurrentContextItems(
+            context_version=current_version,
+            items=tuple(_context_item_from_model(model) for model in rows),
+        )
+
+    async def get_current_for_update(
+        self, *, account_id: UUID, project_id: UUID, item_id: UUID
+    ) -> ContextItem | None:
+        model = (
+            await self._session.scalars(
+                select(ContextItemModel)
+                .join(
+                    ProjectModel,
+                    (ProjectModel.id == ContextItemModel.project_id)
+                    & (ProjectModel.account_id == ContextItemModel.account_id),
+                )
+                .where(
+                    ContextItemModel.id == item_id,
+                    ContextItemModel.account_id == account_id,
+                    ContextItemModel.project_id == project_id,
+                    ContextItemModel.context_version == ProjectModel.current_context_version,
+                    ProjectModel.deleted_at.is_(None),
+                )
+                .with_for_update(of=ContextItemModel)
+            )
+        ).one_or_none()
+        return _context_item_from_model(model) if model is not None else None
+
+    async def update_proposed(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        item_id: UUID,
+        expected_updated_at: datetime,
+        content: str,
+        status: Literal["proposed", "confirmed", "rejected"],
+    ) -> ContextItem | None:
+        current_version = (
+            select(ProjectModel.current_context_version)
+            .where(
+                ProjectModel.id == project_id,
+                ProjectModel.account_id == account_id,
+                ProjectModel.deleted_at.is_(None),
+            )
+            .scalar_subquery()
+        )
+        model = (
+            await self._session.scalars(
+                update(ContextItemModel)
+                .where(
+                    ContextItemModel.id == item_id,
+                    ContextItemModel.account_id == account_id,
+                    ContextItemModel.project_id == project_id,
+                    ContextItemModel.context_version == current_version,
+                    ContextItemModel.status == "proposed",
+                    ContextItemModel.updated_at == expected_updated_at,
+                )
+                .values(content=content, status=status)
+                .returning(ContextItemModel)
+            )
+        ).one_or_none()
+        return _context_item_from_model(model) if model is not None else None
 
 
 class SqlAlchemyContextItemUnitOfWork:
@@ -166,6 +285,7 @@ def _context_item_from_model(model: ContextItemModel) -> ContextItem:
         created_by_type=cast(ContextItemCreatorType, model.created_by_type),
         created_by=model.created_by,
         created_at=model.created_at,
+        updated_at=model.updated_at,
     )
 
 

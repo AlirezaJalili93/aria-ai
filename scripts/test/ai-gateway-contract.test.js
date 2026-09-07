@@ -5,7 +5,7 @@ import test from "node:test";
 
 const root = resolve(import.meta.dirname, "../..");
 const gateway = readFileSync(
-  resolve(root, "apps/worker/app/application/ai_execution.py"),
+  resolve(root, "packages/backend-application/src/aria_backend_application/ai_execution.py"),
   "utf8",
 );
 const adr = readFileSync(resolve(root, "docs/adr/ADR-021-ai-execution-port.md"), "utf8");

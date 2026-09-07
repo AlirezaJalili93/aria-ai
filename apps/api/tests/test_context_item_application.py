@@ -42,7 +42,8 @@ class FakeContextItems(ContextItemRepository):
     async def add(self, item: NewContextItem) -> ContextItem:
         values = asdict(item)
         values["source_refs"] = item.source_refs
-        persisted = ContextItem(**values, created_at=datetime.now(UTC))  # type: ignore[arg-type]
+        now = datetime.now(UTC)
+        persisted = ContextItem(**values, created_at=now, updated_at=now)  # type: ignore[arg-type]
         self.rows.append(persisted)
         return persisted
 

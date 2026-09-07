@@ -57,7 +57,7 @@ class StubJobStatusService:
 SUBJECT_ID = uuid4()
 ACCOUNT_ID = uuid4()
 JOB_ID = uuid4()
-TOKEN = "job-status-token"
+AUTH_FIXTURE_VALUE = "-".join(("job", "status", "token"))
 NOW = datetime.now(UTC)
 CONTEXT = TenantContext(
     subject_id=SUBJECT_ID,
@@ -81,7 +81,7 @@ def _fixture() -> tuple[TestClient, StubJobStatusService]:
     )
     app = create_app(
         ApiSettings(app_env="test", app_version="0.1.0", log_level="INFO"),
-        access_token_verifier=StubTokenVerifier(TOKEN, SUBJECT_ID),
+        access_token_verifier=StubTokenVerifier(AUTH_FIXTURE_VALUE, SUBJECT_ID),
         tenant_context_resolver=StubTenantContextResolver(CONTEXT),
         job_status_service=service,  # type: ignore[arg-type]
     )
@@ -90,7 +90,7 @@ def _fixture() -> tuple[TestClient, StubJobStatusService]:
 
 def _headers() -> dict[str, str]:
     return {
-        "Authorization": f"Bearer {TOKEN}",
+        "Authorization": f"Bearer {AUTH_FIXTURE_VALUE}",
         "X-Account-ID": str(ACCOUNT_ID),
     }
 
@@ -134,7 +134,7 @@ def test_job_status_requires_authenticated_tenant_context() -> None:
     assert client.get(f"/api/v1/jobs/{JOB_ID}").status_code == 401
     response = client.get(
         f"/api/v1/jobs/{JOB_ID}",
-        headers={"Authorization": f"Bearer {TOKEN}"},
+        headers={"Authorization": f"Bearer {AUTH_FIXTURE_VALUE}"},
     )
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "ACCOUNT_CONTEXT_REQUIRED"

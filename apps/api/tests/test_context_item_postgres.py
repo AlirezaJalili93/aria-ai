@@ -10,16 +10,24 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
+from aria_observability import TraceContext, bind_trace_context, create_event_logger
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
-from app.modules.context.application.context_item_service import CreateContextItemUseCase
+from app.modules.context.application.context_item_service import (
+    ContextItemInvalidState,
+    ContextItemReviewService,
+    ContextItemVersionConflict,
+    CreateContextItemUseCase,
+    ReviewContextItemCommand,
+)
 from app.modules.context.domain.context_item import ContextItem, NewContextItem, SourceReference
 from app.modules.context.infrastructure.context_item_repository import (
     SqlAlchemyContextItemRepository,
     SqlAlchemyContextItemUnitOfWorkFactory,
 )
+from app.modules.identity.application.tenant_context import TenantContext
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -178,11 +186,14 @@ def test_m004_schema_fields_indexes_rls_and_restrictive_foreign_keys() -> None:
         "created_by_type",
         "created_by",
         "created_at",
+        "updated_at",
     }
     assert columns["confidence"]["type"].precision == 5
     assert columns["confidence"]["type"].scale == 4
     assert {
         "ix_context_items_account_project_version",
+        "ix_context_items_current_page",
+        "ix_context_items_source_refs_gin",
         "ix_context_items_created_by",
     }.issubset(indexes)
     assert foreign_keys == {
@@ -435,3 +446,182 @@ def test_context_item_migration_downgrades_and_reupgrades() -> None:
     assert asyncio.run(_scalar("SELECT to_regclass('public.context_items') IS NULL")) is True
     command.upgrade(_migration_config(), "head")
     assert asyncio.run(_scalar("SELECT to_regclass('public.context_items') IS NOT NULL")) is True
+
+
+def test_h04_postgres_current_filter_trigger_and_atomic_review() -> None:
+    user_id, account_id, project_id, source_id, version_id = asyncio.run(_seed_ready_source())
+    item_id = uuid4()
+    asyncio.run(
+        _execute(
+            "UPDATE projects SET current_context_version=1 WHERE id=:id",
+            {"id": project_id},
+        )
+    )
+    values = _item_values(
+        user_id=user_id,
+        account_id=account_id,
+        project_id=project_id,
+        source_id=source_id,
+        version_id=version_id,
+    )
+    values["id"] = item_id
+    values["status"] = "proposed"
+    values["created_by_type"] = "ai"
+    values["created_by"] = None
+    asyncio.run(_execute(CONTEXT_ITEM_INSERT, values))
+
+    async def scenario() -> tuple[ContextItem, ContextItem, object, object, object]:
+        assert TEST_DATABASE_URL is not None
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        stream_logger = create_event_logger(
+            service="test",
+            environment="test",
+            app_version="test",
+            release_commit_sha=None,
+            level="INFO",
+        )
+        service = ContextItemReviewService(
+            SqlAlchemyContextItemUnitOfWorkFactory(runtime.session_factory), stream_logger
+        )
+        context = TenantContext(
+            subject_id=user_id,
+            account_id=account_id,
+            membership_id=uuid4(),
+            role="member",
+            membership_status="active",
+        )
+        try:
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ):
+                listed = await service.list_current(
+                    context,
+                    project_id=project_id,
+                    item_type="fact",
+                    status="proposed",
+                    source_id=source_id,
+                    limit=20,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                current = listed.items[0]
+                edited = await service.review(
+                    context,
+                    project_id=project_id,
+                    item_id=item_id,
+                    command=ReviewContextItemCommand(
+                        command="edit",
+                        expected_updated_at=current.updated_at,
+                        content="ویرایش انسانی",
+                    ),
+                )
+                try:
+                    await service.review(
+                        context,
+                        project_id=project_id,
+                        item_id=item_id,
+                        command=ReviewContextItemCommand(
+                            command="confirm", expected_updated_at=current.updated_at
+                        ),
+                    )
+                except ContextItemVersionConflict as error:
+                    stale_error = error
+                else:
+                    stale_error = None
+                confirmed = await service.review(
+                    context,
+                    project_id=project_id,
+                    item_id=item_id,
+                    command=ReviewContextItemCommand(
+                        command="confirm", expected_updated_at=edited.updated_at
+                    ),
+                )
+            async with runtime.engine.connect() as connection:
+                row = (
+                    await connection.execute(
+                        text(
+                            "SELECT content, status, updated_at FROM context_items WHERE id=:id"
+                        ),
+                        {"id": item_id},
+                    )
+                ).one()
+            return current, edited, confirmed, row, stale_error
+        finally:
+            await runtime.close()
+
+    current, edited, confirmed, row, stale_error = asyncio.run(scenario())
+    assert current.source_refs
+    assert edited.status == "proposed"
+    assert edited.content == "ویرایش انسانی"
+    assert edited.updated_at > current.updated_at
+    assert confirmed.status == "confirmed"
+    assert stale_error is not None
+    assert row[0] == "ویرایش انسانی"
+    assert row[1] == "confirmed"
+    assert row[2] == confirmed.updated_at
+
+
+def test_h04_postgres_non_proposed_item_is_immutable() -> None:
+    user_id, account_id, project_id, source_id, version_id = asyncio.run(_seed_ready_source())
+    asyncio.run(
+        _execute(
+            "UPDATE projects SET current_context_version=1 WHERE id=:id",
+            {"id": project_id},
+        )
+    )
+    values = _item_values(
+        user_id=user_id,
+        account_id=account_id,
+        project_id=project_id,
+        source_id=source_id,
+        version_id=version_id,
+    )
+    asyncio.run(_execute(CONTEXT_ITEM_INSERT, values))
+
+    async def scenario() -> None:
+        assert TEST_DATABASE_URL is not None
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            async with runtime.engine.connect() as connection:
+                updated_at = (
+                    await connection.execute(
+                        text("SELECT updated_at FROM context_items WHERE id=:id"),
+                        {"id": values["id"]},
+                    )
+                ).scalar_one()
+            await _execute(
+                "UPDATE context_items SET status='confirmed' WHERE id=:id",
+                {"id": values["id"]},
+            )
+            logger = create_event_logger(
+                service="test",
+                environment="test",
+                app_version="test",
+                release_commit_sha=None,
+                level="INFO",
+            )
+            service = ContextItemReviewService(
+                SqlAlchemyContextItemUnitOfWorkFactory(runtime.session_factory), logger
+            )
+            context = TenantContext(
+                subject_id=user_id,
+                account_id=account_id,
+                membership_id=uuid4(),
+                role="member",
+                membership_status="active",
+            )
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ), pytest.raises(ContextItemInvalidState):
+                await service.review(
+                    context,
+                    project_id=project_id,
+                    item_id=values["id"],
+                    command=ReviewContextItemCommand(
+                        command="reject", expected_updated_at=updated_at
+                    ),
+                )
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())

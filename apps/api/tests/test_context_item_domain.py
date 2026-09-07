@@ -104,7 +104,10 @@ def test_source_reference_offsets_are_all_or_nothing_and_half_open() -> None:
 
 def test_persisted_item_requires_timezone_aware_created_at() -> None:
     values = _item()
-    item = ContextItem(**asdict(values), created_at=datetime.now(UTC))
+    now = datetime.now(UTC)
+    item = ContextItem(**asdict(values), created_at=now, updated_at=now)
     assert item.created_at.tzinfo is not None
     with pytest.raises(ContextItemValidationError):
-        ContextItem(**asdict(values), created_at=datetime.now())
+        ContextItem(**asdict(values), created_at=datetime.now(), updated_at=now)
+    with pytest.raises(ContextItemValidationError):
+        ContextItem(**asdict(values), created_at=now, updated_at=datetime.now())

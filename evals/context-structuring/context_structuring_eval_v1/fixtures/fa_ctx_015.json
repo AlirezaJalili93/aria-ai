@@ -1,0 +1,12 @@
+{
+  "fixture_id": "fa_ctx_015",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_015_src_a", "source_version_id": "fa_ctx_015_src_a_v1", "canonical_text": "سلام" }] },
+  "expected_structured_output": { "items": [], "forbidden_claims": [], "required_item_ids": [] },
+  "expected_labels": { "clarity": "insufficient", "has_assumption": false, "has_constraint": false, "has_decision": false, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_015_src_a"], "trace_required_item_ids": [], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "fail", "allowed_failure_codes": ["INSUFFICIENT_CONTEXT"], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "insufficient", "difficulty": "basic", "phenomena": ["insufficient_context"], "fixture_version": "1" }
+}

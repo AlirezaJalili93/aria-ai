@@ -166,6 +166,101 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/context-items:
+    get:
+      operationId: listCurrentContextItems
+      summary: List Context Items from the Project's current Context version
+      description: >-
+        Returns only the tenant-authorized Project current_context_version. Missing Information is
+        represented by the canonical item_type=unknown. The source_id filter matches an actual
+        source_id entry inside source_refs and never supplies Tenant authority.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: item_type
+          in: query
+          schema: { $ref: "#/components/schemas/ContextItemType" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ContextItemStatus" }
+        - name: source_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor for created_at DESC, id DESC ordering.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current-version Context Items in the standard collection envelope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextItemsCollection" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: A filter or cursor failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/context-items/{item_id}:
+    patch:
+      operationId: reviewCurrentContextItem
+      summary: Confirm, reject, or edit a proposed current-version Context Item
+      description: >-
+        All commands use updated_at compare-and-swap. Edit changes only content, preserves
+        source_refs and proposed status, and does not claim semantic re-validation of provenance.
+        Confirm records human acceptance; for a Fact, at least one structurally valid SourceRef is
+        still required. Confirmed, rejected, and superseded items are immutable in this Increment.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: item_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewContextItemRequest" }
+      responses:
+        "200":
+          description: Reviewed Context Item with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextItemEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: >-
+            VERSION_CONFLICT for a stale expected_updated_at, or INVALID_CONTEXT_ITEM_STATE when
+            the target is no longer proposed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The command body failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -380,6 +475,80 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Project" }
         meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ContextItemType:
+      type: string
+      enum: [fact, assumption, decision, constraint, reference, unknown]
+    ContextItemStatus:
+      type: string
+      enum: [proposed, confirmed, rejected, superseded]
+    SourceReference:
+      type: object
+      additionalProperties: false
+      required: [source_id, source_version_id]
+      properties:
+        source_id: { type: string, format: uuid }
+        source_version_id: { type: string, format: uuid }
+        start_offset: { type: integer, minimum: 0 }
+        end_offset: { type: integer, minimum: 1 }
+    ContextItem:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        item_type: { $ref: "#/components/schemas/ContextItemType" }
+        content: { type: string }
+        source_refs:
+          type: array
+          items: { $ref: "#/components/schemas/SourceReference" }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        status: { $ref: "#/components/schemas/ContextItemStatus" }
+        created_by_type: { type: string, enum: [ai, user, system] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContextItemsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ContextItem" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ContextItemEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ContextItem" }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
+    ReviewContextItemRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at]
+          properties:
+            command: { type: string, const: confirm }
+            expected_updated_at: { type: string, format: date-time }
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at]
+          properties:
+            command: { type: string, const: reject }
+            expected_updated_at: { type: string, format: date-time }
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at, content]
+          properties:
+            command: { type: string, const: edit }
+            expected_updated_at: { type: string, format: date-time }
+            content: { type: string }
     CollectionMeta:
       type: object
       additionalProperties: false

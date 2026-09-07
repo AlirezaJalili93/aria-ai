@@ -81,6 +81,23 @@ queued → running → succeeded | failed | cancelled
 
 Critical parsing، AI، validation، generation، revision و export فقط در Worker اجرا می‌شوند. Job Status API منبع حقیقت Client است؛ SSE صرفاً enhancement است و Polling fallback الزامی می‌ماند. Delivery حداقل یک‌بار فرض می‌شود و duplicate نباید Artifact، Approval، Usage یا State تکراری ایجاد کند.
 
+منطق Application مشترک بین API و Worker در `packages/backend-application` نگهداری می‌شود. Worker
+فقط wrapper/runtime است و Domain یا قواعد Context را دوباره تعریف نمی‌کند. مطابق ADR-026، H02
+Source snapshot را یک‌بار resolve می‌کند، تمام Candidateها را پیش از Write اعتبارسنجی می‌کند و
+Batch معتبر را همراه با پیشروی اتمیک Context Version در یک Transaction ثبت می‌کند.
+مطابق ADR-027، H03 فقط defectهای deterministic خروجی مدل را با Policy صریح و حداکثر یک Repair از
+همان AI Execution/Routing boundary اصلاح می‌کند؛ Repair و Provider retry شماره و metering مستقل
+دارند و هیچ مسیر Repair نمی‌تواند Validation کامل H02 را دور بزند.
+مطابق ADR-030، Requirement Domain نسخهٔ عددی Context و provenance آمادهٔ همان Tenant را حفظ می‌کند؛
+پایداری تک Requirement از Application Port عبور می‌کند و I01 هیچ API، Generation یا merge policy
+معرفی نمی‌کند.
+مطابق ADR-031، I02 در Worker و از Application مشترک، Snapshot دقیق Context را با بردار
+`(context_item_id, updated_at)` قفل می‌کند، خروجی provider-neutral را validate/repair می‌کند و
+Requirementها و signal تعارض Outbox را اتمیک می‌نویسد. Replay با `generation_job_id` از AI و Usage
+تکراری جلوگیری می‌کند، اما فقط پس از resolve شدن Job همان Tenant با status نهایی
+`succeeded|failed`. Snapshot تاریخی payload و جدول result مستقل در I02 وجود ندارد؛ Provider واقعی،
+Queue wiring، Gap و API همچنان خارج این Story هستند.
+
 ## AI و Generation Guardrails
 
 - تمام Taskها از Provider-neutral Gateway عبور می‌کنند.

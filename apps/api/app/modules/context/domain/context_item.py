@@ -89,11 +89,14 @@ class NewContextItem:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ContextItem(NewContextItem):
     created_at: datetime
+    updated_at: datetime
 
     def __post_init__(self) -> None:
         NewContextItem.__post_init__(self)
         if self.created_at.tzinfo is None:
             raise ContextItemValidationError("created_at must be timezone-aware")
+        if self.updated_at.tzinfo is None:
+            raise ContextItemValidationError("updated_at must be timezone-aware")
 
 
 def validate_context_version(value: int) -> int:

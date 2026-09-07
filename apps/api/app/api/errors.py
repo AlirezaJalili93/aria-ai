@@ -36,6 +36,10 @@ class VersionConflictError(Exception):
     """API signal for an optimistic concurrency mismatch."""
 
 
+class InvalidContextItemStateError(Exception):
+    """API signal for a Context Item command rejected by its immutable state."""
+
+
 class ForbiddenError(Exception):
     """API signal for an authenticated caller lacking role authority."""
 
@@ -197,6 +201,20 @@ async def version_conflict_handler(request: Request, error: Exception) -> JSONRe
         status_code=409,
         code="VERSION_CONFLICT",
         message="The resource has changed since it was read.",
+        retryable=False,
+    )
+
+
+async def invalid_context_item_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidContextItemStateError):
+        raise TypeError("Unexpected exception type for Context Item state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_CONTEXT_ITEM_STATE",
+        message="The Context Item is not mutable in its current state.",
         retryable=False,
     )
 

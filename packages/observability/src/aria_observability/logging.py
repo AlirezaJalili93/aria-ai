@@ -46,10 +46,23 @@ _OPTIONAL_FIELDS = {
     "actor_id",
     "project_id",
     "source_id",
+    "context_item_id",
+    "requirement_id",
     "version_no",
+    "context_version",
     "event_category",
     "project_type",
     "role",
+    "priority",
+    "created_by_type",
+    "workflow_version",
+    "prompt_version",
+    "repair_no",
+    "candidate_count",
+    "persisted_count",
+    "unsupported_count",
+    "duplicate_count",
+    "conflict_count",
 }
 
 
@@ -116,9 +129,29 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
-    if field in {"actor_id", "project_id", "source_id", "outbox_event_id", "aggregate_id"}:
+    if field in {
+        "actor_id",
+        "project_id",
+        "source_id",
+        "context_item_id",
+        "requirement_id",
+        "outbox_event_id",
+        "aggregate_id",
+    }:
         return _safe_uuid(value)
-    if field in {"attempt", "input_tokens", "output_tokens", "version_no"}:
+    if field in {
+        "attempt",
+        "input_tokens",
+        "output_tokens",
+        "version_no",
+        "context_version",
+        "repair_no",
+        "candidate_count",
+        "persisted_count",
+        "unsupported_count",
+        "duplicate_count",
+        "conflict_count",
+    }:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":
         return _safe_non_negative_number(value)

@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-05
+- تاریخ همگام‌سازی: 2026-09-06
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -52,13 +52,13 @@ M000 extensions
 | projects | id, account_id, owner_id, title, project_type, status, current_context_version=`0`, created_at, updated_at, deleted_at | `owner_id` به Profile وصل است؛ type فقط landing/corporate/portfolio؛ status فقط draft/active/awaiting_approval/approved/generating/delivered/archived؛ version نامنفی؛ حذف نرم |
 | context_sources | id, account_id, project_id, source_type, status, original_name, mime_type, storage_ref, raw_text, checksum, created_by, created_at, updated_at | type در DB برابر text/file/message/url_reference و در S1-D01 Application فقط text؛ status برابر uploaded/parsing/ready/failed/deleted؛ query عادی deleted را حذف می‌کند |
 | context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical_text/storage_ref, metadata, parse_status, created_at | parse status برابر pending/parsing/ready/failed؛ `version_no>=1` و `UNIQUE(source_id,version_no)`؛ ready immutable و دارای canonical text/ref؛ history حفظ می‌شود |
-| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_by, created_at | version >=1؛ item type برابر fact/assumption/decision/constraint/reference/unknown؛ status برابر proposed/confirmed/rejected/superseded؛ Fact تأییدشده حداقل یک provenance معتبر دارد؛ user-created دارای created_by است |
+| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_by, created_at, updated_at | version >=1؛ item type برابر fact/assumption/decision/constraint/reference/unknown؛ status برابر proposed/confirmed/rejected/superseded؛ Fact تأییدشده حداقل یک provenance معتبر دارد؛ user-created دارای created_by است؛ updated_at را PostgreSQL مدیریت می‌کند |
 
 ## Requirement، Gap و Scope
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| requirements | id, account_id, project_id, context_version, category, content, status, source_refs | حذف traceable با deactivate/supersede |
+| requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ provenance و creator tenant-safe |
 | gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, accepted_assumption | accepted assumption فقط با action صریح |
 | clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
@@ -72,7 +72,7 @@ M000 extensions
 | outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
 | provider_price_versions | id, provider, model, unit prices, currency, validity | Historical price version تغییر نمی‌کند |
-| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ status فقط success/failed/partial؛ مقدارهای عددی نامنفی؛ cost بدون default؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Account/Project/Job همگی `ON DELETE RESTRICT` |
+| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ status فقط success/failed/partial؛ مقدارهای عددی نامنفی؛ cost بدون default؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Account/Project/Job همگی `ON DELETE RESTRICT` |
 
 ## Index و RLS Baseline
 
@@ -94,11 +94,37 @@ M000 extensions
 - Usage Ledger با `(account_id, created_at desc)` و FKهای Project/Job index می‌شود. واژهٔ
   `retry_no` برای Usage canonical است و `attempt_no` قدیمی را supersede می‌کند. Provider و Model
   دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application.
+- `repair_no` اجرای معنایی AI را از Provider retry جدا می‌کند: اجرای اصلی `0` و Repair نخست `1`
+  است. سقف Sprint 1 در Policy نسخه‌دار Application است و DB فقط `repair_no >= 0` را enforce می‌کند؛
+  جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md) ثبت شده است.
 - Context Item با `(account_id, project_id, context_version)` index می‌شود. `context_version`
   عدد صحیح canonical است و `context_version_id` قدیمی را supersede می‌کند. هر عنصر `source_refs`
   به Source و Source Version آماده در همان Tenant اشاره می‌کند و offset اختیاری آن نیم‌بازهٔ
   صفرمبنا روی `canonical_text` است. `source_ref` مفرد و `state=active` قدیمی supersede شده‌اند؛
   جزئیات در [ADR-025](../adr/ADR-025-context-item-provenance-contract.md) ثبت شده است.
+- H04 روی همان Context Itemها `updated_at` را برای CAS مدیریت می‌کند؛ فهرست فعلی با
+  `(account_id, project_id, context_version, created_at desc, id desc)` و فیلتر provenance با GIN
+  ایندکس می‌شود. جزئیات در [ADR-028](../adr/ADR-028-context-review-contract.md) ثبت شده است.
+- H02 آخرین Version آمادهٔ هر Source حذف‌نشده را یک‌بار snapshot می‌کند. Batch فقط پس از اعتبارسنجی
+  کامل persist می‌شود؛ Project با row lock نسخهٔ بعدی را تخصیص می‌دهد و درج همهٔ Context Itemها و
+  پیشروی `current_context_version` در یک Transaction انجام می‌شود. جزئیات در
+  [ADR-026](../adr/ADR-026-context-structuring-workflow.md) ثبت شده است.
+- H03 فقط defectهای deterministic خروجی مدل را حداکثر یک‌بار با همان Workflow/Routing و Prompt
+  نسخه‌دار Repair می‌کند. هر خروجی دوباره کل validation را طی می‌کند و exhaustion هیچ Context
+  write یا Version increment ندارد؛ جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md)
+  ثبت شده است.
+- Requirement با `context_version INTEGER` به Context موجود Project متصل می‌شود و نسخهٔ آینده یا
+  Project بدون Context را نمی‌پذیرد. `title+description` جای `content` و `created_by_type` جای
+  `source_type` را گرفته‌اند. `source_refs` قرارداد provenance مصوب H01 را حفظ می‌کند؛ جزئیات در
+  [ADR-030](../adr/ADR-030-requirement-domain-contract.md) ثبت شده است.
+- I02 از مجموعهٔ دقیق Context Itemهای `proposed|confirmed` برای نسخهٔ درخواست‌شده Snapshot
+  می‌گیرد. Requirement پشتیبانی‌شده حداقل یک Source Reference معتبر از همان Snapshot دارد؛
+  unsupported می‌تواند بدون reference باشد. Duplicateهای دقیق فقط provenance را stable-union
+  می‌کنند، دادهٔ موجود کاربر بازنویسی نمی‌شود و تعارض‌ها به‌صورت ردیف‌های مستقل همراه Outbox signal
+  اتمیک ثبت می‌شوند. `generation_job_id` unique نیست و index
+  `(account_id, project_id, generation_job_id)` همراه status نهایی Job همان Tenant replay را
+  پشتیبانی می‌کند. جدول result یا Snapshot تاریخی Generation در I02 ایجاد نمی‌شود؛ جزئیات در
+  [ADR-031](../adr/ADR-031-requirement-generation-contract.md) ثبت شده است.
 
 ## Migration Guardrails
 

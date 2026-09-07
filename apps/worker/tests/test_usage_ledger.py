@@ -22,6 +22,7 @@ def test_usage_record_keeps_provider_and_model_as_recorded_data() -> None:
         status="partial",
         error_code=None,
         retry_no=0,
+        repair_no=0,
         estimated_cost=Decimal("0.00000000"),
         pricing_version="pricing-v1",
         correlation_id=uuid4(),
@@ -30,4 +31,4 @@ def test_usage_record_keeps_provider_and_model_as_recorded_data() -> None:
     assert record.provider == "provider-as-data"
     assert record.model == "model-as-data"
     assert record.currency == "USD"
-
+    assert record.repair_no == 0

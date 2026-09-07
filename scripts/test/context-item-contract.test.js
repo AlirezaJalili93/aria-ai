@@ -28,7 +28,7 @@ test("Context Item persistence validates semantic provenance", async () => {
   );
 
   assert.doesNotMatch(domain, /fastapi|sqlalchemy|supabase|aria_observability/i);
-  assert.doesNotMatch(application, /fastapi|sqlalchemy|supabase|aria_observability/i);
+  assert.doesNotMatch(application, /fastapi|sqlalchemy|supabase/i);
   assert.match(application, /resolve_provenance/);
   assert.match(application, /canonical_text_length/);
   assert.match(repository, /ContextSourceVersionModel\.parse_status == ["']ready["']/);
@@ -42,9 +42,7 @@ test("Context Item contract does not add deferred product surfaces", async () =>
   const service = await read(
     "apps/api/app/modules/context/application/context_item_service.py"
   );
-  const main = await read("apps/api/app/main.py");
 
   assert.doesNotMatch(migration, /CREATE TABLE context_versions|create_table\(["']context_versions/);
   assert.doesNotMatch(service, /normalize|maximum|max_length|provider|prompt/i);
-  assert.doesNotMatch(main, /context-items|context_items/);
 });

@@ -119,6 +119,7 @@ def _usage_values(account_id: UUID, project_id: UUID, job_id: UUID) -> dict[str,
         "status": "success",
         "error_code": None,
         "retry_no": 0,
+        "repair_no": 0,
         "estimated_cost": Decimal("0.00000001"),
         "pricing_version": "pricing-v1",
         "correlation_id": uuid4(),
@@ -129,12 +130,12 @@ USAGE_INSERT = """
 INSERT INTO usage_records (
     account_id, project_id, job_id, task_type, workflow_version, prompt_version,
     provider, model, provider_request_id, input_tokens, cached_input_tokens,
-    output_tokens, latency_ms, status, error_code, retry_no, estimated_cost,
+    output_tokens, latency_ms, status, error_code, retry_no, repair_no, estimated_cost,
     pricing_version, correlation_id
 ) VALUES (
     :account_id, :project_id, :job_id, :task_type, :workflow_version, :prompt_version,
     :provider, :model, :provider_request_id, :input_tokens, :cached_input_tokens,
-    :output_tokens, :latency_ms, :status, :error_code, :retry_no, :estimated_cost,
+    :output_tokens, :latency_ms, :status, :error_code, :retry_no, :repair_no, :estimated_cost,
     :pricing_version, :correlation_id
 )
 """
@@ -185,6 +186,7 @@ def test_m009_usage_schema_matches_the_tightened_contract() -> None:
         "status",
         "error_code",
         "retry_no",
+        "repair_no",
         "estimated_cost",
         "currency",
         "pricing_version",
@@ -267,6 +269,7 @@ def test_worker_can_append_but_cannot_read_update_or_delete_raw_usage() -> None:
         ("output_tokens", -1),
         ("latency_ms", Decimal("-0.001")),
         ("retry_no", -1),
+        ("repair_no", -1),
         ("estimated_cost", Decimal("-0.00000001")),
         ("status", "unknown"),
     ],
@@ -299,6 +302,28 @@ def test_usage_records_are_immutable_and_parent_hard_delete_is_restricted() -> N
     ):
         with pytest.raises(IntegrityError):
             asyncio.run(_execute(statement, parameters))
+
+
+def test_usage_repair_number_defaults_to_zero_and_has_no_sprint_policy_ceiling() -> None:
+    _, account_id, project_id, job_id = asyncio.run(_seed_job())
+    values = _usage_values(account_id, project_id, job_id)
+    values["repair_no"] = 2
+    asyncio.run(_execute(USAGE_INSERT, values))
+    assert asyncio.run(_scalar("SELECT repair_no FROM usage_records")) == 2
+
+    values = _usage_values(account_id, project_id, job_id)
+    values.pop("repair_no")
+    insert_with_default = USAGE_INSERT.replace(
+        ", retry_no, repair_no, estimated_cost,",
+        ", retry_no, estimated_cost,",
+    ).replace(
+        ", :retry_no, :repair_no, :estimated_cost,",
+        ", :retry_no, :estimated_cost,",
+    )
+    asyncio.run(_execute(insert_with_default, values))
+    assert asyncio.run(
+        _scalar("SELECT count(*) FROM usage_records WHERE repair_no=0")
+    ) == 1
 
 
 def test_m009_downgrade_reupgrade_removes_ledger_authority_safely() -> None:

@@ -53,6 +53,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "aria-backend-application" },
     { name = "aria-observability" },
     { name = "asyncpg" },
     { name = "fastapi" },
@@ -73,6 +74,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = "==1.19.0" },
+    { name = "aria-backend-application", directory = "../../packages/backend-application" },
     { name = "aria-observability", directory = "../../packages/observability" },
     { name = "asyncpg", specifier = "==0.31.0" },
     { name = "fastapi", specifier = "==0.141.1" },
@@ -89,6 +91,11 @@ dev = [
     { name = "pytest", specifier = "==9.1.1" },
     { name = "ruff", specifier = "==0.16.3" },
 ]
+
+[[package]]
+name = "aria-backend-application"
+version = "0.1.0"
+source = { directory = "../../packages/backend-application" }
 
 [[package]]
 name = "aria-observability"

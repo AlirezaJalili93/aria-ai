@@ -87,3 +87,38 @@ def test_structured_logger_drops_unapproved_sensitive_fields() -> None:
     assert "full model prompt" not in output
     assert "raw-share-token" not in output
     assert json.loads(output)["status"] == "ok"
+
+
+def test_requirement_generation_logging_keeps_only_approved_versions_and_counts() -> None:
+    stream = StringIO()
+    logger = _logger(stream)
+
+    logger.emit(
+        "requirements.generation_completed",
+        workflow_version="requirements-v1",
+        prompt_version="prompt-v1",
+        repair_no=1,
+        candidate_count=3,
+        persisted_count=2,
+        unsupported_count=1,
+        duplicate_count=1,
+        conflict_count=0,
+        title="محرمانه",
+        description="متن مشتری",
+        source_refs="private provenance",
+        status="success",
+    )
+
+    output = stream.getvalue()
+    event = json.loads(output)
+    assert event["workflow_version"] == "requirements-v1"
+    assert event["prompt_version"] == "prompt-v1"
+    assert event["repair_no"] == 1
+    assert event["candidate_count"] == 3
+    assert event["persisted_count"] == 2
+    assert event["unsupported_count"] == 1
+    assert event["duplicate_count"] == 1
+    assert event["conflict_count"] == 0
+    assert "محرمانه" not in output
+    assert "متن مشتری" not in output
+    assert "private provenance" not in output

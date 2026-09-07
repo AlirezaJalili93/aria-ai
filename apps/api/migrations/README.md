@@ -7,7 +7,8 @@ is never stored in this directory.
 0000_extensions → 0001_identity_projection → 0001_identity_access_hardening
 → 0002_projects → 0003_project_create_idempotency → 0004_context_sources
 → 0005_jobs_outbox → 0006_idempotency_records → 0007_usage_records
-→ 0008_context_items
+→ 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
+→ 0011_requirements → 0012_requirement_generation
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -42,3 +43,16 @@ Account/Project/Profile foreign keys, tenant-first indexes and deny-by-default D
 Element-level provenance is resolved against ready same-tenant Source Versions before persistence;
 the conflict supersede and exact boundary are recorded in
 [ADR-025](../../../docs/adr/ADR-025-context-item-provenance-contract.md).
+
+`0011_requirements` implements logical M005 with an integer Context Version, mandatory category,
+title/description and explicit priority, four-state soft-deactivation lifecycle, H01-compatible
+Source References, restrictive tenant/creator foreign keys, database-owned timestamps, RLS and
+fail-closed Data API privileges. Application rejects missing/future Project Context Versions and
+invalid provenance before persistence. The conflict resolution is recorded in
+[ADR-030](../../../docs/adr/ADR-030-requirement-domain-contract.md).
+
+`0012_requirement_generation` extends M005 for S1-I02 with an explicit unsupported flag,
+provider-output duplicate key and a non-unique Job reference plus tenant-first replay index. It
+does not add a conflict or Gap table. Requirement rows and safe conflict Outbox events commit in
+one transaction; exact Context snapshot and merge rules are recorded in
+[ADR-031](../../../docs/adr/ADR-031-requirement-generation-contract.md).

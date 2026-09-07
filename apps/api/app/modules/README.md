@@ -23,3 +23,13 @@ surface only. S1-C01 exposes no HTTP route.
 `context/application` admits only text Sources in this increment and records safe lifecycle events;
 `context/infrastructure` implements tenant/project-scoped persistence and derives the current ready
 Version. No Context HTTP route, parser, queue or file ingestion is exposed by S1-D01.
+
+`requirements/domain` owns the Requirement vocabulary, creator and Source Reference invariants.
+The I01 Application boundary validates the selected integer Context Version and semantic
+provenance before persistence. The shared S1-I02 Application workflow snapshots eligible Context
+Items, invokes only the provider-neutral AI port, validates and optionally repairs candidates,
+merges only exact duplicate groups, preserves existing Requirement decisions, and atomically
+persists the batch plus safe conflict Outbox signals. Infrastructure implements tenant-safe
+PostgreSQL persistence. Replay resolves only a same-tenant terminal Job and then reads its
+`generation_job_id` Requirement rows; no result-mapping table or historical payload snapshot is
+introduced. I02 exposes no HTTP route, concrete provider, Gap model or conflict table.
