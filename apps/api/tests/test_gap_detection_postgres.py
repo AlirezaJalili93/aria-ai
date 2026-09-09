@@ -13,8 +13,12 @@ from alembic import command
 from alembic.config import Config
 from aria_backend_application.ai_execution import StructuredAIResponse
 from aria_backend_application.gap_detection import (
+    COMPLETION_CHECKLIST_V1,
+    COMPLETION_CHECKLIST_VERSION,
+    CRITICAL_GAP_RULE_PACK_VERSION,
     CandidateGap,
     CandidateGapBatch,
+    ChecklistItemRuleSignal,
     CriticalGapRuleEvaluation,
     DetectGapsCommand,
     DetectGapsUseCase,
@@ -22,6 +26,7 @@ from aria_backend_application.gap_detection import (
     GapRepairPolicy,
     GapSourceReference,
     GapWrite,
+    VersionedCriticalGapRuleEvaluator,
 )
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -189,7 +194,11 @@ class NullLogger:
         del event_name, level, fields
 
 
-async def _service(values: dict[str, UUID], batch: CandidateGapBatch):
+async def _service(
+    values: dict[str, UUID],
+    batch: CandidateGapBatch,
+    critical_rules=None,
+):
     assert TEST_DATABASE_URL is not None
     runtime = DatabaseRuntime(TEST_DATABASE_URL)
     reader = SqlAlchemyGapDetectionSnapshotReader(runtime.session_factory)
@@ -197,7 +206,7 @@ async def _service(values: dict[str, UUID], batch: CandidateGapBatch):
         account_id=values["account"],
         project_id=values["project"],
         context_version=1,
-        completion_checklist_version="checklist-v1",
+        completion_checklist_version=COMPLETION_CHECKLIST_VERSION,
     )
     assert snapshot is not None
     ai, ledger = FakeAI(batch), FakeLedger()
@@ -205,7 +214,7 @@ async def _service(values: dict[str, UUID], batch: CandidateGapBatch):
         snapshot_reader=reader,
         ai_execution=ai,
         usage_ledger=ledger,
-        critical_rule_evaluator=NoCriticalRules(),
+        critical_rule_evaluator=critical_rules or NoCriticalRules(),
         unit_of_work_factory=SqlAlchemyGapDetectionUnitOfWorkFactory(runtime.session_factory),
         event_logger=NullLogger(),
         wall_clock=lambda: datetime(2026, 9, 9, tzinfo=UTC),
@@ -218,7 +227,8 @@ async def _service(values: dict[str, UUID], batch: CandidateGapBatch):
         context_version=1,
         context_item_revisions=snapshot.context_item_revisions,
         requirement_revisions=snapshot.requirement_revisions,
-        completion_checklist_version="checklist-v1",
+        completion_checklist_version=COMPLETION_CHECKLIST_VERSION,
+        critical_rule_pack_version=CRITICAL_GAP_RULE_PACK_VERSION,
         task_type="opaque-gap-task",
         workflow_version="workflow-v1",
         prompt_version="prompt-v1",
@@ -312,12 +322,23 @@ def test_nonempty_detection_persists_gap_link_job_metadata_and_replays() -> None
             assert result.gap_count == 1
             row = await _scalar(
                 "SELECT jsonb_build_object('gap_count', payload_ref->'gap_count', "
+                "'critical_candidate_count', payload_ref->'critical_candidate_count', "
+                "'rule_generated_gap_count', payload_ref->'rule_generated_gap_count', "
+                "'critical_gap_count', payload_ref->'critical_gap_count', "
+                "'completion_checklist_version', "
+                "payload_ref->'completion_checklist_version', "
+                "'critical_rule_pack_version', payload_ref->'critical_rule_pack_version', "
                 "'snapshot_ref', payload_ref->'snapshot_ref', 'status', status) "
                 "FROM jobs WHERE id=:job",
                 values,
             )
             assert row == {
                 "gap_count": 1,
+                "critical_candidate_count": 1,
+                "rule_generated_gap_count": 0,
+                "critical_gap_count": 0,
+                "completion_checklist_version": COMPLETION_CHECKLIST_VERSION,
+                "critical_rule_pack_version": CRITICAL_GAP_RULE_PACK_VERSION,
                 "snapshot_ref": "stable",
                 "status": "succeeded",
             }
@@ -344,6 +365,96 @@ def test_empty_detection_commits_zero_metadata_and_replays_without_ai() -> None:
             assert replay.replayed is True
             assert await _scalar("SELECT payload_ref->>'gap_count' FROM jobs") == "0"
             assert await _scalar("SELECT count(*) FROM gaps") == 0
+            assert ai.calls == len(ledger.records) == 1
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_rule_generated_critical_gap_and_pinned_policy_metadata_are_atomic() -> None:
+    async def scenario() -> None:
+        values = await _seed()
+        items = COMPLETION_CHECKLIST_V1.items_for("landing")
+        assert items is not None
+        signals = tuple(
+            ChecklistItemRuleSignal(
+                signal_type="checklist_item",
+                signal_origin="ai_candidate",
+                checklist_item_id=item.item_id,
+                state="missing" if item.item_id == "project.objective" else "present",
+                supporting_context_item_ids=(
+                    ()
+                    if item.item_id == "project.objective"
+                    else (values["context_item"],)
+                ),
+            )
+            for item in items
+        )
+        runtime, service, command_value, ai, ledger = await _service(
+            values,
+            CandidateGapBatch(items=(), rule_signals=signals),
+            VersionedCriticalGapRuleEvaluator(),
+        )
+        try:
+            result = await service.execute(command_value)
+            assert result.gap_count == 1
+            assert result.rule_generated_gap_count == 1
+            assert result.critical_gap_count == 1
+            assert await _scalar("SELECT severity FROM gaps") == "critical"
+            metadata = await _scalar(
+                "SELECT payload_ref FROM jobs WHERE id=:job", values
+            )
+            assert metadata["completion_checklist_version"] == COMPLETION_CHECKLIST_VERSION
+            assert metadata["critical_rule_pack_version"] == CRITICAL_GAP_RULE_PACK_VERSION
+            assert metadata["rule_generated_gap_count"] == 1
+            assert metadata["critical_gap_count"] == 1
+            replay = await service.execute(command_value)
+            assert replay.replayed is True
+            assert replay.rule_generated_gap_count == 1
+            assert replay.critical_gap_count == 1
+            assert ai.calls == len(ledger.records) == 1
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_replay_rejects_corrupt_critical_count_metadata() -> None:
+    async def scenario() -> None:
+        values = await _seed()
+        items = COMPLETION_CHECKLIST_V1.items_for("landing")
+        assert items is not None
+        signals = tuple(
+            ChecklistItemRuleSignal(
+                signal_type="checklist_item",
+                signal_origin="ai_candidate",
+                checklist_item_id=item.item_id,
+                state="missing" if item.item_id == "project.objective" else "present",
+                supporting_context_item_ids=(
+                    ()
+                    if item.item_id == "project.objective"
+                    else (values["context_item"],)
+                ),
+            )
+            for item in items
+        )
+        runtime, service, command_value, ai, ledger = await _service(
+            values,
+            CandidateGapBatch(items=(), rule_signals=signals),
+            VersionedCriticalGapRuleEvaluator(),
+        )
+        try:
+            await service.execute(command_value)
+            await _execute(
+                "UPDATE jobs SET payload_ref=jsonb_set(payload_ref, "
+                "'{critical_gap_count}', '0'::jsonb) WHERE id=:job",
+                values,
+            )
+            with pytest.raises(
+                GapDetectionRepositoryError, match="invalid_gap_replay_metadata"
+            ):
+                await service.execute(command_value)
             assert ai.calls == len(ledger.records) == 1
         finally:
             await runtime.close()

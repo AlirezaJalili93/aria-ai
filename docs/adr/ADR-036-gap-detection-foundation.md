@@ -4,6 +4,7 @@
 - **Date:** 2026-09-09
 - **Story:** S1-J02-A — Gap Detection Foundation
 - **Extends:** ADR-035 Gap Domain Contract
+- **Extended by:** ADR-037 Versioned Gap Completion Checklist and Critical Rule Pack
 
 ## Context
 
@@ -55,14 +56,15 @@ Required events are `gap.detection_started`, `gap.detection_completed`, `gap.det
 versions, counts, duration, status and reason codes are emitted. Explanation, Context/Requirement
 text, Source References, affected IDs, prompt and raw model output are prohibited.
 
-## Deferred / blocked
+## Deferred / blocked at the J02-A decision point
 
-- S1-J02-B: versioned checklist content, Landing/Corporate/Portfolio rules, key-Requirement and
-  critical-assumption definitions, rule precedence/versioning, and rule fixtures/evaluation.
+- S1-J02-B was deferred here; ADR-037 now supplies its approved Checklist, rule definitions,
+  precedence/versioning and fixtures.
 - J03: question, Clarification and accepted-assumption actor/timestamp semantics.
 - Public Gap API/UI, concrete Provider, Queue scheduling/ACK/retry and Scope-readiness integration.
 
-Full S1-J02 remains **NOT DONE** until J02-B is approved, implemented and verified.
+This ADR records the J02-A boundary. ADR-037 later approved and specifies J02-B; full S1-J02 is
+complete only when the combined implementation and verification pass.
 
 ## Sources
 

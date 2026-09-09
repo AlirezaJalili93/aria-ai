@@ -151,12 +151,45 @@ class SqlAlchemyGapDetectionRepository:
         gap_ids = tuple(row.id for row in gap_rows)
         if len(gap_ids) != gap_count:
             raise GapDetectionRepositoryError("invalid_gap_replay_metadata")
+        assert isinstance(metadata, dict)
+        critical_candidate_count = _optional_nonnegative_int(
+            metadata, "critical_candidate_count"
+        )
+        rule_generated_gap_count = _optional_nonnegative_int(
+            metadata, "rule_generated_gap_count"
+        )
+        critical_gap_count = _optional_nonnegative_int(metadata, "critical_gap_count")
+        actual_critical_gap_count = sum(row.severity == "critical" for row in gap_rows)
+        if (
+            rule_generated_gap_count is not None
+            and rule_generated_gap_count > gap_count
+        ) or (
+            critical_gap_count is not None
+            and critical_gap_count != actual_critical_gap_count
+        ):
+            raise GapDetectionRepositoryError("invalid_gap_replay_metadata")
         return GapDetectionReplay(
             status="succeeded",
             gap_ids=gap_ids,
             gap_count=gap_count,
-            critical_candidate_count=sum(row.severity == "critical" for row in gap_rows),
+            critical_candidate_count=(
+                critical_candidate_count
+                if critical_candidate_count is not None
+                else actual_critical_gap_count
+            ),
             error_code=None,
+            rule_generated_gap_count=rule_generated_gap_count,
+            critical_gap_count=(
+                critical_gap_count
+                if critical_gap_count is not None
+                else actual_critical_gap_count
+            ),
+            completion_checklist_version=_optional_nonempty_string(
+                metadata, "completion_checklist_version"
+            ),
+            critical_rule_pack_version=_optional_nonempty_string(
+                metadata, "critical_rule_pack_version"
+            ),
         )
 
     async def lock_snapshot_and_resolve_revisions(
@@ -247,6 +280,11 @@ class SqlAlchemyGapDetectionRepository:
         project_id: UUID,
         job_id: UUID,
         gap_count: int,
+        critical_candidate_count: int,
+        rule_generated_gap_count: int,
+        critical_gap_count: int,
+        completion_checklist_version: str,
+        critical_rule_pack_version: str,
         finished_at: datetime,
     ) -> None:
         job = await self._session.scalar(
@@ -261,7 +299,15 @@ class SqlAlchemyGapDetectionRepository:
         )
         if job is None:
             raise GapDetectionRepositoryError("gap_generation_job_unavailable")
-        job.payload_ref = {**(job.payload_ref or {}), "gap_count": gap_count}
+        job.payload_ref = {
+            **(job.payload_ref or {}),
+            "gap_count": gap_count,
+            "critical_candidate_count": critical_candidate_count,
+            "rule_generated_gap_count": rule_generated_gap_count,
+            "critical_gap_count": critical_gap_count,
+            "completion_checklist_version": completion_checklist_version,
+            "critical_rule_pack_version": critical_rule_pack_version,
+        }
         job.status = "succeeded"
         job.finished_at = finished_at
         job.error_code = None
@@ -367,6 +413,28 @@ def _reference_to_dict(reference: GapSourceReference) -> dict[str, object]:
     if reference.start_offset is not None:
         value["start_offset"] = reference.start_offset
         value["end_offset"] = reference.end_offset
+    return value
+
+
+def _optional_nonnegative_int(
+    metadata: dict[str, object], key: str
+) -> int | None:
+    value = metadata.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise GapDetectionRepositoryError("invalid_gap_replay_metadata")
+    return value
+
+
+def _optional_nonempty_string(
+    metadata: dict[str, object], key: str
+) -> str | None:
+    value = metadata.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise GapDetectionRepositoryError("invalid_gap_replay_metadata")
     return value
 
 

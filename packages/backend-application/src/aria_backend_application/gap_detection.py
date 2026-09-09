@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from time import monotonic
@@ -31,6 +31,9 @@ SuggestedResolutionType = Literal[
 ]
 ContextItemStatus = Literal["proposed", "confirmed"]
 RequirementStatus = Literal["draft", "confirmed"]
+RuleSignalOrigin = Literal["ai_candidate"]
+ChecklistSignalState = Literal["present", "missing"]
+CriticalRiskDomain = Literal["payment", "security", "external_integration"]
 
 GAP_TYPES = frozenset(
     {
@@ -55,6 +58,9 @@ SUGGESTED_RESOLUTION_TYPES = frozenset(
 )
 ELIGIBLE_CONTEXT_STATUSES = frozenset({"proposed", "confirmed"})
 ELIGIBLE_REQUIREMENT_STATUSES = frozenset({"draft", "confirmed"})
+CRITICAL_RISK_DOMAINS = frozenset({"payment", "security", "external_integration"})
+COMPLETION_CHECKLIST_VERSION = "completion_checklist_v1"
+CRITICAL_GAP_RULE_PACK_VERSION = "critical_gap_rule_pack_v1"
 
 
 class GapDetectionError(RuntimeError):
@@ -102,6 +108,17 @@ class GapRepairExhaustedError(GapDetectionError):
 
 class GapDetectionRepositoryError(GapDetectionError):
     """A declared Gap detection persistence failure."""
+
+
+class GapCriticalPolicyUnavailableError(GapDetectionError):
+    code = "GAP_CRITICAL_POLICY_UNAVAILABLE"
+
+    def __init__(self) -> None:
+        super().__init__("gap_critical_policy_unavailable")
+
+
+class GapRuleSignalError(GapDetectionSchemaError):
+    """Untrusted structured AI rule evidence failed validation."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -273,15 +290,230 @@ class CandidateGap:
         )
 
 
+def _validate_candidate_index(candidate_index: int | None) -> None:
+    if candidate_index is not None and (
+        isinstance(candidate_index, bool)
+        or not isinstance(candidate_index, int)
+        or candidate_index < 0
+    ):
+        raise GapRuleSignalError("invalid_rule_signal_candidate_index")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ChecklistItemRuleSignal:
+    signal_type: Literal["checklist_item"]
+    signal_origin: RuleSignalOrigin
+    checklist_item_id: str
+    state: ChecklistSignalState
+    supporting_context_item_ids: tuple[UUID, ...]
+    candidate_index: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.signal_type != "checklist_item":
+            raise GapRuleSignalError("invalid_rule_signal_type")
+        if self.signal_origin != "ai_candidate":
+            raise GapRuleSignalError("invalid_rule_signal_origin")
+        if not self.checklist_item_id:
+            raise GapRuleSignalError("invalid_checklist_item_id")
+        if self.state not in {"present", "missing"}:
+            raise GapRuleSignalError("invalid_checklist_signal_state")
+        if len(set(self.supporting_context_item_ids)) != len(
+            self.supporting_context_item_ids
+        ):
+            raise GapRuleSignalError("duplicate_supporting_context_item")
+        if self.state == "present" and not self.supporting_context_item_ids:
+            raise GapRuleSignalError("present_checklist_item_without_support")
+        if self.state == "missing" and self.supporting_context_item_ids:
+            raise GapRuleSignalError("missing_checklist_item_with_support")
+        _validate_candidate_index(self.candidate_index)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RequirementConflictRuleSignal:
+    signal_type: Literal["requirement_conflict"]
+    signal_origin: RuleSignalOrigin
+    requirement_ids: tuple[UUID, ...]
+    candidate_index: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.signal_type != "requirement_conflict":
+            raise GapRuleSignalError("invalid_rule_signal_type")
+        if self.signal_origin != "ai_candidate":
+            raise GapRuleSignalError("invalid_rule_signal_origin")
+        if len(self.requirement_ids) < 2 or len(set(self.requirement_ids)) != len(
+            self.requirement_ids
+        ):
+            raise GapRuleSignalError("requirement_conflict_requires_distinct_pair")
+        _validate_candidate_index(self.candidate_index)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CriticalAssumptionRuleSignal:
+    signal_type: Literal["critical_assumption"]
+    signal_origin: RuleSignalOrigin
+    context_item_id: UUID
+    risk_domain: CriticalRiskDomain
+    candidate_index: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.signal_type != "critical_assumption":
+            raise GapRuleSignalError("invalid_rule_signal_type")
+        if self.signal_origin != "ai_candidate":
+            raise GapRuleSignalError("invalid_rule_signal_origin")
+        if self.risk_domain not in CRITICAL_RISK_DOMAINS:
+            raise GapRuleSignalError("invalid_critical_assumption_risk_domain")
+        _validate_candidate_index(self.candidate_index)
+
+
+RuleSignal = (
+    ChecklistItemRuleSignal
+    | RequirementConflictRuleSignal
+    | CriticalAssumptionRuleSignal
+)
+
+
 @dataclass(frozen=True, slots=True)
 class CandidateGapBatch:
     items: tuple[CandidateGap, ...]
+    rule_signals: tuple[RuleSignal, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.items, tuple) or not all(
             isinstance(item, CandidateGap) for item in self.items
         ):
             raise GapDetectionSchemaError("invalid_gap_candidate_batch")
+        if not isinstance(self.rule_signals, tuple) or not all(
+            isinstance(
+                signal,
+                (
+                    ChecklistItemRuleSignal,
+                    RequirementConflictRuleSignal,
+                    CriticalAssumptionRuleSignal,
+                ),
+            )
+            for signal in self.rule_signals
+        ):
+            raise GapRuleSignalError("invalid_rule_signal_batch")
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionChecklistItem:
+    item_id: str
+    label: str
+    required: bool
+    critical_if_missing: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionChecklist:
+    version: str
+    common_items: tuple[CompletionChecklistItem, ...]
+    project_items: tuple[tuple[str, tuple[CompletionChecklistItem, ...]], ...]
+
+    def items_for(self, project_type: str) -> tuple[CompletionChecklistItem, ...] | None:
+        for configured_type, items in self.project_items:
+            if configured_type == project_type:
+                return self.common_items + items
+        return None
+
+
+COMPLETION_CHECKLIST_V1 = CompletionChecklist(
+    version=COMPLETION_CHECKLIST_VERSION,
+    common_items=(
+        CompletionChecklistItem(
+            "project.objective", "هدف پروژه", required=True, critical_if_missing=True
+        ),
+    ),
+    project_items=(
+        (
+            "landing",
+            (
+                CompletionChecklistItem(
+                    "project.target_audience",
+                    "مخاطب هدف",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "landing.primary_cta",
+                    "اقدام اصلی کاربر",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "landing.offer_or_value_proposition",
+                    "پیشنهاد ارزش",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+                CompletionChecklistItem(
+                    "landing.required_content_or_sections",
+                    "محتوا یا بخش‌های ضروری",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+            ),
+        ),
+        (
+            "corporate",
+            (
+                CompletionChecklistItem(
+                    "project.target_audience",
+                    "مخاطب هدف",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+                CompletionChecklistItem(
+                    "corporate.services_or_offerings",
+                    "خدمات یا پیشنهادهای کسب‌وکار",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "corporate.required_pages",
+                    "صفحات ضروری",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "corporate.contact_path",
+                    "مسیر تماس",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+            ),
+        ),
+        (
+            "portfolio",
+            (
+                CompletionChecklistItem(
+                    "project.target_audience",
+                    "مخاطب هدف",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+                CompletionChecklistItem(
+                    "portfolio.professional_identity",
+                    "هویت حرفه‌ای",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "portfolio.work_or_case_study_inventory",
+                    "نمونه‌کارها یا مطالعات موردی",
+                    required=True,
+                    critical_if_missing=True,
+                ),
+                CompletionChecklistItem(
+                    "portfolio.contact_path",
+                    "مسیر تماس",
+                    required=True,
+                    critical_if_missing=False,
+                ),
+            ),
+        ),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -306,6 +538,7 @@ class DetectGapsCommand:
     context_item_revisions: tuple[ContextItemRevision, ...]
     requirement_revisions: tuple[RequirementRevision, ...]
     completion_checklist_version: str
+    critical_rule_pack_version: str
     task_type: str
     workflow_version: str
     prompt_version: str
@@ -322,6 +555,8 @@ class DetectGapsCommand:
             raise ValueError("context_version must be at least one")
         if not self.completion_checklist_version:
             raise ValueError("completion_checklist_version is required")
+        if not self.critical_rule_pack_version:
+            raise ValueError("critical_rule_pack_version is required")
         _assert_sorted_unique_context_revisions(self.context_item_revisions)
         _assert_sorted_unique_requirement_revisions(self.requirement_revisions)
 
@@ -329,6 +564,8 @@ class DetectGapsCommand:
 @dataclass(frozen=True, slots=True)
 class CriticalGapRuleEvaluation:
     authoritative_candidate_indexes: tuple[int, ...]
+    generated_candidates: tuple[CandidateGap, ...] = ()
+    matched_rule_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if len(set(self.authoritative_candidate_indexes)) != len(
@@ -340,12 +577,172 @@ class CriticalGapRuleEvaluation:
             raise ValueError(
                 "Critical candidate indexes must be unique non-negative integers"
             )
+        if any(candidate.severity != "critical" for candidate in self.generated_candidates):
+            raise ValueError("Rule-generated Gap candidates must be critical")
+        if len(set(self.matched_rule_ids)) != len(self.matched_rule_ids):
+            raise ValueError("Matched rule IDs must be unique")
 
 
 class CriticalGapRuleEvaluator(Protocol):
     async def evaluate(
-        self, *, snapshot: GapDetectionSnapshot, batch: CandidateGapBatch
+        self,
+        *,
+        snapshot: GapDetectionSnapshot,
+        batch: CandidateGapBatch,
+        rule_pack_version: str,
     ) -> CriticalGapRuleEvaluation: ...
+
+
+class VersionedCriticalGapRuleEvaluator:
+    """J02-B rules over validated, untrusted structured AI signals."""
+
+    async def evaluate(
+        self,
+        *,
+        snapshot: GapDetectionSnapshot,
+        batch: CandidateGapBatch,
+        rule_pack_version: str,
+    ) -> CriticalGapRuleEvaluation:
+        if (
+            snapshot.completion_checklist_version != COMPLETION_CHECKLIST_VERSION
+            or rule_pack_version != CRITICAL_GAP_RULE_PACK_VERSION
+        ):
+            raise GapCriticalPolicyUnavailableError
+        checklist_items = COMPLETION_CHECKLIST_V1.items_for(snapshot.project_type)
+        if checklist_items is None:
+            raise GapCriticalPolicyUnavailableError
+
+        candidate_indexes: set[int] = set()
+        generated: list[CandidateGap] = []
+        matched: set[str] = set()
+        context_by_id = {item.id: item for item in snapshot.context_items}
+        requirements_by_id = {item.id: item for item in snapshot.requirements}
+        checklist_by_id = {item.item_id: item for item in checklist_items}
+
+        checklist_signals = tuple(
+            signal
+            for signal in batch.rule_signals
+            if isinstance(signal, ChecklistItemRuleSignal)
+        )
+        signal_ids = tuple(signal.checklist_item_id for signal in checklist_signals)
+        if len(set(signal_ids)) != len(signal_ids) or set(signal_ids) != set(
+            checklist_by_id
+        ):
+            raise GapRuleSignalError("incomplete_or_duplicate_checklist_signals")
+
+        processing_order = {
+            CriticalAssumptionRuleSignal: 0,
+            RequirementConflictRuleSignal: 1,
+            ChecklistItemRuleSignal: 2,
+        }
+        ordered_signals = tuple(
+            sorted(batch.rule_signals, key=lambda value: processing_order[type(value)])
+        )
+        for signal in ordered_signals:
+            _validate_rule_signal_candidate_index(signal, batch)
+            if isinstance(signal, ChecklistItemRuleSignal):
+                if any(
+                    item_id not in context_by_id
+                    for item_id in signal.supporting_context_item_ids
+                ):
+                    raise GapRuleSignalError("checklist_support_outside_snapshot")
+                item = checklist_by_id[signal.checklist_item_id]
+                if signal.state == "missing" and item.required and item.critical_if_missing:
+                    _validate_linked_candidate(
+                        signal.candidate_index,
+                        batch,
+                        expected_gap_type="missing_information",
+                    )
+                    matched.add("CGR-001")
+                    if signal.candidate_index is None:
+                        generated.append(
+                            CandidateGap(
+                                gap_type="missing_information",
+                                severity="critical",
+                                explanation=(
+                                    f'اطلاعات الزامی «{item.label}» برای تدوین Scope '
+                                    "قابل اتکا موجود نیست."
+                                ),
+                                source_refs=(),
+                                affected_requirement_ids=(),
+                                suggested_resolution_type="provide_information",
+                            )
+                        )
+                    else:
+                        candidate_indexes.add(signal.candidate_index)
+            elif isinstance(signal, RequirementConflictRuleSignal):
+                if any(value not in requirements_by_id for value in signal.requirement_ids):
+                    raise GapRuleSignalError("conflict_requirement_outside_snapshot")
+                if any(
+                    requirements_by_id[value].status in ELIGIBLE_REQUIREMENT_STATUSES
+                    and requirements_by_id[value].priority == "must"
+                    for value in signal.requirement_ids
+                ):
+                    _validate_linked_candidate(
+                        signal.candidate_index,
+                        batch,
+                        expected_gap_type="conflict",
+                        expected_requirement_ids=frozenset(signal.requirement_ids),
+                    )
+                    matched.add("CGR-002")
+                    if signal.candidate_index is None:
+                        refs = _canonical_reference_union(
+                            reference
+                            for requirement_id in signal.requirement_ids
+                            for reference in requirements_by_id[requirement_id].source_refs
+                        )
+                        generated.append(
+                            CandidateGap(
+                                gap_type="conflict",
+                                severity="critical",
+                                explanation=(
+                                    "بین Requirementهای کلیدی پروژه تعارض حل‌نشده وجود دارد."
+                                ),
+                                source_refs=refs,
+                                affected_requirement_ids=tuple(
+                                    sorted(signal.requirement_ids, key=lambda value: value.int)
+                                ),
+                                suggested_resolution_type="resolve_conflict",
+                            )
+                        )
+                    else:
+                        candidate_indexes.add(signal.candidate_index)
+            else:
+                context_item = context_by_id.get(signal.context_item_id)
+                if (
+                    context_item is None
+                    or context_item.item_type != "assumption"
+                    or context_item.status == "confirmed"
+                ):
+                    raise GapRuleSignalError("invalid_critical_assumption_subject")
+                matched.add("CGR-003")
+                _validate_linked_candidate(
+                    signal.candidate_index,
+                    batch,
+                    expected_gap_type="unsupported_assumption",
+                )
+                if signal.candidate_index is None:
+                    generated.append(
+                        CandidateGap(
+                            gap_type="unsupported_assumption",
+                            severity="critical",
+                            explanation=(
+                                "یک فرض تأییدنشده در حوزه حساس پروژه نیازمند تعیین تکلیف است."
+                            ),
+                            source_refs=context_item.source_refs,
+                            affected_requirement_ids=(),
+                            suggested_resolution_type="validate_assumption",
+                        )
+                    )
+                else:
+                    candidate_indexes.add(signal.candidate_index)
+
+        precedence = ("CGR-003", "CGR-002", "CGR-001")
+        return CriticalGapRuleEvaluation(
+            authoritative_candidate_indexes=tuple(sorted(candidate_indexes)),
+            generated_candidates=tuple(generated),
+            matched_rule_ids=tuple(rule_id for rule_id in precedence if rule_id in matched),
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -369,6 +766,8 @@ class GapDetectionResult:
     gap_count: int
     critical_candidate_count: int
     authoritative_critical_gap_ids: tuple[UUID, ...]
+    rule_generated_gap_count: int = 0
+    critical_gap_count: int = 0
     replayed: bool = False
 
 
@@ -379,6 +778,10 @@ class GapDetectionReplay:
     gap_count: int | None
     critical_candidate_count: int | None
     error_code: str | None
+    rule_generated_gap_count: int | None = None
+    critical_gap_count: int | None = None
+    completion_checklist_version: str | None = None
+    critical_rule_pack_version: str | None = None
 
 
 class GapDetectionSnapshotReader(Protocol):
@@ -410,6 +813,11 @@ class GapDetectionRepository(Protocol):
         project_id: UUID,
         job_id: UUID,
         gap_count: int,
+        critical_candidate_count: int,
+        rule_generated_gap_count: int,
+        critical_gap_count: int,
+        completion_checklist_version: str,
+        critical_rule_pack_version: str,
         finished_at: datetime,
     ) -> None: ...
 
@@ -473,7 +881,8 @@ class DetectGapsUseCase:
             project_id=str(command.project_id),
             job_id=str(command.job_id),
             context_version=command.context_version,
-            checklist_version=command.completion_checklist_version,
+            completion_checklist_version=command.completion_checklist_version,
+            critical_rule_pack_version=command.critical_rule_pack_version,
             workflow_version=command.workflow_version,
             prompt_version=command.prompt_version,
             status="started",
@@ -494,16 +903,19 @@ class DetectGapsUseCase:
             if snapshot is None:
                 raise GapDetectionError("gap_snapshot_unavailable")
             self._assert_snapshot(command, snapshot)
-            batch = await self._execute_with_repair(command=command, snapshot=snapshot)
-            critical = await self._critical_rule_evaluator.evaluate(
-                snapshot=snapshot, batch=batch
-            )
-            self._validate_critical_evaluation(critical, batch)
+            (
+                batch,
+                critical,
+                ai_candidate_count,
+                critical_candidate_count,
+            ) = await self._execute_with_repair(command=command, snapshot=snapshot)
             return await self._persist(
                 command=command,
                 snapshot=snapshot,
                 batch=batch,
                 critical=critical,
+                ai_candidate_count=ai_candidate_count,
+                critical_candidate_count=critical_candidate_count,
                 started_at=started_at,
             )
         except Exception as error:
@@ -524,7 +936,8 @@ class DetectGapsUseCase:
                 project_id=str(command.project_id),
                 job_id=str(command.job_id),
                 context_version=command.context_version,
-                checklist_version=command.completion_checklist_version,
+                completion_checklist_version=command.completion_checklist_version,
+                critical_rule_pack_version=command.critical_rule_pack_version,
                 workflow_version=command.workflow_version,
                 prompt_version=command.prompt_version,
                 duration_ms=(self._clock() - started_at) * 1000,
@@ -554,12 +967,14 @@ class DetectGapsUseCase:
             gap_count=replay.gap_count,
             critical_candidate_count=replay.critical_candidate_count or 0,
             authoritative_critical_gap_ids=(),
+            rule_generated_gap_count=replay.rule_generated_gap_count or 0,
+            critical_gap_count=replay.critical_gap_count or 0,
             replayed=True,
         )
 
     async def _execute_with_repair(
         self, *, command: DetectGapsCommand, snapshot: GapDetectionSnapshot
-    ) -> CandidateGapBatch:
+    ) -> tuple[CandidateGapBatch, CriticalGapRuleEvaluation, int, int]:
         response = await self._execute_and_meter(
             command=command,
             snapshot=snapshot,
@@ -568,7 +983,9 @@ class DetectGapsUseCase:
             repair=None,
         )
         try:
-            return self._validate_response(response, snapshot)
+            return await self._validate_and_evaluate(
+                response=response, snapshot=snapshot, command=command
+            )
         except GapDetectionError as error:
             if isinstance(error, GapDuplicateError):
                 self._emit_duplicate_rejected(command)
@@ -589,7 +1006,9 @@ class DetectGapsUseCase:
             },
         )
         try:
-            return self._validate_response(response, snapshot)
+            return await self._validate_and_evaluate(
+                response=response, snapshot=snapshot, command=command
+            )
         except GapDetectionError as error:
             if isinstance(error, GapDuplicateError):
                 self._emit_duplicate_rejected(command)
@@ -661,10 +1080,32 @@ class DetectGapsUseCase:
     ) -> CandidateGapBatch:
         if not isinstance(response.data, CandidateGapBatch):
             raise GapDetectionSchemaError("invalid_gap_candidate_batch")
-        _reject_exact_duplicates(response.data)
         _validate_provenance(response.data, snapshot)
         _validate_affected_requirements(response.data, snapshot)
         return response.data
+
+    async def _validate_and_evaluate(
+        self,
+        *,
+        response: StructuredAIResponse,
+        snapshot: GapDetectionSnapshot,
+        command: DetectGapsCommand,
+    ) -> tuple[CandidateGapBatch, CriticalGapRuleEvaluation, int, int]:
+        candidate_batch = self._validate_response(response, snapshot)
+        critical = await self._critical_rule_evaluator.evaluate(
+            snapshot=snapshot,
+            batch=candidate_batch,
+            rule_pack_version=command.critical_rule_pack_version,
+        )
+        self._validate_critical_evaluation(critical, candidate_batch)
+        evaluated_batch = _apply_critical_evaluation(candidate_batch, critical)
+        _reject_exact_duplicates(evaluated_batch)
+        return (
+            evaluated_batch,
+            critical,
+            len(candidate_batch.items),
+            sum(candidate.severity == "critical" for candidate in candidate_batch.items),
+        )
 
     async def _persist(
         self,
@@ -673,6 +1114,8 @@ class DetectGapsUseCase:
         snapshot: GapDetectionSnapshot,
         batch: CandidateGapBatch,
         critical: CriticalGapRuleEvaluation,
+        ai_candidate_count: int,
+        critical_candidate_count: int,
         started_at: float,
     ) -> GapDetectionResult:
         gap_ids = tuple(self._id_factory() for _ in batch.items)
@@ -721,20 +1164,29 @@ class DetectGapsUseCase:
                 project_id=command.project_id,
                 job_id=command.job_id,
                 gap_count=len(writes),
+                critical_candidate_count=critical_candidate_count,
+                rule_generated_gap_count=len(critical.generated_candidates),
+                critical_gap_count=sum(
+                    candidate.severity == "critical" for candidate in batch.items
+                ),
+                completion_checklist_version=command.completion_checklist_version,
+                critical_rule_pack_version=command.critical_rule_pack_version,
                 finished_at=self._wall_clock(),
             )
             await unit_of_work.commit()
 
         critical_gap_ids = tuple(
-            gap_ids[index] for index in critical.authoritative_candidate_indexes
+            gap_id
+            for gap_id, candidate in zip(gap_ids, batch.items, strict=True)
+            if candidate.severity == "critical"
         )
         result = GapDetectionResult(
             gap_ids=gap_ids,
             gap_count=len(gap_ids),
-            critical_candidate_count=sum(
-                candidate.severity == "critical" for candidate in batch.items
-            ),
+            critical_candidate_count=critical_candidate_count,
             authoritative_critical_gap_ids=critical_gap_ids,
+            rule_generated_gap_count=len(critical.generated_candidates),
+            critical_gap_count=len(critical_gap_ids),
         )
         self._event_logger.emit(
             "gap.detection_completed",
@@ -743,12 +1195,15 @@ class DetectGapsUseCase:
             project_id=str(command.project_id),
             job_id=str(command.job_id),
             context_version=command.context_version,
-            checklist_version=command.completion_checklist_version,
+            completion_checklist_version=command.completion_checklist_version,
+            critical_rule_pack_version=command.critical_rule_pack_version,
             workflow_version=command.workflow_version,
             prompt_version=command.prompt_version,
-            candidate_count=len(batch.items),
+            ai_candidate_count=ai_candidate_count,
+            rule_generated_gap_count=result.rule_generated_gap_count,
             gap_count=result.gap_count,
-            critical_candidate_count=result.critical_candidate_count,
+            critical_gap_count=result.critical_gap_count,
+            matched_rule_count=len(critical.matched_rule_ids),
             duration_ms=(self._clock() - started_at) * 1000,
             status="success",
         )
@@ -803,7 +1258,8 @@ class DetectGapsUseCase:
             project_id=str(command.project_id),
             job_id=str(command.job_id),
             context_version=command.context_version,
-            checklist_version=command.completion_checklist_version,
+            completion_checklist_version=command.completion_checklist_version,
+            critical_rule_pack_version=command.critical_rule_pack_version,
             gap_count=result.gap_count,
             duration_ms=(self._clock() - started_at) * 1000,
             status="success",
@@ -818,10 +1274,78 @@ class DetectGapsUseCase:
             project_id=str(command.project_id),
             job_id=str(command.job_id),
             context_version=command.context_version,
-            checklist_version=command.completion_checklist_version,
+            completion_checklist_version=command.completion_checklist_version,
+            critical_rule_pack_version=command.critical_rule_pack_version,
             reason_code="duplicate_gap",
             status="rejected",
         )
+
+
+def _validate_rule_signal_candidate_index(
+    signal: RuleSignal, batch: CandidateGapBatch
+) -> None:
+    if signal.candidate_index is not None and signal.candidate_index >= len(batch.items):
+        raise GapRuleSignalError("rule_signal_candidate_outside_batch")
+
+
+def _validate_linked_candidate(
+    candidate_index: int | None,
+    batch: CandidateGapBatch,
+    *,
+    expected_gap_type: GapType,
+    expected_requirement_ids: frozenset[UUID] | None = None,
+) -> None:
+    if candidate_index is None:
+        return
+    candidate = batch.items[candidate_index]
+    if candidate.gap_type != expected_gap_type:
+        raise GapRuleSignalError("rule_signal_candidate_type_mismatch")
+    if expected_requirement_ids is not None and frozenset(
+        candidate.affected_requirement_ids
+    ) != expected_requirement_ids:
+        raise GapRuleSignalError("rule_signal_candidate_requirements_mismatch")
+
+
+def _canonical_reference_union(
+    references: Iterable[GapSourceReference],
+) -> tuple[GapSourceReference, ...]:
+    unique: dict[tuple[UUID, UUID, int | None, int | None], GapSourceReference] = {}
+    for reference in references:
+        unique[reference.identity()] = reference
+    return tuple(
+        sorted(
+            unique.values(),
+            key=lambda value: (
+                value.source_id.int,
+                value.source_version_id.int,
+                -1 if value.start_offset is None else value.start_offset,
+                -1 if value.end_offset is None else value.end_offset,
+            ),
+        )
+    )
+
+
+def _apply_critical_evaluation(
+    batch: CandidateGapBatch, evaluation: CriticalGapRuleEvaluation
+) -> CandidateGapBatch:
+    authoritative = set(evaluation.authoritative_candidate_indexes)
+    evaluated = tuple(
+        replace(
+            candidate,
+            severity=(
+                "critical"
+                if index in authoritative
+                else "high"
+                if candidate.severity == "critical"
+                else candidate.severity
+            ),
+        )
+        for index, candidate in enumerate(batch.items)
+    )
+    return CandidateGapBatch(
+        items=evaluated + evaluation.generated_candidates,
+        rule_signals=batch.rule_signals,
+    )
 
 
 def _reject_exact_duplicates(batch: CandidateGapBatch) -> None:

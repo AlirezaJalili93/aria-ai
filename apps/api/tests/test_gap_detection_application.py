@@ -213,6 +213,7 @@ def _command(values: dict[str, UUID], snapshot: GapDetectionSnapshot) -> DetectG
         context_item_revisions=snapshot.context_item_revisions,
         requirement_revisions=snapshot.requirement_revisions,
         completion_checklist_version="checklist-v1",
+        critical_rule_pack_version="critical-gap-rules-v1",
         task_type="opaque-gap-task",
         workflow_version="workflow-v1",
         prompt_version="prompt-v1",
@@ -271,6 +272,7 @@ def test_model_critical_is_not_authoritative_without_rule_match() -> None:
 
     assert result.critical_candidate_count == 1
     assert result.authoritative_critical_gap_ids == ()
+    assert repository.committed_writes[0].severity == "high"
     assert repository.committed_writes[0].affected_requirement_ids == (values["requirement"],)
 
 
