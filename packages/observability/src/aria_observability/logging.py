@@ -61,12 +61,15 @@ _OPTIONAL_FIELDS = {
     "gap_status",
     "workflow_version",
     "prompt_version",
+    "checklist_version",
     "repair_no",
     "candidate_count",
     "persisted_count",
     "unsupported_count",
     "duplicate_count",
     "conflict_count",
+    "gap_count",
+    "critical_candidate_count",
 }
 
 
@@ -156,6 +159,8 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         "unsupported_count",
         "duplicate_count",
         "conflict_count",
+        "gap_count",
+        "critical_candidate_count",
     }:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":

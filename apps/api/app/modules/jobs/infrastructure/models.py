@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -30,15 +31,14 @@ class JobModel(Base):
         CheckConstraint("attempt_count >= 0", name="job_attempt_count"),
         CheckConstraint("max_attempts >= 1", name="job_max_attempts"),
         CheckConstraint("attempt_count <= max_attempts", name="job_attempt_limit"),
-        CheckConstraint(
-            "project_id IS NULL OR account_id IS NOT NULL", name="job_project_tenant"
-        ),
+        CheckConstraint("project_id IS NULL OR account_id IS NOT NULL", name="job_project_tenant"),
         ForeignKeyConstraint(
             ["project_id", "account_id"],
             ["projects.id", "projects.account_id"],
             name="fk_jobs_project_account_projects",
             ondelete="CASCADE",
         ),
+        UniqueConstraint("id", "account_id", "project_id", name="uq_jobs_id_account_project"),
         Index("ix_jobs_status_available_at", "status", "available_at"),
         Index(
             "ix_jobs_account_project_created_at",

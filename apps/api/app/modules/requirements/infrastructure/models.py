@@ -14,6 +14,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -31,16 +32,12 @@ class RequirementModel(Base):
             "category IN ('functional','content','visual','technical','constraint','business')",
             name="requirement_category",
         ),
-        CheckConstraint(
-            "priority IN ('must','should','could')", name="requirement_priority"
-        ),
+        CheckConstraint("priority IN ('must','should','could')", name="requirement_priority"),
         CheckConstraint(
             "status IN ('draft','confirmed','superseded','removed')",
             name="requirement_status",
         ),
-        CheckConstraint(
-            "created_by_type IN ('ai','user')", name="requirement_created_by_type"
-        ),
+        CheckConstraint("created_by_type IN ('ai','user')", name="requirement_created_by_type"),
         CheckConstraint(
             "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
             name="requirement_confidence",
@@ -57,6 +54,12 @@ class RequirementModel(Base):
             ["projects.id", "projects.account_id"],
             name="fk_requirements_project_id_account_id_projects",
             ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "id",
+            "account_id",
+            "project_id",
+            name="uq_requirements_id_account_project",
         ),
         Index(
             "ix_requirements_account_project_status_category",

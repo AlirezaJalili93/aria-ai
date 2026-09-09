@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-07
+- تاریخ همگام‌سازی: 2026-09-09
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -59,7 +59,8 @@ M000 extensions
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
 | requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, acceptance_note, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ acceptance note nullable است؛ provenance و creator tenant-safe |
-| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, created_at, updated_at, resolved_at | type برابر missing_information/ambiguity/conflict/decision_required/unsupported_assumption/scope_risk؛ severity برابر critical/high/medium/low؛ status برابر open/resolved/dismissed؛ `resolved_at` فقط در status resolved و برای open/dismissed تهی؛ `dismissed` با resolved یکی نیست؛ حذف فیزیکی ممنوع |
+| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, explanation, suggested_resolution_type, generation_job_id, created_at, updated_at, resolved_at | type برابر missing_information/ambiguity/conflict/decision_required/unsupported_assumption/scope_risk؛ generated rows دارای explanation، resolution enum و Job association هستند؛ Critical پیشنهادی AI تا J02-B authoritative نیست؛ status برابر open/resolved/dismissed؛ `resolved_at` فقط در status resolved و برای open/dismissed تهی؛ حذف فیزیکی ممنوع |
+| gap_requirement_links | account_id, project_id, gap_id, requirement_id, created_at | affected Requirements رابطه‌ای و tenant/snapshot-consistent هستند؛ JSONB و semantic merge ممنوع |
 | clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
 | scope_versions | id, account_id, project_id, version_no, context_version, snapshot_data, snapshot_hash | `UNIQUE(project_id,version_no)` و Snapshot immutable است |
@@ -68,7 +69,7 @@ M000 extensions
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست |
+| jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد |
 | outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
 | provider_price_versions | id, provider, model, unit prices, currency, validity | Historical price version تغییر نمی‌کند |

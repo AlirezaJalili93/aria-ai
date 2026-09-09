@@ -34,5 +34,6 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-033 — Requirement Review UI Contract](ADR-033-requirement-review-ui.md)
 - [ADR-034 — Requirement Extraction Evaluation Contract](ADR-034-requirement-evaluation-contract.md)
 - [ADR-035 — Gap Domain Contract](ADR-035-gap-domain-contract.md)
+- [ADR-036 — Gap Detection Foundation](ADR-036-gap-detection-foundation.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

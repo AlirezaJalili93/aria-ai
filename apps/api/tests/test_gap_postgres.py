@@ -148,10 +148,7 @@ def test_m006_schema_is_exact_tenant_safe_and_private() -> None:
                             column["name"]: column
                             for column in inspect(sync_connection).get_columns("gaps")
                         },
-                        {
-                            index["name"]
-                            for index in inspect(sync_connection).get_indexes("gaps")
-                        },
+                        {index["name"] for index in inspect(sync_connection).get_indexes("gaps")},
                         {
                             fk["name"]: fk.get("options", {}).get("ondelete")
                             for fk in inspect(sync_connection).get_foreign_keys("gaps")
@@ -189,6 +186,9 @@ def test_m006_schema_is_exact_tenant_safe_and_private() -> None:
         "severity",
         "status",
         "source_refs",
+        "explanation",
+        "suggested_resolution_type",
+        "generation_job_id",
         "created_at",
         "updated_at",
         "resolved_at",
@@ -198,6 +198,7 @@ def test_m006_schema_is_exact_tenant_safe_and_private() -> None:
     assert "ix_gaps_account_project_status_severity" in indexes
     assert foreign_keys == {
         "fk_gaps_account_id_accounts": "RESTRICT",
+        "fk_gaps_generation_job_tenant": "RESTRICT",
         "fk_gaps_project_id_account_id_projects": "RESTRICT",
     }
     assert rls is True
@@ -271,18 +272,14 @@ def test_updated_at_trigger_advances_on_mutation() -> None:
     _, account_id, project_id = asyncio.run(_seed_project())
     values = _values(account_id=account_id, project_id=project_id)
     asyncio.run(_execute(GAP_INSERT, values))
-    before = asyncio.run(
-        _scalar("SELECT updated_at FROM gaps WHERE id=:id", {"id": values["id"]})
-    )
+    before = asyncio.run(_scalar("SELECT updated_at FROM gaps WHERE id=:id", {"id": values["id"]}))
     asyncio.run(
         _execute(
             "UPDATE gaps SET severity='high' WHERE id=:id",
             {"id": values["id"]},
         )
     )
-    after = asyncio.run(
-        _scalar("SELECT updated_at FROM gaps WHERE id=:id", {"id": values["id"]})
-    )
+    after = asyncio.run(_scalar("SELECT updated_at FROM gaps WHERE id=:id", {"id": values["id"]}))
     assert isinstance(before, datetime)
     assert isinstance(after, datetime)
     assert after > before
@@ -326,9 +323,7 @@ def test_use_case_persists_valid_provenance_and_logs_no_content() -> None:
                         context_version=1,
                         gap_type="ambiguity",
                         severity="high",
-                        source_refs=(
-                            GapSourceReference(source_id, source_version_id, 0, 3),
-                        ),
+                        source_refs=(GapSourceReference(source_id, source_version_id, 0, 3),),
                     )
                 )
         finally:

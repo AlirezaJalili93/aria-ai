@@ -9,6 +9,7 @@ is never stored in this directory.
 → 0005_jobs_outbox → 0006_idempotency_records → 0007_usage_records
 → 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
 → 0011_requirements → 0012_requirement_generation → 0013_requirement_crud
+→ 0014_gaps → 0015_gap_detection
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -61,3 +62,9 @@ one transaction; exact Context snapshot and merge rules are recorded in
 index used by S1-I03. It preserves the existing RLS/grants and four-state soft lifecycle; public
 commands never hard-delete Requirement rows. See
 [ADR-032](../../../docs/adr/ADR-032-requirement-crud-contract.md).
+
+`0014_gaps` implements the J01 Gap Domain. `0015_gap_detection` extends it for J02-A with nullable
+generation fields (preserving J01 rows), normalized affected-Requirement links, same-tenant
+composite foreign keys, same-Context-snapshot enforcement and fail-closed Data API privileges.
+The exact dual-revision snapshot, replay and Critical-rule deferral are recorded in
+[ADR-036](../../../docs/adr/ADR-036-gap-detection-foundation.md).
