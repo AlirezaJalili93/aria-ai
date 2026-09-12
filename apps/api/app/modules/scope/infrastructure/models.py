@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    String,
     UniqueConstraint,
     func,
     text,
@@ -62,5 +63,58 @@ class ScopeDraftModel(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ScopeVersionModel(Base):
+    __tablename__ = "scope_versions"
+    __table_args__ = (
+        CheckConstraint("version_no >= 1", name="scope_version_version_no"),
+        CheckConstraint("context_version >= 1", name="scope_version_context_version"),
+        CheckConstraint(
+            "status IN ('awaiting_approval','approved','changes_requested','superseded')",
+            name="scope_version_status",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(snapshot_data) = 'object'",
+            name="scope_version_snapshot_object",
+        ),
+        CheckConstraint(
+            "snapshot_hash ~ '^sha256:[0-9a-f]{64}$'",
+            name="scope_version_snapshot_hash",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "account_id"],
+            ["projects.id", "projects.account_id"],
+            name="fk_scope_versions_project_tenant",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("project_id", "version_no", name="uq_scope_versions_project_version"),
+        Index(
+            "ix_scope_versions_account_project_version",
+            "account_id",
+            "project_id",
+            text("version_no DESC"),
+        ),
+        Index("ix_scope_versions_account_created_at", "account_id", text("created_at DESC")),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    version_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    context_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(30), nullable=False, server_default="awaiting_approval"
+    )
+    snapshot_data: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    snapshot_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

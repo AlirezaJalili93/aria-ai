@@ -40,6 +40,14 @@ class ScopeDraftStaleError(Exception):
     """API signal for mutation of a historical Scope Draft."""
 
 
+class CriticalGapsOpenError(Exception):
+    """API signal for a Scope freeze blocked by unresolved Critical Gaps."""
+
+
+class ScopeVersionUnchangedError(Exception):
+    """API signal for a Scope freeze identical to the latest snapshot."""
+
+
 class InvalidContextItemStateError(Exception):
     """API signal for a Context Item command rejected by its immutable state."""
 
@@ -233,6 +241,32 @@ async def scope_draft_stale_handler(request: Request, error: Exception) -> JSONR
         status_code=409,
         code="SCOPE_DRAFT_STALE",
         message="The Scope Draft belongs to a historical Context Version.",
+        retryable=False,
+    )
+
+
+async def critical_gaps_open_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, CriticalGapsOpenError):
+        raise TypeError("Unexpected exception type for Critical Gaps handler")
+    del request, error
+    return _error_response(
+        status_code=422,
+        code="CRITICAL_GAPS_OPEN",
+        message="Unresolved Critical Gaps prevent freezing the Scope.",
+        retryable=False,
+    )
+
+
+async def scope_version_unchanged_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ScopeVersionUnchangedError):
+        raise TypeError("Unexpected exception type for unchanged Scope Version handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_VERSION_UNCHANGED",
+        message="The current Scope is unchanged from the latest version.",
         retryable=False,
     )
 

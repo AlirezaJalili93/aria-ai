@@ -10,6 +10,7 @@ is never stored in this directory.
 → 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
 → 0011_requirements → 0012_requirement_generation → 0013_requirement_crud
 → 0014_gaps → 0015_gap_detection → 0016_clarifications → 0017_scope_drafts
+→ 0018_scope_versions
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -73,3 +74,9 @@ The exact dual-revision snapshot, replay and Critical-rule deferral are recorded
 Content is strict `scope_content_schema_v1` JSONB; all canonical sections are structurally required
 but may be empty. Drafts are unique per Project/Context Version, historical drafts are protected by
 Application policy, and readiness/revision state remains outside K01. See ADR-041.
+
+`0018_scope_versions` implements S1-K05 as an immutable, tenant-scoped snapshot of a ready Scope
+Draft. Snapshot hashes use `scope_snapshot_canonicalization_v1`; payload and lineage are protected
+by a database trigger, while lifecycle status remains a separately controlled projection. The
+table uses restrictive tenant foreign keys, safe public-schema grants and summary/detail indexes.
+See ADR-045.

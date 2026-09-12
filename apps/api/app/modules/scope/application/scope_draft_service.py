@@ -57,9 +57,7 @@ class ScopeDraftService:
         self._event_logger = event_logger
         self._id_factory = id_factory
 
-    async def get_current(
-        self, context: TenantContext, *, project_id: UUID
-    ) -> ScopeDraft:
+    async def get_current(self, context: TenantContext, *, project_id: UUID) -> ScopeDraft:
         _require_active_context(context)
         enrich_trace_context(account_id=str(context.account_id), project_id=str(project_id))
         started_at = perf_counter()
@@ -151,9 +149,7 @@ class ScopeDraftService:
         )
         return persisted
 
-    def _version_conflict(
-        self, context: TenantContext, draft: ScopeDraft, section_id: str
-    ) -> None:
+    def _version_conflict(self, context: TenantContext, draft: ScopeDraft, section_id: str) -> None:
         self._event_logger.emit(
             "scope_draft.version_conflict",
             level="WARNING",

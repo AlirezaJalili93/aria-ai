@@ -178,6 +178,88 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/scope/versions:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    post:
+      operationId: createScopeVersion
+      summary: Freeze the exact current ready Scope Draft as an immutable snapshot
+      description: >-
+        Idempotency replay/conflict is evaluated before semantic duplicate detection. A new key
+        with a snapshot equal to the latest version is rejected as SCOPE_VERSION_UNCHANGED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateScopeVersionRequest" }
+      responses:
+        "201":
+          description: Scope snapshot created or the exact successful request replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT, IDEMPOTENCY_CONFLICT, or SCOPE_VERSION_UNCHANGED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: CRITICAL_GAPS_OPEN or invalid request content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    get:
+      operationId: listScopeVersions
+      summary: List tenant-authorized Scope Version summaries newest first
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Scope Version summary collection without snapshot content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionCollectionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/versions/{version_no}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    get:
+      operationId: getScopeVersion
+      summary: Read one tenant-authorized immutable Scope snapshot
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Exact Scope Version snapshot and summary metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionDetailEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
   /projects/{project_id}/context-sources:
     post:
       operationId: createTextContextSource
@@ -966,6 +1048,65 @@ components:
       properties:
         value: {}
         expected_updated_at: { type: string, format: date-time }
+    CreateScopeVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_draft_updated_at]
+      properties:
+        expected_draft_updated_at: { type: string, format: date-time }
+    ScopeVersionStatus:
+      type: string
+      enum: [awaiting_approval, approved, changes_requested, superseded]
+    ScopeVersionSummary:
+      type: object
+      additionalProperties: false
+      required: [version_no, context_version, status, snapshot_hash, schema_version, created_at]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        context_version: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/ScopeVersionStatus" }
+        snapshot_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        created_at: { type: string, format: date-time }
+    ScopeVersionDetail:
+      type: object
+      additionalProperties: false
+      required: [version_no, context_version, status, snapshot_hash, schema_version, created_at, snapshot_data]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        context_version: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/ScopeVersionStatus" }
+        snapshot_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        created_at: { type: string, format: date-time }
+        snapshot_data: { $ref: "#/components/schemas/ScopeContent" }
+    ScopeVersionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeVersionSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ScopeVersionDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeVersionDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ScopeVersionCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ScopeVersionSummary" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
     ContextItemType:
       type: string
       enum: [fact, assumption, decision, constraint, reference, unknown]

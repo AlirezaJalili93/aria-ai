@@ -164,9 +164,7 @@ def replace_scope_section_value(
         raise ScopeDraftValidationError("Unknown Scope section")
     sections = current["sections"]
     target = next(section for section in sections if section["section_id"] == section_id)
-    target["value"] = _normalize_replacement_value(
-        section_id, target["value"], value, id_factory
-    )
+    target["value"] = _normalize_replacement_value(section_id, target["value"], value, id_factory)
     return validate_scope_content(current)
 
 
@@ -256,9 +254,7 @@ def _normalize_item_array(
         if "item_id" in candidate:
             item_id = candidate["item_id"]
             if not isinstance(item_id, str) or item_id not in current_ids:
-                raise ScopeDraftValidationError(
-                    f"{label} item ID is not an existing server ID"
-                )
+                raise ScopeDraftValidationError(f"{label} item ID is not an existing server ID")
         else:
             item_id = str(id_factory())
         if item_id in seen:

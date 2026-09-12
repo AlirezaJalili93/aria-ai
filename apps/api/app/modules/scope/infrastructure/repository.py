@@ -69,9 +69,7 @@ class SqlAlchemyScopeDraftRepository(ScopeDraftRepository):
         ).one_or_none()
         return _from_model(model) if model is not None else None
 
-    async def get_current(
-        self, *, account_id: UUID, project_id: UUID
-    ) -> ScopeDraft | None:
+    async def get_current(self, *, account_id: UUID, project_id: UUID) -> ScopeDraft | None:
         model = (
             await self._session.scalars(
                 select(ScopeDraftModel)
@@ -218,8 +216,7 @@ class SqlAlchemyScopeDraftRepository(ScopeDraftRepository):
         content: dict[str, object],
     ) -> None:
         sections = {
-            item["section_id"]: item
-            for item in cast(list[dict[str, Any]], content["sections"])
+            item["section_id"]: item for item in cast(list[dict[str, Any]], content["sections"])
         }
         trace_ids = {
             key: {value for section in sections.values() for value in section["trace"][key]}

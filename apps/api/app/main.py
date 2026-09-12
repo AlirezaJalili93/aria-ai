@@ -12,6 +12,7 @@ from app.api.errors import (
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
     ContextVersionRequiredError,
+    CriticalGapsOpenError,
     DuplicateClarificationError,
     ForbiddenError,
     IdempotencyConflictError,
@@ -21,6 +22,7 @@ from app.api.errors import (
     MembershipRequiredError,
     ResourceNotFoundError,
     ScopeDraftStaleError,
+    ScopeVersionUnchangedError,
     ValidationFailedError,
     VersionConflictError,
     account_bootstrap_failed_handler,
@@ -28,6 +30,7 @@ from app.api.errors import (
     authentication_provider_unavailable_handler,
     authentication_required_handler,
     context_version_required_handler,
+    critical_gaps_open_handler,
     duplicate_clarification_handler,
     forbidden_handler,
     idempotency_conflict_handler,
@@ -38,6 +41,7 @@ from app.api.errors import (
     request_validation_handler,
     resource_not_found_handler,
     scope_draft_stale_handler,
+    scope_version_unchanged_handler,
     validation_failed_handler,
     version_conflict_handler,
 )
@@ -52,6 +56,7 @@ from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
 from app.api.routers.requirements import create_requirements_router
 from app.api.routers.scope_drafts import create_scope_drafts_router
+from app.api.routers.scope_versions import create_scope_versions_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -103,8 +108,12 @@ from app.modules.requirements.infrastructure.repository import (
     SqlAlchemyRequirementCrudUnitOfWorkFactory,
 )
 from app.modules.scope.application.scope_draft_service import ScopeDraftService
+from app.modules.scope.application.scope_version_service import ScopeVersionService
 from app.modules.scope.infrastructure.repository import (
     SqlAlchemyScopeDraftUnitOfWorkFactory,
+)
+from app.modules.scope.infrastructure.version_repository import (
+    SqlAlchemyScopeVersionUnitOfWorkFactory,
 )
 
 
@@ -140,6 +149,7 @@ def create_app(
     requirement_crud_service: RequirementCrudService | None = None,
     clarification_service: ClarificationService | None = None,
     scope_draft_service: ScopeDraftService | None = None,
+    scope_version_service: ScopeVersionService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -193,18 +203,12 @@ def create_app(
     app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
-    app.add_exception_handler(
-        InvalidContextItemStateError, invalid_context_item_state_handler
-    )
-    app.add_exception_handler(
-        InvalidRequirementStateError, invalid_requirement_state_handler
-    )
-    app.add_exception_handler(
-        InvalidClarificationStateError, invalid_clarification_state_handler
-    )
-    app.add_exception_handler(
-        ContextVersionRequiredError, context_version_required_handler
-    )
+    app.add_exception_handler(CriticalGapsOpenError, critical_gaps_open_handler)
+    app.add_exception_handler(ScopeVersionUnchangedError, scope_version_unchanged_handler)
+    app.add_exception_handler(InvalidContextItemStateError, invalid_context_item_state_handler)
+    app.add_exception_handler(InvalidRequirementStateError, invalid_requirement_state_handler)
+    app.add_exception_handler(InvalidClarificationStateError, invalid_clarification_state_handler)
+    app.add_exception_handler(ContextVersionRequiredError, context_version_required_handler)
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
     app.add_exception_handler(RequestValidationError, request_validation_handler)
@@ -221,9 +225,7 @@ def create_app(
         else UnavailableAccountBootstrapper()
     )
     app.state.tenant_context_resolver = tenant_context_resolver or (
-        ResolveTenantContextUseCase(
-            SqlAlchemyMembershipResolver(database_runtime.session_factory)
-        )
+        ResolveTenantContextUseCase(SqlAlchemyMembershipResolver(database_runtime.session_factory))
         if database_runtime is not None
         else UnavailableTenantContextResolver()
     )
@@ -287,6 +289,14 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.scope_version_service = scope_version_service or (
+        ScopeVersionService(
+            SqlAlchemyScopeVersionUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -298,6 +308,7 @@ def create_app(
     app.include_router(create_requirements_router(), prefix="/api/v1")
     app.include_router(create_clarifications_router(), prefix="/api/v1")
     app.include_router(create_scope_drafts_router(), prefix="/api/v1")
+    app.include_router(create_scope_versions_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 
