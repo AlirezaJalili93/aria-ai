@@ -30,7 +30,7 @@ test("Application contract stays provider-neutral while extending J02-A", async 
   assert.doesNotMatch(application, /openai|anthropic|gemini|celery|redis/i);
 });
 
-test("ADR keeps J02-B and questions out of the foundation", async () => {
+test("ADR keeps J02-B and Gap detection API out of the foundation", async () => {
   const adr = await read("docs/adr/ADR-036-gap-detection-foundation.md");
   const openapi = await read("packages/contracts/openapi.yaml");
 
@@ -38,7 +38,8 @@ test("ADR keeps J02-B and questions out of the foundation", async () => {
   assert.match(adr, /ADR-037 later approved and specifies J02-B/);
   assert.match(adr, /J02-A contains no rule implementation/);
   assert.match(adr, /J03: question/);
-  assert.doesNotMatch(openapi, /gap-detection|\/gaps/);
+  assert.doesNotMatch(openapi, /gap-detection|generateGaps|detectGaps/i);
+  assert.match(openapi, /createClarificationQuestion/);
 });
 
 test("Gap detection logs cannot include customer content or model payloads", async () => {

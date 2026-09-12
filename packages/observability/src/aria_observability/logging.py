@@ -49,6 +49,7 @@ _OPTIONAL_FIELDS = {
     "context_item_id",
     "requirement_id",
     "gap_id",
+    "clarification_id",
     "version_no",
     "context_version",
     "event_category",
@@ -59,6 +60,7 @@ _OPTIONAL_FIELDS = {
     "gap_type",
     "severity",
     "gap_status",
+    "resolution_type",
     "workflow_version",
     "prompt_version",
     "checklist_version",
@@ -143,6 +145,7 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         "context_item_id",
         "requirement_id",
         "gap_id",
+        "clarification_id",
         "outbox_event_id",
         "aggregate_id",
     }:

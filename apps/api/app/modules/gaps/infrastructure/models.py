@@ -126,3 +126,135 @@ class GapRequirementLinkModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ClarificationModel(Base):
+    __tablename__ = "clarifications"
+    __table_args__ = (
+        CheckConstraint("status IN ('open','answered','ignored')", name="clarification_status"),
+        CheckConstraint(
+            "created_by_type IN ('ai','user','system')", name="clarification_creator_type"
+        ),
+        CheckConstraint(
+            "created_by_type <> 'user' OR created_by IS NOT NULL",
+            name="clarification_user_creator",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "account_id"],
+            ["projects.id", "projects.account_id"],
+            name="fk_clarifications_project_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["gap_id", "account_id", "project_id"],
+            ["gaps.id", "gaps.account_id", "gaps.project_id"],
+            name="fk_clarifications_gap_tenant",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "id", "account_id", "project_id", "gap_id", name="uq_clarifications_tenant_gap"
+        ),
+        Index(
+            "ix_clarifications_account_project_gap_status",
+            "account_id",
+            "project_id",
+            "gap_id",
+            "status",
+        ),
+        Index(
+            "ux_clarifications_open_question",
+            "account_id",
+            "project_id",
+            "gap_id",
+            "question_text",
+            unique=True,
+            postgresql_where=text("status = 'open'"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    gap_id: Mapped[UUID] = mapped_column(nullable=False)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="open")
+    created_by_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ClarificationResolutionModel(Base):
+    __tablename__ = "clarification_resolutions"
+    __table_args__ = (
+        CheckConstraint(
+            "resolution_type IN "
+            "('provided_information','internal_decision','accepted_assumption','ignored')",
+            name="clarification_resolution_type",
+        ),
+        CheckConstraint("author_type IN ('user','client')", name="clarification_author_type"),
+        CheckConstraint(
+            "((resolution_type IN ('provided_information','internal_decision')) "
+            "AND answer_text IS NOT NULL AND btrim(answer_text) <> '') OR "
+            "((resolution_type IN ('accepted_assumption','ignored')) AND answer_text IS NULL)",
+            name="clarification_resolution_answer",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "account_id"],
+            ["projects.id", "projects.account_id"],
+            name="fk_clarification_resolutions_project_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["gap_id", "account_id", "project_id"],
+            ["gaps.id", "gaps.account_id", "gaps.project_id"],
+            name="fk_clarification_resolutions_gap_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["clarification_id", "account_id", "project_id", "gap_id"],
+            [
+                "clarifications.id",
+                "clarifications.account_id",
+                "clarifications.project_id",
+                "clarifications.gap_id",
+            ],
+            name="fk_clarification_resolutions_clarification_tenant",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("clarification_id", name="uq_clarification_resolutions_clarification"),
+        Index(
+            "ix_clarification_resolutions_account_project_gap",
+            "account_id",
+            "project_id",
+            "gap_id",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    gap_id: Mapped[UUID] = mapped_column(nullable=False)
+    clarification_id: Mapped[UUID] = mapped_column(nullable=False)
+    resolution_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    author_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    author_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=True
+    )
+    actor_id: Mapped[UUID] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

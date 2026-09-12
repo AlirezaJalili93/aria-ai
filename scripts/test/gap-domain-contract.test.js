@@ -48,14 +48,15 @@ test("Gap module preserves layering and the J01-only boundary", async () => {
   assert.match(repository, /ContextSourceVersionModel\.project_id == project_id/);
 });
 
-test("J01 updates the canonical data mirror without exposing a public API", async () => {
+test("J01 updates the canonical data mirror without exposing a Gap creation API", async () => {
   const model = await read("docs/architecture/data-model.md");
   const openapi = await read("packages/contracts/openapi.yaml");
   const adr = await read("docs/adr/ADR-035-gap-domain-contract.md");
 
   assert.match(model, /missing_information\/ambiguity\/conflict\/decision_required\/unsupported_assumption\/scope_risk/);
   assert.match(model, /`resolved_at` فقط در status resolved/);
-  assert.doesNotMatch(openapi, /\/gaps/);
+  assert.doesNotMatch(openapi, /createGap|generateGaps|detectGaps/i);
+  assert.match(openapi, /createClarificationQuestion/);
   assert.match(adr, /Status:\*\* Accepted/);
   assert.match(adr, /No `title`, `explanation`, `created_by`/);
 });

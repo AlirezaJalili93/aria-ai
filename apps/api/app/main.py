@@ -12,8 +12,10 @@ from app.api.errors import (
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
     ContextVersionRequiredError,
+    DuplicateClarificationError,
     ForbiddenError,
     IdempotencyConflictError,
+    InvalidClarificationStateError,
     InvalidContextItemStateError,
     InvalidRequirementStateError,
     MembershipRequiredError,
@@ -25,8 +27,10 @@ from app.api.errors import (
     authentication_provider_unavailable_handler,
     authentication_required_handler,
     context_version_required_handler,
+    duplicate_clarification_handler,
     forbidden_handler,
     idempotency_conflict_handler,
+    invalid_clarification_state_handler,
     invalid_context_item_state_handler,
     invalid_requirement_state_handler,
     membership_required_handler,
@@ -38,6 +42,7 @@ from app.api.errors import (
 from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.accounts import create_accounts_router
 from app.api.routers.auth import create_auth_router
+from app.api.routers.clarifications import create_clarifications_router
 from app.api.routers.context_items import create_context_items_router
 from app.api.routers.context_sources import create_context_sources_router
 from app.api.routers.health import create_health_router
@@ -59,6 +64,10 @@ from app.modules.context.infrastructure.context_item_repository import (
 )
 from app.modules.context.infrastructure.text_ingestion import (
     SqlAlchemyTextContextIngestionUnitOfWorkFactory,
+)
+from app.modules.gaps.application.clarification_service import ClarificationService
+from app.modules.gaps.infrastructure.clarification_repository import (
+    SqlAlchemyClarificationUnitOfWorkFactory,
 )
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
@@ -122,6 +131,7 @@ def create_app(
     job_status_service: JobStatusApplicationService | None = None,
     context_item_review_service: ContextItemReviewService | None = None,
     requirement_crud_service: RequirementCrudService | None = None,
+    clarification_service: ClarificationService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -172,12 +182,16 @@ def create_app(
     app.add_exception_handler(AccountContextRequiredError, account_context_required_handler)
     app.add_exception_handler(ResourceNotFoundError, resource_not_found_handler)
     app.add_exception_handler(IdempotencyConflictError, idempotency_conflict_handler)
+    app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(
         InvalidContextItemStateError, invalid_context_item_state_handler
     )
     app.add_exception_handler(
         InvalidRequirementStateError, invalid_requirement_state_handler
+    )
+    app.add_exception_handler(
+        InvalidClarificationStateError, invalid_clarification_state_handler
     )
     app.add_exception_handler(
         ContextVersionRequiredError, context_version_required_handler
@@ -248,6 +262,14 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.clarification_service = clarification_service or (
+        ClarificationService(
+            SqlAlchemyClarificationUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -257,6 +279,7 @@ def create_app(
     app.include_router(create_context_sources_router(), prefix="/api/v1")
     app.include_router(create_context_items_router(), prefix="/api/v1")
     app.include_router(create_requirements_router(), prefix="/api/v1")
+    app.include_router(create_clarifications_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 

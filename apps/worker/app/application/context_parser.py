@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import re
-import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Literal, Protocol
 from uuid import UUID
 
+from aria_backend_application.text_normalization import normalize_text
 from aria_observability import StructuredEventLogger
 
 from app.application.parser_metrics import (
@@ -118,19 +117,3 @@ class CanonicalTextParser:
     def _emit(self, event_name: str, *, level: str = "INFO", **fields: object) -> None:
         if self._event_logger is not None:
             self._event_logger.emit(event_name, level=level, **fields)
-
-
-def normalize_text(raw_text: str) -> str:
-    """Normalize line endings, NFC and horizontal spacing without linguistic rewrites."""
-
-    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
-    text = unicodedata.normalize("NFC", text)
-    text = "".join(
-        " " if character == "\t" or unicodedata.category(character) == "Zs" else character
-        for character in text
-    )
-    lines = [_HORIZONTAL_SPACES.sub(" ", line).rstrip(" ") for line in text.split("\n")]
-    return "\n".join(lines).strip()
-
-
-_HORIZONTAL_SPACES = re.compile(r" +")

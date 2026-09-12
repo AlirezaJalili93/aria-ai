@@ -409,6 +409,155 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}:
+    patch:
+      operationId: dismissGap
+      summary: Explicitly dismiss an open Gap with optimistic concurrency
+      description: >-
+        This command is distinct from ignoring one Clarification. It changes only the Gap to
+        dismissed and does not mark open Clarifications ignored or resolved.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DismissGapRequest" }
+      responses:
+        "204": { description: The open Gap changed to dismissed; response is empty. }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT or INVALID_CLARIFICATION_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications:
+    post:
+      operationId: createClarificationQuestion
+      summary: Create a normalized open Clarification question
+      description: >-
+        Exact normalized duplicate open questions for the same Gap are rejected. The public API
+        attributes the question to the authenticated user. Provider-neutral AI candidates use the
+        internal Application port; no real Provider is selected in J03-A.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateClarificationQuestionRequest" }
+      responses:
+        "201":
+          description: Question created or its idempotent result replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: DUPLICATE_CLARIFICATION, IDEMPOTENCY_CONFLICT or invalid terminal state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications/{clarification_id}:
+    patch:
+      operationId: editClarificationQuestion
+      summary: Edit only an open Clarification question using compare-and-swap
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: clarification_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EditClarificationQuestionRequest" }
+      responses:
+        "200":
+          description: Updated open question with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT, DUPLICATE_CLARIFICATION or terminal state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications/{clarification_id}/resolutions:
+    post:
+      operationId: resolveClarification
+      summary: Register one authoritative human Resolution for an open Clarification
+      description: >-
+        A Clarification has at most one terminal Resolution. Ignoring a Clarification does not
+        dismiss the Gap. After the target becomes terminal, the deterministic evaluator resolves
+        the Gap only when no open Clarification remains.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: clarification_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateClarificationResolutionRequest" }
+      responses:
+        "201":
+          description: Resolution created or its idempotent result replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationResolutionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT or INVALID_CLARIFICATION_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -774,6 +923,96 @@ components:
         priority: { $ref: "#/components/schemas/RequirementPriority" }
         status: { type: string, const: confirmed }
         acceptance_note: { type: [string, "null"] }
+    ClarificationStatus:
+      type: string
+      enum: [open, answered, ignored]
+    ClarificationCreatorType:
+      type: string
+      enum: [ai, user, system]
+    ClarificationResolutionType:
+      type: string
+      enum: [provided_information, internal_decision, accepted_assumption, ignored]
+    ClarificationAuthorType:
+      type: string
+      enum: [user, client]
+    Clarification:
+      type: object
+      additionalProperties: false
+      required: [id, gap_id, question_text, status, created_by_type, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        gap_id: { type: string, format: uuid }
+        question_text: { type: string, minLength: 1 }
+        status: { $ref: "#/components/schemas/ClarificationStatus" }
+        created_by_type: { $ref: "#/components/schemas/ClarificationCreatorType" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ClarificationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Clarification" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ClarificationResolution:
+      type: object
+      additionalProperties: false
+      required: [id, clarification_id, resolution_type, answer_text, author_type, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        clarification_id: { type: string, format: uuid }
+        resolution_type: { $ref: "#/components/schemas/ClarificationResolutionType" }
+        answer_text: { type: [string, "null"] }
+        author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+        created_at: { type: string, format: date-time }
+    ClarificationResolutionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ClarificationResolution" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    CreateClarificationQuestionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_text]
+      properties:
+        question_text: { type: string, minLength: 1 }
+    EditClarificationQuestionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_text, expected_updated_at]
+      properties:
+        question_text: { type: string, minLength: 1 }
+        expected_updated_at: { type: string, format: date-time }
+    CreateClarificationResolutionRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [resolution_type, answer_text, author_type]
+          properties:
+            resolution_type: { type: string, enum: [provided_information, internal_decision] }
+            answer_text: { type: string, minLength: 1 }
+            author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+        - type: object
+          additionalProperties: false
+          required: [resolution_type, author_type]
+          properties:
+            resolution_type: { type: string, enum: [accepted_assumption, ignored] }
+            author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+    DismissGapRequest:
+      type: object
+      additionalProperties: false
+      required: [command, expected_updated_at]
+      properties:
+        command: { type: string, const: dismiss }
+        expected_updated_at: { type: string, format: date-time }
+    ResponseMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id]
+      properties:
+        request_id: { type: string, format: uuid }
     CollectionMeta:
       type: object
       additionalProperties: false

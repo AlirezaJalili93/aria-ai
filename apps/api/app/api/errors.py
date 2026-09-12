@@ -44,6 +44,14 @@ class InvalidRequirementStateError(Exception):
     """API signal for a Requirement command rejected by its lifecycle state."""
 
 
+class InvalidClarificationStateError(Exception):
+    """API signal for a Clarification or Gap command rejected by terminal state."""
+
+
+class DuplicateClarificationError(Exception):
+    """API signal for an exact duplicate open Clarification question."""
+
+
 class ContextVersionRequiredError(Exception):
     """API signal for a manual Requirement without a valid Project Context Version."""
 
@@ -237,6 +245,34 @@ async def invalid_requirement_state_handler(
         status_code=409,
         code="INVALID_REQUIREMENT_STATE",
         message="The Requirement is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def invalid_clarification_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidClarificationStateError):
+        raise TypeError("Unexpected exception type for Clarification state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_CLARIFICATION_STATE",
+        message="The Clarification or Gap is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def duplicate_clarification_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, DuplicateClarificationError):
+        raise TypeError("Unexpected exception type for duplicate Clarification handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="DUPLICATE_CLARIFICATION",
+        message="The same open Clarification already exists for this Gap.",
         retryable=False,
     )
 

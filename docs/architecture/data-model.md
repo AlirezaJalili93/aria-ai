@@ -61,7 +61,8 @@ M000 extensions
 | requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, acceptance_note, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ acceptance note nullable است؛ provenance و creator tenant-safe |
 | gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, explanation, suggested_resolution_type, generation_job_id, created_at, updated_at, resolved_at | type برابر missing_information/ambiguity/conflict/decision_required/unsupported_assumption/scope_risk؛ generated rows دارای explanation، resolution enum و Job association هستند؛ Critical فقط پس از validated AI-assisted Rule Signal و Rule Pack نسخه‌دار authoritative است و Critical مدل بدون Rule Match به High تبدیل می‌شود؛ status برابر open/resolved/dismissed؛ `resolved_at` فقط در status resolved و برای open/dismissed تهی؛ حذف فیزیکی ممنوع |
 | gap_requirement_links | account_id, project_id, gap_id, requirement_id, created_at | affected Requirements رابطه‌ای و tenant/snapshot-consistent هستند؛ JSONB و semantic merge ممنوع |
-| clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
+| clarifications | id, account_id, project_id, gap_id, question_text, status, created_by_type, created_by, created_at, updated_at | status برابر open/answered/ignored؛ سؤال user-created دارای created_by است؛ فقط سؤال open قابل ویرایش است و متن normalized سؤال باز در هر Gap یکتا است |
+| clarification_resolutions | id, account_id, project_id, gap_id, clarification_id, resolution_type, answer_text, author_type, author_id, actor_id, created_at | هر Clarification حداکثر یک Resolution terminal دارد؛ actor داخلی احرازشده اجباری است؛ author فقط user/client و client بدون Profile مجاز است؛ تاریخچه با RESTRICT حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
 | scope_versions | id, account_id, project_id, version_no, context_version, snapshot_data, snapshot_hash | `UNIQUE(project_id,version_no)` و Snapshot immutable است |
 
@@ -134,6 +135,13 @@ M000 extensions
   `context_version_id` و accepted-assumption Boolean قدیمی supersede شده‌اند. Account/Project
   deletion با RESTRICT متوقف می‌شود؛ detection/linkage در J02 و Clarification/resolution behavior
   در J03 می‌مانند. جزئیات در [ADR-035](../adr/ADR-035-gap-domain-contract.md) ثبت شده است.
+- J03-A مدل سادهٔ قدیمی Clarification را با دو موجودیت سؤال و Resolution ممیزی‌پذیر supersede
+  می‌کند. `provided_information/internal_decision/accepted_assumption` سؤال را answered و `ignored`
+  آن را ignored می‌کند؛ Gap فقط وقتی resolved می‌شود که هیچ سؤال open باقی نمانده باشد. Ignore سؤال
+  هرگز Gap را dismissed نمی‌کند و dismiss تنها command صریح مستقل است. همهٔ FKها RESTRICT و linkage
+  Account/Project/Gap/Clarification با composite FK محافظت می‌شود. Data API roleهای عمومی دسترسی
+  مستقیم ندارند و RLS فعال است؛ جزئیات در
+  [ADR-038](../adr/ADR-038-clarification-domain-api.md) ثبت شده است.
 
 ## Migration Guardrails
 
