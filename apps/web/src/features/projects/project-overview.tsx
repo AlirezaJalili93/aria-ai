@@ -70,6 +70,8 @@ export function ProjectOverview({
                   <Link href={`/projects/${project.id}/context`}>مرور زمینه</Link>
                 ) : key === "Requirements" ? (
                   <Link href={`/projects/${project.id}/requirements`}>مرور نیازمندی‌ها</Link>
+                ) : key === "Gaps" ? (
+                  <Link href={`/projects/${project.id}/gaps`}>مرور ابهام‌ها</Link>
                 ) : (
                   <p>هنوز شروع نشده</p>
                 )}

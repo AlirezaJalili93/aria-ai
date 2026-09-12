@@ -142,6 +142,10 @@ M000 extensions
   Account/Project/Gap/Clarification با composite FK محافظت می‌شود. Data API roleهای عمومی دسترسی
   مستقیم ندارند و RLS فعال است؛ جزئیات در
   [ADR-038](../adr/ADR-038-clarification-domain-api.md) ثبت شده است.
+- J04 فهرست عملیاتی Gap را فقط به `projects.current_context_version` محدود می‌کند، اما تاریخچهٔ
+  Clarification یک Gap قدیمی و tenant-scoped را حفظ می‌کند. پذیرش فرض فقط با تطابق همزمان
+  `unsupported_assumption` و `validate_assumption` مجاز است و dismiss طبق
+  [ADR-039](../adr/ADR-039-gap-inbox-review-contract.md) یک فرمان مستقل و idempotent است.
 
 ## Migration Guardrails
 

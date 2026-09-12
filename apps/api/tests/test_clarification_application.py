@@ -331,21 +331,96 @@ def test_edit_uses_cas_and_terminal_question_is_immutable() -> None:
         )
 
 
-def test_gap_dismissal_is_a_separate_explicit_cas_command() -> None:
+def test_gap_dismissal_is_a_separate_idempotent_command() -> None:
     service, unit_of_work, _ = _service()
     _create(service, text="پرسش باز؟", key="question")
-    gap_time = unit_of_work.repository.gap.updated_at
     with _trace():
         asyncio.run(
             service.dismiss_gap(
                 _context(),
                 project_id=PROJECT_ID,
                 gap_id=GAP_ID,
-                command=DismissGapCommand(gap_time),
+                command=DismissGapCommand("dismiss-key"),
             )
         )
     assert unit_of_work.repository.gap.status == "dismissed"
     assert any(item.status == "open" for item in unit_of_work.repository.questions.values())
+
+    request_hash = str(unit_of_work.idempotency.reserved["request_hash"])
+    unit_of_work.idempotency.reservation = IdempotencyReservation(
+        False, request_hash, 204, {"gap_id": str(GAP_ID)}
+    )
+    with _trace():
+        asyncio.run(
+            service.dismiss_gap(
+                _context(),
+                project_id=PROJECT_ID,
+                gap_id=GAP_ID,
+                command=DismissGapCommand("dismiss-key"),
+            )
+        )
+
+
+def test_resolved_gap_cannot_be_dismissed() -> None:
+    service, unit_of_work, _ = _service()
+    unit_of_work.repository.gap = replace(
+        unit_of_work.repository.gap,
+        status="resolved",
+        resolved_at=datetime.now(UTC),
+    )
+    with _trace(), pytest.raises(ClarificationInvalidState):
+        asyncio.run(
+            service.dismiss_gap(
+                _context(),
+                project_id=PROJECT_ID,
+                gap_id=GAP_ID,
+                command=DismissGapCommand("resolved-key"),
+            )
+        )
+
+
+def test_accepted_assumption_requires_both_gap_invariants() -> None:
+    service, unit_of_work, _ = _service()
+    question = _create(service, text="این فرض پذیرفته شود؟", key="question")
+    for gap in (
+        replace(unit_of_work.repository.gap, gap_type="unsupported_assumption"),
+        replace(
+            unit_of_work.repository.gap,
+            gap_type="conflict",
+            suggested_resolution_type="validate_assumption",
+        ),
+    ):
+        unit_of_work.repository.gap = gap
+        with _trace(), pytest.raises(ClarificationInvalidState):
+            asyncio.run(
+                service.resolve_question(
+                    _context(),
+                    project_id=PROJECT_ID,
+                    gap_id=GAP_ID,
+                    clarification_id=question.id,
+                    command=ResolveClarificationCommand(
+                        "accepted_assumption", None, "user", str(gap.gap_type)
+                    ),
+                )
+            )
+    unit_of_work.repository.gap = replace(
+        unit_of_work.repository.gap,
+        gap_type="unsupported_assumption",
+        suggested_resolution_type="validate_assumption",
+    )
+    with _trace():
+        result = asyncio.run(
+            service.resolve_question(
+                _context(),
+                project_id=PROJECT_ID,
+                gap_id=GAP_ID,
+                clarification_id=question.id,
+                command=ResolveClarificationCommand(
+                    "accepted_assumption", None, "user", "valid-assumption"
+                ),
+            )
+        )
+    assert result.resolution_type == "accepted_assumption"
 
 
 def test_same_create_idempotency_replays_without_second_question() -> None:

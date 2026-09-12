@@ -14,7 +14,8 @@ test("J03-A separates question and resolution commands", async () => {
     assert.match(source, /Idempotency-Key|IdempotencyKeyHeader/);
   }
   assert.match(router, /expected_updated_at/);
-  assert.match(router, /Literal\["dismiss"\]/);
+  assert.match(router, /\{gap_id\}\/dismiss/);
+  assert.match(router, /DismissGapCommand\(idempotency_key=idempotency_key\)/);
 });
 
 test("Clarification and resolution vocabularies are closed and human-terminal", async () => {

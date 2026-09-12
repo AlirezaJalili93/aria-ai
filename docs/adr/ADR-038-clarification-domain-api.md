@@ -5,6 +5,8 @@
 - **Story:** S1-J03-A — Clarification Domain and API
 - **Supersedes:** the single-record Clarification/answer shape in the current Data Dictionary and
   the combined clarification-answer endpoint in the current API Contract
+- **Later refinement:** ADR-039 supersedes only the Gap dismissal endpoint and its client-CAS
+  semantics; all other J03-A decisions remain accepted.
 
 ## Context
 
@@ -57,8 +59,8 @@ deduplication is not performed.
   keeps `resolved_at=NULL`, and does not mutate its Clarifications.
 
 All state changes lock the Gap row first and then the Clarification, preserving a consistent lock
-order. Question edits and Gap dismissal use `expected_updated_at` compare-and-swap. Terminal
-Clarifications and terminal Gaps are immutable in J03-A.
+order. Question edits use `expected_updated_at` compare-and-swap. ADR-039 supersedes dismissal CAS
+with a separate idempotent command. Terminal Clarifications and terminal Gaps remain immutable.
 
 ### API commands
 
@@ -67,13 +69,13 @@ Clarifications and terminal Gaps are immutable in J03-A.
   open question with `question_text` and `expected_updated_at`.
 - `POST /api/v1/projects/{project_id}/gaps/{gap_id}/clarifications/{clarification_id}/resolutions`
   registers the one terminal Resolution.
-- `PATCH /api/v1/projects/{project_id}/gaps/{gap_id}` with `command=dismiss` explicitly dismisses
-  an open Gap using `expected_updated_at`.
+- Per ADR-039, `POST /api/v1/projects/{project_id}/gaps/{gap_id}/dismiss` has no body, requires
+  `Idempotency-Key`, and explicitly dismisses an open Gap.
 
-Both create commands require `Idempotency-Key` and use the existing 24-hour tenant/actor/route
-idempotency record. Replays return the original created resource; key reuse with different input
-returns `409 IDEMPOTENCY_CONFLICT`. Missing and cross-tenant resources are indistinguishable as
-`404 RESOURCE_NOT_FOUND`.
+Question creation, Resolution creation, and Gap dismissal require `Idempotency-Key` and use the
+existing 24-hour tenant/actor/route idempotency record. Replays return the original outcome; key
+reuse with different input returns `409 IDEMPOTENCY_CONFLICT`. Missing and cross-tenant resources
+are indistinguishable as `404 RESOURCE_NOT_FOUND`.
 
 ### AI-04 boundary and observability
 

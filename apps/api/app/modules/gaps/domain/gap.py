@@ -15,6 +15,14 @@ GapType = Literal[
 ]
 GapSeverity = Literal["critical", "high", "medium", "low"]
 GapStatus = Literal["open", "resolved", "dismissed"]
+SuggestedResolutionType = Literal[
+    "provide_information",
+    "clarify_ambiguity",
+    "resolve_conflict",
+    "make_decision",
+    "validate_assumption",
+    "mitigate_scope_risk",
+]
 
 GAP_TYPES = frozenset(
     {
@@ -28,6 +36,16 @@ GAP_TYPES = frozenset(
 )
 GAP_SEVERITIES = frozenset({"critical", "high", "medium", "low"})
 GAP_STATUSES = frozenset({"open", "resolved", "dismissed"})
+SUGGESTED_RESOLUTION_TYPES = frozenset(
+    {
+        "provide_information",
+        "clarify_ambiguity",
+        "resolve_conflict",
+        "make_decision",
+        "validate_assumption",
+        "mitigate_scope_risk",
+    }
+)
 
 
 class GapValidationError(ValueError):
@@ -101,6 +119,8 @@ class NewGap:
 class Gap(NewGap):
     created_at: datetime
     updated_at: datetime
+    explanation: str | None = None
+    suggested_resolution_type: SuggestedResolutionType | None = None
 
     def __post_init__(self) -> None:
         NewGap.__post_init__(self)
@@ -108,6 +128,11 @@ class Gap(NewGap):
             raise GapValidationError("created_at must be timezone-aware")
         if self.updated_at.tzinfo is None:
             raise GapValidationError("updated_at must be timezone-aware")
+        if (
+            self.suggested_resolution_type is not None
+            and self.suggested_resolution_type not in SUGGESTED_RESOLUTION_TYPES
+        ):
+            raise GapValidationError("Unsupported suggested resolution type")
 
 
 def validate_context_version(value: int) -> int:

@@ -293,7 +293,7 @@ def test_postgres_service_resolves_only_after_last_open_question() -> None:
                 gap_id=gap_id,
                 clarification_id=second.id,
                 command=ResolveClarificationCommand(
-                    "accepted_assumption", None, "user", "resolution-2"
+                    "internal_decision", "تصمیم", "user", "resolution-2"
                 ),
             )
 
@@ -313,6 +313,86 @@ def test_postgres_service_resolves_only_after_last_open_question() -> None:
             )
         )
     ) == 2
+
+
+def test_gap_review_reads_current_version_but_preserves_historical_questions() -> None:
+    assert TEST_DATABASE_URL is not None
+    user_id, account_id, project_id, historical_gap_id = asyncio.run(_seed())
+    runtime = DatabaseRuntime(TEST_DATABASE_URL)
+    service = ClarificationService(
+        SqlAlchemyClarificationUnitOfWorkFactory(runtime.session_factory),
+        create_event_logger(
+            service="test",
+            environment="test",
+            app_version="test",
+            release_commit_sha=None,
+            level="INFO",
+            stream=StringIO(),
+        ),
+    )
+    context = TenantContext(
+        subject_id=user_id,
+        account_id=account_id,
+        membership_id=uuid4(),
+        role="member",
+        membership_status="active",
+    )
+
+    async def run_flow() -> None:
+        with bind_trace_context(
+            TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+        ):
+            assert await service.list_gaps(
+                context,
+                project_id=project_id,
+                status=None,
+                severity=None,
+                gap_type=None,
+                limit=21,
+                cursor_created_at=None,
+                cursor_id=None,
+            ) == ()
+            historical_question = await service.create_question(
+                context,
+                project_id=project_id,
+                gap_id=historical_gap_id,
+                command=CreateClarificationQuestionCommand("پرسش تاریخی؟", "historical"),
+            )
+            await _execute(
+                "UPDATE projects SET current_context_version=2 WHERE id=:project",
+                {"project": project_id},
+            )
+            current_gap_id = uuid4()
+            await _execute(
+                "INSERT INTO gaps "
+                "(id, account_id, project_id, context_version, gap_type, severity, explanation) "
+                "VALUES (:id, :account, :project, 2, 'ambiguity', 'high', 'Current')",
+                {
+                    "id": current_gap_id,
+                    "account": account_id,
+                    "project": project_id,
+                },
+            )
+            rows = await service.list_gaps(
+                context,
+                project_id=project_id,
+                status="open",
+                severity="high",
+                gap_type="ambiguity",
+                limit=21,
+                cursor_created_at=None,
+                cursor_id=None,
+            )
+            assert [row.id for row in rows] == [current_gap_id]
+            history = await service.list_clarifications(
+                context, project_id=project_id, gap_id=historical_gap_id
+            )
+            assert [entry.question.id for entry in history] == [historical_question.id]
+
+    try:
+        asyncio.run(run_flow())
+    finally:
+        asyncio.run(runtime.close())
 
 
 def test_migration_downgrades_and_reupgrades() -> None:

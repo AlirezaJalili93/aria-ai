@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol
@@ -12,7 +13,7 @@ from app.modules.gaps.domain.clarification import (
     NewClarification,
     NewClarificationResolution,
 )
-from app.modules.gaps.domain.gap import Gap, GapStatus
+from app.modules.gaps.domain.gap import Gap, GapSeverity, GapStatus, GapType
 from app.shared.idempotency import IdempotencyRepository
 
 
@@ -24,7 +25,34 @@ class DuplicateClarificationRepositoryError(Exception):
     """The same normalized open question already exists for the Gap."""
 
 
+@dataclass(frozen=True, slots=True)
+class ClarificationHistoryEntry:
+    question: Clarification
+    resolution: ClarificationResolution | None
+
+
 class ClarificationRepository(Protocol):
+    async def list_current_gaps(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        status: GapStatus | None,
+        severity: GapSeverity | None,
+        gap_type: GapType | None,
+        limit: int,
+        cursor_created_at: datetime | None,
+        cursor_id: UUID | None,
+    ) -> tuple[Gap, ...] | None: ...
+
+    async def list_clarification_history(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        gap_id: UUID,
+    ) -> tuple[ClarificationHistoryEntry, ...] | None: ...
+
     async def get_gap_for_update(
         self, *, account_id: UUID, project_id: UUID, gap_id: UUID
     ) -> Gap | None: ...

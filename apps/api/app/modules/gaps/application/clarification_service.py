@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from aria_observability import StructuredEventLogger, enrich_trace_context
 
 from app.modules.gaps.application.clarification_ports import (
+    ClarificationHistoryEntry,
     ClarificationRepositoryError,
     ClarificationUnitOfWork,
     ClarificationUnitOfWorkFactory,
@@ -27,6 +28,7 @@ from app.modules.gaps.domain.clarification import (
     NewClarificationResolution,
     normalize_question_text,
 )
+from app.modules.gaps.domain.gap import Gap, GapSeverity, GapStatus, GapType
 from app.modules.identity.application.tenant_context import TenantContext
 
 QUESTION_CREATE_ROUTE_KEY = (
@@ -36,6 +38,7 @@ RESOLUTION_CREATE_ROUTE_KEY = (
     "POST /api/v1/projects/{project_id}/gaps/{gap_id}/"
     "clarifications/{clarification_id}/resolutions"
 )
+GAP_DISMISS_ROUTE_KEY = "POST /api/v1/projects/{project_id}/gaps/{gap_id}/dismiss"
 CLARIFICATION_IDEMPOTENCY_TTL = timedelta(hours=24)
 
 
@@ -86,7 +89,7 @@ class ResolveClarificationCommand:
 
 @dataclass(frozen=True, slots=True)
 class DismissGapCommand:
-    expected_updated_at: datetime
+    idempotency_key: str
 
 
 class ClarificationService:
@@ -102,6 +105,66 @@ class ClarificationService:
         self._event_logger = event_logger
         self._id_factory = id_factory
         self._clock = clock
+
+    async def list_gaps(
+        self,
+        context: TenantContext,
+        *,
+        project_id: UUID,
+        status: GapStatus | None,
+        severity: GapSeverity | None,
+        gap_type: GapType | None,
+        limit: int,
+        cursor_created_at: datetime | None,
+        cursor_id: UUID | None,
+    ) -> tuple[Gap, ...]:
+        _require_active_context(context)
+        enrich_trace_context(account_id=str(context.account_id), project_id=str(project_id))
+        started_at = perf_counter()
+        try:
+            async with self._unit_of_work_factory() as unit_of_work:
+                rows = await unit_of_work.repository.list_current_gaps(
+                    account_id=context.account_id,
+                    project_id=project_id,
+                    status=status,
+                    severity=severity,
+                    gap_type=gap_type,
+                    limit=limit,
+                    cursor_created_at=cursor_created_at,
+                    cursor_id=cursor_id,
+                )
+        except ClarificationRepositoryError:
+            self._repository_failed("list_gaps", context, started_at)
+            raise
+        if rows is None:
+            self._access_denied(context, project_id)
+            raise ClarificationNotFound
+        return rows
+
+    async def list_clarifications(
+        self,
+        context: TenantContext,
+        *,
+        project_id: UUID,
+        gap_id: UUID,
+    ) -> tuple[ClarificationHistoryEntry, ...]:
+        _require_active_context(context)
+        enrich_trace_context(account_id=str(context.account_id), project_id=str(project_id))
+        started_at = perf_counter()
+        try:
+            async with self._unit_of_work_factory() as unit_of_work:
+                rows = await unit_of_work.repository.list_clarification_history(
+                    account_id=context.account_id,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                )
+        except ClarificationRepositoryError:
+            self._repository_failed("list_clarifications", context, started_at)
+            raise
+        if rows is None:
+            self._access_denied(context, project_id, gap_id)
+            raise ClarificationNotFound
+        return rows
 
     async def create_question(
         self,
@@ -357,6 +420,11 @@ class ClarificationService:
                     raise ClarificationNotFound
                 if gap.status != "open" or current.status != "open":
                     raise ClarificationInvalidState
+                if validated.resolution_type == "accepted_assumption" and not (
+                    gap.gap_type == "unsupported_assumption"
+                    and gap.suggested_resolution_type == "validate_assumption"
+                ):
+                    raise ClarificationInvalidState
                 persisted = await unit_of_work.repository.add_resolution(validated)
                 target_status: ClarificationStatus = (
                     "ignored" if validated.resolution_type == "ignored" else "answered"
@@ -430,12 +498,34 @@ class ClarificationService:
         command: DismissGapCommand,
     ) -> None:
         _require_active_context(context)
-        if command.expected_updated_at.tzinfo is None:
-            raise ValueError("expected_updated_at must include a timezone")
+        if not command.idempotency_key.strip():
+            raise ValueError("Idempotency-Key must not be empty")
         enrich_trace_context(account_id=str(context.account_id), project_id=str(project_id))
         started_at = perf_counter()
+        now = self._clock()
+        request_hash = _hash_payload(
+            {"project_id": str(project_id), "gap_id": str(gap_id)}
+        )
         try:
             async with self._unit_of_work_factory() as unit_of_work:
+                reservation = await unit_of_work.idempotency.reserve(
+                    record_id=self._id_factory(),
+                    account_id=context.account_id,
+                    actor_id=context.subject_id,
+                    route_key=GAP_DISMISS_ROUTE_KEY,
+                    idempotency_key=command.idempotency_key,
+                    request_hash=request_hash,
+                    now=now,
+                    expires_at=now + CLARIFICATION_IDEMPOTENCY_TTL,
+                )
+                if not reservation.acquired:
+                    if reservation.request_hash != request_hash:
+                        raise ClarificationIdempotencyConflict
+                    if reservation.response_status != 204 or reservation.response_ref != {
+                        "gap_id": str(gap_id)
+                    }:
+                        raise ClarificationRepositoryError
+                    return
                 gap = await unit_of_work.repository.get_gap_for_update(
                     account_id=context.account_id, project_id=project_id, gap_id=gap_id
                 )
@@ -444,20 +534,26 @@ class ClarificationService:
                     raise ClarificationNotFound
                 if gap.status != "open":
                     raise ClarificationInvalidState
-                if gap.updated_at != command.expected_updated_at:
-                    self._version_conflict(context, gap_id)
-                    raise ClarificationVersionConflict
                 persisted = await unit_of_work.repository.set_gap_status(
                     account_id=context.account_id,
                     project_id=project_id,
                     gap_id=gap_id,
-                    expected_updated_at=command.expected_updated_at,
+                    expected_updated_at=gap.updated_at,
                     status="dismissed",
                     resolved_at=None,
                 )
                 if persisted is None:
                     self._version_conflict(context, gap_id)
                     raise ClarificationVersionConflict
+                await unit_of_work.idempotency.complete(
+                    account_id=context.account_id,
+                    actor_id=context.subject_id,
+                    route_key=GAP_DISMISS_ROUTE_KEY,
+                    idempotency_key=command.idempotency_key,
+                    request_hash=request_hash,
+                    response_status=204,
+                    response_ref={"gap_id": str(gap_id)},
+                )
                 await unit_of_work.commit()
         except ClarificationRepositoryError:
             self._repository_failed("dismiss_gap", context, started_at)
@@ -542,16 +638,17 @@ class ClarificationService:
         self,
         context: TenantContext,
         project_id: UUID,
-        gap_id: UUID,
+        gap_id: UUID | None = None,
         clarification_id: UUID | None = None,
     ) -> None:
         fields: dict[str, object] = {
             "actor_id": str(context.subject_id),
             "project_id": str(project_id),
-            "gap_id": str(gap_id),
             "status": "denied",
             "error_code": "RESOURCE_NOT_FOUND",
         }
+        if gap_id is not None:
+            fields["gap_id"] = str(gap_id)
         if clarification_id is not None:
             fields["clarification_id"] = str(clarification_id)
         self._event_logger.emit(

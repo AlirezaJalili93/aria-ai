@@ -26,6 +26,7 @@ from app.modules.gaps.domain.gap import (
     GapType,
     GapValidationError,
     NewGap,
+    SuggestedResolutionType,
 )
 from app.modules.gaps.infrastructure.models import GapModel
 
@@ -159,6 +160,10 @@ def _gap_from_model(model: GapModel) -> Gap:
         created_at=model.created_at,
         updated_at=model.updated_at,
         resolved_at=model.resolved_at,
+        explanation=model.explanation,
+        suggested_resolution_type=cast(
+            SuggestedResolutionType | None, model.suggested_resolution_type
+        ),
     )
 
 

@@ -5,13 +5,14 @@ from types import TracebackType
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.infrastructure.db.idempotency import SqlAlchemyIdempotencyRepository
 from app.modules.gaps.application.clarification_ports import (
+    ClarificationHistoryEntry,
     ClarificationRepository,
     ClarificationRepositoryError,
     ClarificationUnitOfWork,
@@ -42,6 +43,7 @@ from app.modules.gaps.domain.gap import (
     GapStatus,
     GapType,
     GapValidationError,
+    SuggestedResolutionType,
 )
 from app.modules.gaps.infrastructure.models import (
     ClarificationModel,
@@ -55,6 +57,111 @@ from app.shared.idempotency import IdempotencyRepository, IdempotencyRepositoryE
 class SqlAlchemyClarificationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def list_current_gaps(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        status: GapStatus | None,
+        severity: GapSeverity | None,
+        gap_type: GapType | None,
+        limit: int,
+        cursor_created_at: datetime | None,
+        cursor_id: UUID | None,
+    ) -> tuple[Gap, ...] | None:
+        current_version = await self._session.scalar(
+            select(ProjectModel.current_context_version).where(
+                ProjectModel.id == project_id,
+                ProjectModel.account_id == account_id,
+                ProjectModel.deleted_at.is_(None),
+            )
+        )
+        if current_version is None:
+            return None
+        if current_version == 0:
+            return ()
+        statement = select(GapModel).where(
+            GapModel.account_id == account_id,
+            GapModel.project_id == project_id,
+            GapModel.context_version == current_version,
+        )
+        if status is not None:
+            statement = statement.where(GapModel.status == status)
+        if severity is not None:
+            statement = statement.where(GapModel.severity == severity)
+        if gap_type is not None:
+            statement = statement.where(GapModel.gap_type == gap_type)
+        if cursor_created_at is not None and cursor_id is not None:
+            statement = statement.where(
+                or_(
+                    GapModel.created_at < cursor_created_at,
+                    (GapModel.created_at == cursor_created_at) & (GapModel.id < cursor_id),
+                )
+            )
+        models = (
+            await self._session.scalars(
+                statement.order_by(GapModel.created_at.desc(), GapModel.id.desc()).limit(limit)
+            )
+        ).all()
+        return tuple(_gap_from_model(model) for model in models)
+
+    async def list_clarification_history(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        gap_id: UUID,
+    ) -> tuple[ClarificationHistoryEntry, ...] | None:
+        gap_exists = await self._session.scalar(
+            select(exists().where(
+                GapModel.id == gap_id,
+                GapModel.account_id == account_id,
+                GapModel.project_id == project_id,
+                ProjectModel.id == GapModel.project_id,
+                ProjectModel.account_id == GapModel.account_id,
+                ProjectModel.deleted_at.is_(None),
+            ))
+        )
+        if not gap_exists:
+            return None
+        questions = (
+            await self._session.scalars(
+                select(ClarificationModel)
+                .where(
+                    ClarificationModel.account_id == account_id,
+                    ClarificationModel.project_id == project_id,
+                    ClarificationModel.gap_id == gap_id,
+                )
+                .order_by(ClarificationModel.created_at.asc(), ClarificationModel.id.asc())
+            )
+        ).all()
+        if not questions:
+            return ()
+        resolutions = (
+            await self._session.scalars(
+                select(ClarificationResolutionModel).where(
+                    ClarificationResolutionModel.account_id == account_id,
+                    ClarificationResolutionModel.project_id == project_id,
+                    ClarificationResolutionModel.gap_id == gap_id,
+                    ClarificationResolutionModel.clarification_id.in_(
+                        [question.id for question in questions]
+                    ),
+                )
+            )
+        ).all()
+        by_question = {resolution.clarification_id: resolution for resolution in resolutions}
+        return tuple(
+            ClarificationHistoryEntry(
+                question=_clarification_from_model(question),
+                resolution=(
+                    _resolution_from_model(by_question[question.id])
+                    if question.id in by_question
+                    else None
+                ),
+            )
+            for question in questions
+        )
 
     async def get_gap_for_update(
         self, *, account_id: UUID, project_id: UUID, gap_id: UUID
@@ -415,4 +522,8 @@ def _gap_from_model(model: GapModel) -> Gap:
         created_at=model.created_at,
         updated_at=model.updated_at,
         resolved_at=model.resolved_at,
+        explanation=model.explanation,
+        suggested_resolution_type=cast(
+            SuggestedResolutionType | None, model.suggested_resolution_type
+        ),
     )

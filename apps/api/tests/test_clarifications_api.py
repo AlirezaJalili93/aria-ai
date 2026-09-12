@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.core.config import ApiSettings
 from app.main import create_app
+from app.modules.gaps.application.clarification_ports import ClarificationHistoryEntry
 from app.modules.gaps.application.clarification_service import (
     ClarificationDuplicate,
     ClarificationInvalidState,
@@ -18,6 +19,7 @@ from app.modules.gaps.application.clarification_service import (
     ResolveClarificationCommand,
 )
 from app.modules.gaps.domain.clarification import Clarification, ClarificationResolution
+from app.modules.gaps.domain.gap import Gap
 from app.modules.identity.application.ports import AuthenticatedIdentity, InvalidAccessToken
 from app.modules.identity.application.tenant_context import TenantContext
 
@@ -82,11 +84,39 @@ class StubClarificationService:
             actor_id=SUBJECT,
             created_at=now,
         )
+        self.gap = Gap(
+            id=GAP_ID,
+            account_id=ACCOUNT_ID,
+            project_id=PROJECT_ID,
+            context_version=2,
+            gap_type="unsupported_assumption",
+            severity="critical",
+            status="open",
+            source_refs=(),
+            created_at=now,
+            updated_at=now,
+            explanation="توضیح ساختاری",
+            suggested_resolution_type="validate_assumption",
+        )
         self.error: Exception | None = None
         self.create_command: CreateClarificationQuestionCommand | None = None
         self.edit_command: EditClarificationQuestionCommand | None = None
         self.resolve_command: ResolveClarificationCommand | None = None
         self.dismiss_command: DismissGapCommand | None = None
+
+    async def list_gaps(self, context: TenantContext, **_: object) -> tuple[Gap, ...]:
+        del context
+        if self.error is not None:
+            raise self.error
+        return (self.gap,)
+
+    async def list_clarifications(
+        self, context: TenantContext, **_: object
+    ) -> tuple[ClarificationHistoryEntry, ...]:
+        del context
+        if self.error is not None:
+            raise self.error
+        return (ClarificationHistoryEntry(self.question, self.resolution),)
 
     async def create_question(self, context: TenantContext, **kwargs: object) -> Clarification:
         del context
@@ -183,6 +213,77 @@ def test_question_creation_and_resolution_use_distinct_idempotent_endpoints() ->
     }
 
 
+def test_gap_and_clarification_read_contracts_are_minimal() -> None:
+    client, _ = _fixture()
+    gaps = client.get(
+        f"/api/v1/projects/{PROJECT_ID}/gaps?status=open&severity=critical&"
+        "gap_type=unsupported_assumption",
+        headers=_headers(),
+    )
+    history = client.get(
+        f"/api/v1/projects/{PROJECT_ID}/gaps/{GAP_ID}/clarifications",
+        headers=_headers(),
+    )
+    assert gaps.status_code == 200
+    assert set(gaps.json()["data"][0]) == {
+        "id",
+        "context_version",
+        "gap_type",
+        "severity",
+        "status",
+        "explanation",
+        "suggested_resolution_type",
+        "created_at",
+        "updated_at",
+        "resolved_at",
+    }
+    assert history.status_code == 200
+    item = history.json()["data"][0]
+    assert set(item) == {
+        "id",
+        "gap_id",
+        "question_text",
+        "status",
+        "created_by_type",
+        "created_at",
+        "updated_at",
+        "resolution",
+    }
+    assert set(item["resolution"]) == {
+        "id",
+        "resolution_type",
+        "answer_text",
+        "author_type",
+        "created_at",
+    }
+    assert "actor_id" not in str(history.json())
+    assert "author_id" not in str(history.json())
+
+
+def test_gap_cursor_is_bound_to_active_filters() -> None:
+    import base64
+    import json
+
+    client, service = _fixture()
+    cursor = base64.urlsafe_b64encode(
+        json.dumps(
+            {
+                "created_at": service.gap.created_at.isoformat(),
+                "id": str(service.gap.id),
+                "filters": {"status": "open", "severity": None, "gap_type": None},
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode()
+    ).decode().rstrip("=")
+    response = client.get(
+        f"/api/v1/projects/{PROJECT_ID}/gaps?status=resolved&cursor={cursor}",
+        headers=_headers(),
+    )
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_FAILED"
+
+
 def test_question_create_and_resolution_require_idempotency_keys() -> None:
     client, _ = _fixture()
     create = client.post(
@@ -210,20 +311,16 @@ def test_edit_is_cas_and_gap_dismissal_is_a_separate_command() -> None:
             "expected_updated_at": service.question.updated_at.isoformat(),
         },
     )
-    dismiss = client.patch(
-        f"/api/v1/projects/{PROJECT_ID}/gaps/{GAP_ID}",
-        headers=_headers(),
-        json={
-            "command": "dismiss",
-            "expected_updated_at": service.question.updated_at.isoformat(),
-        },
+    dismiss = client.post(
+        f"/api/v1/projects/{PROJECT_ID}/gaps/{GAP_ID}/dismiss",
+        headers=_headers(key="dismiss-key"),
     )
     assert edit.status_code == 200
     assert dismiss.status_code == 204
     assert service.edit_command == EditClarificationQuestionCommand(
         "پرسش جدید", service.question.updated_at
     )
-    assert service.dismiss_command == DismissGapCommand(service.question.updated_at)
+    assert service.dismiss_command == DismissGapCommand("dismiss-key")
 
 
 def test_contract_rejects_system_resolution_and_extra_fields() -> None:

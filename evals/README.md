@@ -31,6 +31,22 @@ The Fake Provider report proves only annotation matching, formulas, denominator/
 critical blocker detection and report privacy. Real-provider quality execution remains deferred to
 G02/G03.
 
+## Gap detection v1
+
+`gap-detection/gap_detection_eval_v1` contains the frozen S1-J05 set of 20 synthetic Persian
+fixtures, executable provenance/affected-Requirement annotations, Critical Rule Pack alignment,
+thresholds and semantic-validity review rubric.
+
+```text
+npm run test:eval
+node scripts/gap-evaluation.mjs --output .tmp/j05-fake-report.json
+```
+
+The Fake Provider can only produce `EVAL HARNESS PASS`; it never declares AI quality acceptance.
+Critical recall, rule-backed precision, false-gap rate, semantic validity and all item-level
+blockers are evaluated without logging fixture or customer content. Real-provider quality remains
+deferred until G02/G03.
+
 Platform candidate experiments live under `durable-queue/`. Celery, Dramatiq and RQ are locked and
 tested in separate Compose projects. They remain isolated from runtime dependencies until measured
 evidence and an accepted ADR authorize adoption.
