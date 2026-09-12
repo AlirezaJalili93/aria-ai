@@ -7,7 +7,7 @@ type ProductEventName =
   | "project_type_selected"
   | "requirement_edited"
   | "requirement_removed"
-type ProductEvent = Readonly<{
+type AccountProductEvent = Readonly<{
   eventName: ProductEventName
   accountId: string
   role: AccountRole
@@ -15,8 +15,27 @@ type ProductEvent = Readonly<{
   projectType?: ProjectType
   requirementId?: string
 }>
+type ScopeEditedEvent = Readonly<{
+  eventName: "scope_edited"
+  projectId: string
+  sectionId: string
+  contextVersion: number
+}>
+type ProductEvent = AccountProductEvent | ScopeEditedEvent
 
 export function emitProductEvent(event: ProductEvent): void {
+  if (event.eventName === "scope_edited") {
+    console.info(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      event_category: "product_analytics",
+      schema_version: "1",
+      event_name: event.eventName,
+      project_id: event.projectId,
+      section_id: event.sectionId,
+      context_version: event.contextVersion
+    }))
+    return
+  }
   const record = {
     timestamp: new Date().toISOString(),
     event_category: "product_analytics",

@@ -18,6 +18,7 @@ from app.modules.identity.infrastructure import models as identity_models
 from app.modules.jobs.infrastructure import models as job_models
 from app.modules.projects.infrastructure import models as project_models
 from app.modules.requirements.infrastructure import models as requirement_models
+from app.modules.scope.infrastructure import models as scope_models
 
 del context_models
 del gap_models
@@ -26,6 +27,7 @@ del identity_models
 del job_models
 del project_models
 del requirement_models
+del scope_models
 
 config = context.config
 if config.config_file_name is not None:

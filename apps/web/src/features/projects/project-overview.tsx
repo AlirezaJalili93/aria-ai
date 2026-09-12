@@ -72,6 +72,8 @@ export function ProjectOverview({
                   <Link href={`/projects/${project.id}/requirements`}>مرور نیازمندی‌ها</Link>
                 ) : key === "Gaps" ? (
                   <Link href={`/projects/${project.id}/gaps`}>مرور ابهام‌ها</Link>
+                ) : key === "Scope" ? (
+                  <Link href={`/projects/${project.id}/scope`}>مرور محدوده</Link>
                 ) : (
                   <p>هنوز شروع نشده</p>
                 )}

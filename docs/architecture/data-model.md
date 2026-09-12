@@ -63,7 +63,7 @@ M000 extensions
 | gap_requirement_links | account_id, project_id, gap_id, requirement_id, created_at | affected Requirements رابطه‌ای و tenant/snapshot-consistent هستند؛ JSONB و semantic merge ممنوع |
 | clarifications | id, account_id, project_id, gap_id, question_text, status, created_by_type, created_by, created_at, updated_at | status برابر open/answered/ignored؛ سؤال user-created دارای created_by است؛ فقط سؤال open قابل ویرایش است و متن normalized سؤال باز در هر Gap یکتا است |
 | clarification_resolutions | id, account_id, project_id, gap_id, clarification_id, resolution_type, answer_text, author_type, author_id, actor_id, created_at | هر Clarification حداکثر یک Resolution terminal دارد؛ actor داخلی احرازشده اجباری است؛ author فقط user/client و client بدون Profile مجاز است؛ تاریخچه با RESTRICT حفظ می‌شود |
-| scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
+| scope_drafts | id, account_id, project_id, context_version, content, updated_by_type, updated_by, created_at, updated_at | strict `scope_content_schema_v1` JSONB؛ دوازده Section از نظر ساختاری اجباری ولی empty مجاز؛ `UNIQUE(project_id,context_version)`؛ Draft قدیمی پس از پیشروی Context تاریخی/read-only؛ readiness و revision persisted در K01 superseded/deferred و updated_at CAS canonical؛ K02 readiness به‌صورت computed policy و بدون ستون persistence؛ K03 فقط Draft جدید می‌سازد و Draft موجود را overwrite نمی‌کند |
 | scope_versions | id, account_id, project_id, version_no, context_version, snapshot_data, snapshot_hash | `UNIQUE(project_id,version_no)` و Snapshot immutable است |
 
 ## Async و Metering

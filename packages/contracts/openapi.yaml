@@ -118,6 +118,66 @@ paths:
         "204": { description: Project soft-deleted; response is empty. }
         "403": { description: Active Membership role is not owner or admin. }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/draft:
+    get:
+      operationId: getCurrentScopeDraft
+      summary: Read the Scope Draft bound to the Project current Context Version
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      responses:
+        "200":
+          description: Current editable Scope Draft.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeDraftEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/draft/sections/{section_id}:
+    patch:
+      operationId: replaceCurrentScopeDraftSection
+      summary: Atomically replace one current Scope Draft section value
+      description: >-
+        Uses updated_at compare-and-swap. The server preserves lineage trace and assigns IDs to
+        new structured items. The value is a full replacement, never a merge.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: section_id
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ScopeSectionId" }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateScopeSectionRequest" }
+      responses:
+        "200":
+          description: Scope Draft with the replaced section and new updated_at.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeDraftEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT or SCOPE_DRAFT_STALE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Invalid section value, fabricated item ID, or request shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /projects/{project_id}/context-sources:
     post:
       operationId: createTextContextSource
@@ -835,6 +895,77 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Project" }
         meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ScopeSectionId:
+      type: string
+      enum:
+        - summary
+        - goals
+        - pages_sections
+        - requirements
+        - content
+        - visual_direction
+        - constraints
+        - assumptions
+        - resolved_gaps
+        - remaining_non_blocking_gaps
+        - out_of_scope
+        - acceptance_notes
+    ScopeTrace:
+      type: object
+      additionalProperties: false
+      required: [context_item_ids, requirement_ids, gap_ids]
+      properties:
+        context_item_ids:
+          type: array
+          items: { type: string, format: uuid }
+        requirement_ids:
+          type: array
+          items: { type: string, format: uuid }
+        gap_ids:
+          type: array
+          items: { type: string, format: uuid }
+    ScopeSection:
+      type: object
+      additionalProperties: false
+      required: [section_id, value, trace]
+      properties:
+        section_id: { $ref: "#/components/schemas/ScopeSectionId" }
+        value: {}
+        trace: { $ref: "#/components/schemas/ScopeTrace" }
+    ScopeContent:
+      type: object
+      additionalProperties: false
+      required: [schema_version, sections]
+      properties:
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        sections:
+          type: array
+          minItems: 12
+          maxItems: 12
+          items: { $ref: "#/components/schemas/ScopeSection" }
+    ScopeDraft:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, content, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        content: { $ref: "#/components/schemas/ScopeContent" }
+        updated_at: { type: string, format: date-time }
+    ScopeDraftEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeDraft" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    UpdateScopeSectionRequest:
+      type: object
+      additionalProperties: false
+      required: [value, expected_updated_at]
+      properties:
+        value: {}
+        expected_updated_at: { type: string, format: date-time }
     ContextItemType:
       type: string
       enum: [fact, assumption, decision, constraint, reference, unknown]

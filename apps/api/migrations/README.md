@@ -9,7 +9,7 @@ is never stored in this directory.
 → 0005_jobs_outbox → 0006_idempotency_records → 0007_usage_records
 → 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
 → 0011_requirements → 0012_requirement_generation → 0013_requirement_crud
-→ 0014_gaps → 0015_gap_detection
+→ 0014_gaps → 0015_gap_detection → 0016_clarifications → 0017_scope_drafts
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -68,3 +68,8 @@ generation fields (preserving J01 rows), normalized affected-Requirement links, 
 composite foreign keys, same-Context-snapshot enforcement and fail-closed Data API privileges.
 The exact dual-revision snapshot, replay and Critical-rule deferral are recorded in
 [ADR-036](../../../docs/adr/ADR-036-gap-detection-foundation.md).
+
+`0017_scope_drafts` implements S1-K01 as a tenant-scoped, mutable, version-bound Working Draft.
+Content is strict `scope_content_schema_v1` JSONB; all canonical sections are structurally required
+but may be empty. Drafts are unique per Project/Context Version, historical drafts are protected by
+Application policy, and readiness/revision state remains outside K01. See ADR-041.

@@ -20,6 +20,7 @@ from app.api.errors import (
     InvalidRequirementStateError,
     MembershipRequiredError,
     ResourceNotFoundError,
+    ScopeDraftStaleError,
     ValidationFailedError,
     VersionConflictError,
     account_bootstrap_failed_handler,
@@ -36,6 +37,7 @@ from app.api.errors import (
     membership_required_handler,
     request_validation_handler,
     resource_not_found_handler,
+    scope_draft_stale_handler,
     validation_failed_handler,
     version_conflict_handler,
 )
@@ -49,6 +51,7 @@ from app.api.routers.health import create_health_router
 from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
 from app.api.routers.requirements import create_requirements_router
+from app.api.routers.scope_drafts import create_scope_drafts_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -99,6 +102,10 @@ from app.modules.requirements.application.requirement_crud_service import (
 from app.modules.requirements.infrastructure.repository import (
     SqlAlchemyRequirementCrudUnitOfWorkFactory,
 )
+from app.modules.scope.application.scope_draft_service import ScopeDraftService
+from app.modules.scope.infrastructure.repository import (
+    SqlAlchemyScopeDraftUnitOfWorkFactory,
+)
 
 
 class UnavailableAccountBootstrapper:
@@ -132,6 +139,7 @@ def create_app(
     context_item_review_service: ContextItemReviewService | None = None,
     requirement_crud_service: RequirementCrudService | None = None,
     clarification_service: ClarificationService | None = None,
+    scope_draft_service: ScopeDraftService | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -184,6 +192,7 @@ def create_app(
     app.add_exception_handler(IdempotencyConflictError, idempotency_conflict_handler)
     app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
+    app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
     app.add_exception_handler(
         InvalidContextItemStateError, invalid_context_item_state_handler
     )
@@ -270,6 +279,14 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.scope_draft_service = scope_draft_service or (
+        ScopeDraftService(
+            SqlAlchemyScopeDraftUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -280,6 +297,7 @@ def create_app(
     app.include_router(create_context_items_router(), prefix="/api/v1")
     app.include_router(create_requirements_router(), prefix="/api/v1")
     app.include_router(create_clarifications_router(), prefix="/api/v1")
+    app.include_router(create_scope_drafts_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 

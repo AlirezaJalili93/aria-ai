@@ -53,3 +53,4 @@ docs/development/NNNN-kebab-case/
 - [0019 — Architecture hardening](./0019-architecture-hardening/development.md)
 - [0020 — Project Domain and repository](./0020-project-domain-repository/development.md)
 - [0021 — Account Discovery and Project API](./0021-account-discovery-project-api/development.md)
+- [0057 — Scope Draft Editor](./0057-scope-draft-editor/development.md)

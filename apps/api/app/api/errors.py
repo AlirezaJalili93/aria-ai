@@ -36,6 +36,10 @@ class VersionConflictError(Exception):
     """API signal for an optimistic concurrency mismatch."""
 
 
+class ScopeDraftStaleError(Exception):
+    """API signal for mutation of a historical Scope Draft."""
+
+
 class InvalidContextItemStateError(Exception):
     """API signal for a Context Item command rejected by its immutable state."""
 
@@ -217,6 +221,18 @@ async def version_conflict_handler(request: Request, error: Exception) -> JSONRe
         status_code=409,
         code="VERSION_CONFLICT",
         message="The resource has changed since it was read.",
+        retryable=False,
+    )
+
+
+async def scope_draft_stale_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, ScopeDraftStaleError):
+        raise TypeError("Unexpected exception type for Scope Draft stale handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_DRAFT_STALE",
+        message="The Scope Draft belongs to a historical Context Version.",
         retryable=False,
     )
 
