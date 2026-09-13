@@ -408,16 +408,14 @@ class RequirementCrudService:
         project_id: UUID,
         requirement_id: UUID | None = None,
     ) -> None:
-        fields: dict[str, object] = {
-            "actor_id": str(context.subject_id),
-            "project_id": str(project_id),
-            "status": "denied",
-            "error_code": "RESOURCE_NOT_FOUND",
-        }
-        if requirement_id is not None:
-            fields["requirement_id"] = str(requirement_id)
+        del requirement_id
         self._event_logger.emit(
-            "security.requirement_access_denied", level="WARNING", **fields
+            "security.requirement_access_denied",
+            level="WARNING",
+            actor_id=str(context.subject_id),
+            project_id=str(project_id),
+            status="denied",
+            error_code="RESOURCE_NOT_FOUND",
         )
 
     def _repository_failed(

@@ -112,6 +112,12 @@ Collector/Alloy برای Production تصمیمی Deferred باقی می‌مان
 است و `aria_observer` فقط Viewهای صریح schema خصوصی `observability` را می‌خواند؛ Metricها هرگز
 شناسه Tenant/Resource یا محتوای مشتری را label نمی‌کنند و cost-by-project فقط query-driven است.
 
+مطابق ADR-048، Tenant Isolation با Fixtureهای هم‌زمان Tenant A/B در سه مرز HTTP، Repository و
+Database/RLS اثبات می‌شود. Resource ناموجود و foreign یک پاسخ یکسان `RESOURCE_NOT_FOUND` دارند و
+audit عمومی `resource.access_denied` فقط از context مجاز همان request ساخته می‌شود؛ هیچ lookup
+خارج از Tenant برای تشخیص existence انجام نمی‌شود. Scope عمومی با `project_id + version_no` و UUID
+داخلی Scope فقط در Repository/Database/RLS آزموده می‌شود.
+
 ## AI و Generation Guardrails
 
 - تمام Taskها از Provider-neutral Gateway عبور می‌کنند.

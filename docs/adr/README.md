@@ -46,5 +46,6 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-045 — Scope Version Snapshot](ADR-045-scope-version-snapshot.md)
 - [ADR-046 — Product Analytics Baseline](ADR-046-product-analytics-baseline.md)
 - [ADR-047 — Operational Dashboard Baseline](ADR-047-operational-dashboard.md)
+- [ADR-048 — Cross-Tenant Security Suite](ADR-048-cross-tenant-security-suite.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

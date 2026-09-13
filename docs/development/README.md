@@ -56,3 +56,4 @@ docs/development/NNNN-kebab-case/
 - [0057 — Scope Draft Editor](./0057-scope-draft-editor/development.md)
 - [0059 — Product Event Baseline](./0059-product-event-baseline/development.md)
 - [0060 — Operational Dashboard](./0060-operational-dashboard/development.md)
+- [0061 — Cross-Tenant Security Suite](./0061-cross-tenant-security-suite/development.md)

@@ -35,7 +35,7 @@ class JobStatusApplicationService:
         self._unit_of_work_factory = unit_of_work_factory
 
     async def get(self, context: TenantContext, job_id: UUID) -> JobStatusView:
-        enrich_trace_context(account_id=str(context.account_id), job_id=str(job_id))
+        enrich_trace_context(account_id=str(context.account_id))
         async with self._unit_of_work_factory() as unit_of_work:
             job = await unit_of_work.jobs.get_for_account(
                 account_id=context.account_id,
@@ -43,6 +43,7 @@ class JobStatusApplicationService:
             )
         if job is None:
             raise JobNotFound
+        enrich_trace_context(job_id=str(job.id))
         return _to_status_view(job)
 
 

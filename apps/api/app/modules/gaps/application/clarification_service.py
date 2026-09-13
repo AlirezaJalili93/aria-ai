@@ -650,18 +650,14 @@ class ClarificationService:
         gap_id: UUID | None = None,
         clarification_id: UUID | None = None,
     ) -> None:
-        fields: dict[str, object] = {
-            "actor_id": str(context.subject_id),
-            "project_id": str(project_id),
-            "status": "denied",
-            "error_code": "RESOURCE_NOT_FOUND",
-        }
-        if gap_id is not None:
-            fields["gap_id"] = str(gap_id)
-        if clarification_id is not None:
-            fields["clarification_id"] = str(clarification_id)
+        del gap_id, clarification_id
         self._event_logger.emit(
-            "security.clarification_access_denied", level="WARNING", **fields
+            "security.clarification_access_denied",
+            level="WARNING",
+            actor_id=str(context.subject_id),
+            project_id=str(project_id),
+            status="denied",
+            error_code="RESOURCE_NOT_FOUND",
         )
 
     def _repository_failed(

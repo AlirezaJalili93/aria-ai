@@ -49,6 +49,7 @@ _OPTIONAL_FIELDS = {
     "exception_type",
     "component",
     "operation",
+    "resource_type",
     "queue_adapter_configured",
     "actor_id",
     "project_id",

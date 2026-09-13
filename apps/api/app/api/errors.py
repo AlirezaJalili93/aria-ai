@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from aria_observability import current_trace_context
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -200,13 +202,50 @@ async def account_context_required_handler(
 async def resource_not_found_handler(request: Request, error: Exception) -> JSONResponse:
     if not isinstance(error, ResourceNotFoundError):
         raise TypeError("Unexpected exception type for resource handler")
-    del request, error
+    del error
+    route = request.scope.get("route")
+    route_template = getattr(route, "path", None)
+    resource_type = _resource_type_for_route(route_template)
+    project_id = request.path_params.get("project_id")
+    with suppress(Exception):
+        request.app.state.event_logger.emit(
+            "resource.access_denied",
+            level="WARNING",
+            route=route_template if isinstance(route_template, str) else "/<unmatched>",
+            project_id=str(project_id) if project_id is not None else None,
+            resource_type=resource_type,
+            operation=request.method.lower(),
+            reason_code="not_visible_in_tenant_scope",
+            error_code="RESOURCE_NOT_FOUND",
+        )
     return _error_response(
         status_code=404,
         code="RESOURCE_NOT_FOUND",
         message="The requested resource was not found.",
         retryable=False,
     )
+
+
+def _resource_type_for_route(route_template: object) -> str:
+    if not isinstance(route_template, str):
+        return "resource"
+    if "/scope/versions" in route_template:
+        return "scope_version"
+    if "/scope/draft" in route_template:
+        return "scope_draft"
+    if "/context-items" in route_template:
+        return "context_item"
+    if "/context-sources" in route_template:
+        return "context_source"
+    if "/requirements" in route_template:
+        return "requirement"
+    if "/gaps" in route_template:
+        return "gap"
+    if "/jobs" in route_template:
+        return "job"
+    if "/projects" in route_template:
+        return "project"
+    return "resource"
 
 
 async def idempotency_conflict_handler(request: Request, error: Exception) -> JSONResponse:
