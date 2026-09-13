@@ -2,7 +2,13 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from aria_observability import StructuredEventLogger, create_event_logger
+from aria_observability import (
+    OperationalMetrics,
+    OtlpMetricsConfiguration,
+    StructuredEventLogger,
+    create_event_logger,
+    create_otlp_operational_metrics,
+)
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
@@ -150,6 +156,7 @@ def create_app(
     clarification_service: ClarificationService | None = None,
     scope_draft_service: ScopeDraftService | None = None,
     scope_version_service: ScopeVersionService | None = None,
+    operational_metrics: OperationalMetrics | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -167,12 +174,25 @@ def create_app(
         if resolved_settings.queue_broker_url
         else unavailable_queue_probe
     )
+    metrics_configuration = _metrics_configuration(resolved_settings)
+    resolved_operational_metrics = operational_metrics or create_otlp_operational_metrics(
+        service="aria-api",
+        environment=resolved_settings.app_env,
+        app_version=resolved_settings.app_version,
+        configuration=metrics_configuration,
+    )
+    metric_shutdown_timeout = (
+        metrics_configuration.export_timeout_seconds if metrics_configuration else 0
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        yield
-        if database_runtime is not None:
-            await database_runtime.close()
+        try:
+            yield
+        finally:
+            resolved_operational_metrics.shutdown(metric_shutdown_timeout)
+            if database_runtime is not None:
+                await database_runtime.close()
 
     app = FastAPI(
         title="Aria API",
@@ -189,7 +209,11 @@ def create_app(
         release_commit_sha=resolved_settings.release_commit_sha,
         level=resolved_settings.log_level,
     )
-    app.add_middleware(ObservabilityMiddleware, event_logger=resolved_event_logger)
+    app.add_middleware(
+        ObservabilityMiddleware,
+        event_logger=resolved_event_logger,
+        operational_metrics=resolved_operational_metrics,
+    )
     app.add_exception_handler(AuthenticationRequiredError, authentication_required_handler)
     app.add_exception_handler(
         AuthenticationProviderUnavailableError,
@@ -311,6 +335,28 @@ def create_app(
     app.include_router(create_scope_versions_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
+
+
+def _metrics_configuration(settings: ApiSettings) -> OtlpMetricsConfiguration | None:
+    if settings.otel_exporter_otlp_endpoint is None:
+        return None
+    assert settings.otel_exporter_otlp_headers is not None
+    assert settings.otel_metric_export_timeout_seconds is not None
+    assert settings.otel_metric_export_interval_seconds is not None
+    assert settings.otel_metric_queue_capacity is not None
+    allowed_models = frozenset(
+        value.strip()
+        for value in (settings.otel_metric_allowed_models or "").split(",")
+        if value.strip()
+    )
+    return OtlpMetricsConfiguration(
+        endpoint=str(settings.otel_exporter_otlp_endpoint),
+        headers=settings.otel_exporter_otlp_headers.get_secret_value(),
+        export_timeout_seconds=float(settings.otel_metric_export_timeout_seconds),
+        export_interval_seconds=float(settings.otel_metric_export_interval_seconds),
+        queue_capacity=settings.otel_metric_queue_capacity,
+        allowed_models=allowed_models,
+    )
 
 
 def _create_access_token_verifier(

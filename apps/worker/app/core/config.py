@@ -6,6 +6,8 @@ from pydantic import (
     AfterValidator,
     AnyHttpUrl,
     Field,
+    PositiveFloat,
+    PositiveInt,
     PostgresDsn,
     RedisDsn,
     SecretStr,
@@ -88,6 +90,12 @@ class WorkerSettings(BaseSettings):
     storage_secret_key: SecretStr | None = None
     release_commit_sha: CommitSha | None = None
     railway_git_commit_sha: CommitSha | None = None
+    otel_exporter_otlp_endpoint: AnyHttpUrl | None = None
+    otel_exporter_otlp_headers: SecretStr | None = None
+    otel_metric_export_timeout_seconds: PositiveFloat | None = None
+    otel_metric_export_interval_seconds: PositiveFloat | None = None
+    otel_metric_queue_capacity: PositiveInt | None = None
+    otel_metric_allowed_models: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -105,6 +113,7 @@ class WorkerSettings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_hosted_environment(self) -> Self:
+        self._validate_operational_metrics_configuration()
         if self.app_env not in {"staging", "production"}:
             return self
 
@@ -118,6 +127,38 @@ class WorkerSettings(BaseSettings):
                 "Missing required hosted worker configuration: " + ", ".join(sorted(missing))
             )
         return self
+
+    def _validate_operational_metrics_configuration(self) -> None:
+        configured = (
+            self.otel_exporter_otlp_endpoint,
+            self.otel_exporter_otlp_headers,
+            self.otel_metric_export_timeout_seconds,
+            self.otel_metric_export_interval_seconds,
+            self.otel_metric_queue_capacity,
+        )
+        if not any(value is not None for value in configured):
+            return
+        if self.app_env == "production":
+            raise ValueError("Direct OTLP export is staging-only in S1-L02")
+        missing = [
+            name
+            for name, value in zip(
+                (
+                    "otel_exporter_otlp_endpoint",
+                    "otel_exporter_otlp_headers",
+                    "otel_metric_export_timeout_seconds",
+                    "otel_metric_export_interval_seconds",
+                    "otel_metric_queue_capacity",
+                ),
+                configured,
+                strict=True,
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "Incomplete OTLP metrics configuration: " + ", ".join(missing)
+            )
 
     def require_queue_runtime_configuration(self) -> QueueRuntimeConfiguration:
         required = (

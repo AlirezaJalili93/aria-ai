@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
@@ -8,7 +9,11 @@ from types import TracebackType
 from typing import Literal, Protocol, Self, TypedDict
 from uuid import UUID, uuid4
 
-from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+from aria_observability import (  # type: ignore[attr-defined]
+    NoOpOperationalMetrics,
+    OperationalMetrics,
+    emit_product_analytics,
+)
 
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
@@ -273,6 +278,7 @@ class ContextStructuringUseCase:
         unsupported_claim_validator: UnsupportedClaimValidator,
         unit_of_work_factory: ContextStructuringUnitOfWorkFactory,
         event_logger: ContextStructuringEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], float] = monotonic,
     ) -> None:
@@ -282,6 +288,7 @@ class ContextStructuringUseCase:
         self._unsupported_claim_validator = unsupported_claim_validator
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._id_factory = id_factory
         self._clock = clock
 
@@ -525,10 +532,22 @@ class ContextStructuringUseCase:
         response: StructuredAIResponse,
         snapshot: tuple[SourceSnapshot, ...],
     ) -> CandidateContextBatch:
-        batch = _require_candidate_batch(response.data)
-        _validate_candidate_batch(batch, snapshot)
-        await self._unsupported_claim_validator.validate(batch=batch, snapshot=snapshot)
-        return batch
+        try:
+            batch = _require_candidate_batch(response.data)
+            _validate_candidate_batch(batch, snapshot)
+            await self._unsupported_claim_validator.validate(batch=batch, snapshot=snapshot)
+            return batch
+        except ContextStructuringError as error:
+            self._record_validation_failure(
+                "schema" if isinstance(error, ContextStructuringSchemaError) else "business"
+            )
+            raise
+
+    def _record_validation_failure(self, validation_kind: str) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_ai_validation_failure(
+                workflow="context_structuring", validation_kind=validation_kind
+            )
 
 
 def _require_candidate_batch(data: object) -> CandidateContextBatch:

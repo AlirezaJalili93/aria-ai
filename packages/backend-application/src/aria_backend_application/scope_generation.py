@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
 from typing import Literal, Protocol
 from uuid import UUID
 
-from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+from aria_observability import (  # type: ignore[attr-defined]
+    NoOpOperationalMetrics,
+    OperationalMetrics,
+    emit_product_analytics,  # type: ignore[attr-defined]
+)
 
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
@@ -199,6 +204,7 @@ class ScopeGenerationUseCase:
         content_validator: ScopeContentValidator,
         draft_writer: ScopeDraftWriter,
         event_logger: ScopeGenerationEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
         clock: Callable[[], float] = monotonic,
     ) -> None:
         self._snapshot_reader = snapshot_reader
@@ -207,6 +213,7 @@ class ScopeGenerationUseCase:
         self._content_validator = content_validator
         self._draft_writer = draft_writer
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._clock = clock
 
     async def execute(self, command: ScopeGenerationCommand) -> ScopeGenerationResult:
@@ -408,12 +415,20 @@ class ScopeGenerationUseCase:
         try:
             validated = self._content_validator.validate(response.data)
         except Exception as error:
+            self._record_validation_failure()
             raise ScopeGenerationValidationError(
                 "scope_content_validation_failed"
             ) from error
         if not isinstance(validated, Mapping):
+            self._record_validation_failure()
             raise ScopeGenerationValidationError("scope_content_validation_failed")
         return validated
+
+    def _record_validation_failure(self) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_ai_validation_failure(
+                workflow="scope_generation", validation_kind="schema"
+            )
 
 
 def _build_input_context(snapshot: ScopeGenerationSnapshot) -> Mapping[str, object]:

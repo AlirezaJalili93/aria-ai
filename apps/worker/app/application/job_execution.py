@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from time import perf_counter
 from uuid import UUID
 
 from aria_observability import (
+    NoOpOperationalMetrics,
+    OperationalMetrics,
     StructuredEventLogger,
     TraceContext,
     bind_trace_context,
@@ -28,9 +30,15 @@ class JobExecutionContext:
 class JobExecutionCoordinator:
     """Coordinate one delivery without choosing Queue or PostgreSQL lock mechanics."""
 
-    def __init__(self, guard: JobExecutionGuard, event_logger: StructuredEventLogger) -> None:
+    def __init__(
+        self,
+        guard: JobExecutionGuard,
+        event_logger: StructuredEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
+    ) -> None:
         self._guard = guard
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
 
     async def execute(
         self,
@@ -78,7 +86,9 @@ class JobExecutionCoordinator:
             )
             try:
                 await handler()
+                await self._guard.complete(context.job_id)
             except BaseException:
+                self._record_job_metric(context, "failed", started_at)
                 self._event_logger.emit(
                     "worker.job_execution_interrupted",
                     level="ERROR",
@@ -90,8 +100,20 @@ class JobExecutionCoordinator:
                 )
                 raise
 
-            await self._guard.complete(context.job_id)
+            self._record_job_metric(context, "succeeded", started_at)
             return acquisition
+
+    def _record_job_metric(
+        self, context: JobExecutionContext, status: str, started_at: float
+    ) -> None:
+        if context.task_type is None:
+            return
+        with suppress(Exception):
+            self._operational_metrics.record_worker_job(
+                job_type=context.task_type,
+                status=status,
+                duration_ms=(perf_counter() - started_at) * 1000,
+            )
 
 
 @contextmanager

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from contextlib import suppress
+
+from aria_observability import NoOpOperationalMetrics, OperationalMetrics
 from sqlalchemy import (
     CHAR,
     BigInteger,
@@ -58,8 +61,11 @@ usage_records = Table(
 class SqlAlchemyUsageLedger:
     """Least-privilege Worker adapter that can only append a Usage record."""
 
-    def __init__(self, engine: AsyncEngine) -> None:
+    def __init__(
+        self, engine: AsyncEngine, operational_metrics: OperationalMetrics | None = None
+    ) -> None:
         self._engine = engine
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
 
     async def append(self, record: UsageRecord) -> None:
         statement = insert(usage_records).values(
@@ -90,3 +96,14 @@ class SqlAlchemyUsageLedger:
                 await connection.execute(statement)
         except SQLAlchemyError:
             raise UsageLedgerError from None
+        with suppress(Exception):
+            self._operational_metrics.record_ai_usage(
+                workflow=record.task_type,
+                provider=record.provider,
+                model=record.model,
+                status=record.status,
+                latency_ms=float(record.latency_ms),
+                task_type=record.task_type,
+                estimated_cost=float(record.estimated_cost),
+                currency=record.currency,
+            )

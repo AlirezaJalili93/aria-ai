@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -9,7 +10,11 @@ from types import TracebackType
 from typing import Literal, Protocol, Self, TypedDict
 from uuid import UUID, uuid4
 
-from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+from aria_observability import (  # type: ignore[attr-defined]
+    NoOpOperationalMetrics,
+    OperationalMetrics,
+    emit_product_analytics,
+)
 
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
@@ -445,6 +450,7 @@ class GenerateRequirementsUseCase:
         support_validator: RequirementSupportValidator,
         unit_of_work_factory: RequirementGenerationUnitOfWorkFactory,
         event_logger: RequirementGenerationEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         monotonic_clock: Callable[[], float] = monotonic,
@@ -455,6 +461,7 @@ class GenerateRequirementsUseCase:
         self._support_validator = support_validator
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._id_factory = id_factory
         self._wall_clock = wall_clock
         self._clock = monotonic_clock
@@ -693,14 +700,26 @@ class GenerateRequirementsUseCase:
         response: StructuredAIResponse,
         snapshot: RequirementContextSnapshot,
     ) -> tuple[CandidateRequirementBatch, int]:
-        if not isinstance(response.data, CandidateRequirementBatch):
-            raise RequirementGenerationSchemaError("invalid_requirement_candidate_batch")
-        if not response.data.items:
-            raise RequirementInsufficientContextError
-        merged, duplicate_count = _merge_batch_duplicates(response.data)
-        _validate_provenance(merged, snapshot)
-        await self._support_validator.validate(batch=merged, snapshot=snapshot)
-        return merged, duplicate_count
+        try:
+            if not isinstance(response.data, CandidateRequirementBatch):
+                raise RequirementGenerationSchemaError("invalid_requirement_candidate_batch")
+            if not response.data.items:
+                raise RequirementInsufficientContextError
+            merged, duplicate_count = _merge_batch_duplicates(response.data)
+            _validate_provenance(merged, snapshot)
+            await self._support_validator.validate(batch=merged, snapshot=snapshot)
+            return merged, duplicate_count
+        except RequirementGenerationError as error:
+            self._record_validation_failure(
+                "schema" if isinstance(error, RequirementGenerationSchemaError) else "business"
+            )
+            raise
+
+    def _record_validation_failure(self, validation_kind: str) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_ai_validation_failure(
+                workflow="requirement_generation", validation_kind=validation_kind
+            )
 
     async def _persist(
         self,

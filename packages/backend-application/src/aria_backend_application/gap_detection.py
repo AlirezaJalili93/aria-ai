@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -9,7 +10,11 @@ from types import TracebackType
 from typing import Literal, Protocol, Self
 from uuid import UUID, uuid4
 
-from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+from aria_observability import (  # type: ignore[attr-defined]
+    NoOpOperationalMetrics,
+    OperationalMetrics,
+    emit_product_analytics,
+)
 
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
@@ -860,6 +865,7 @@ class DetectGapsUseCase:
         critical_rule_evaluator: CriticalGapRuleEvaluator,
         unit_of_work_factory: GapDetectionUnitOfWorkFactory,
         event_logger: GapDetectionEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
         id_factory: Callable[[], UUID] = uuid4,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         monotonic_clock: Callable[[], float] = monotonic,
@@ -870,6 +876,7 @@ class DetectGapsUseCase:
         self._critical_rule_evaluator = critical_rule_evaluator
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._id_factory = id_factory
         self._wall_clock = wall_clock
         self._clock = monotonic_clock
@@ -1076,15 +1083,21 @@ class DetectGapsUseCase:
             raise GapDetectionError("provider_execution_failed")
         return response
 
-    @staticmethod
     def _validate_response(
+        self,
         response: StructuredAIResponse, snapshot: GapDetectionSnapshot
     ) -> CandidateGapBatch:
-        if not isinstance(response.data, CandidateGapBatch):
-            raise GapDetectionSchemaError("invalid_gap_candidate_batch")
-        _validate_provenance(response.data, snapshot)
-        _validate_affected_requirements(response.data, snapshot)
-        return response.data
+        try:
+            if not isinstance(response.data, CandidateGapBatch):
+                raise GapDetectionSchemaError("invalid_gap_candidate_batch")
+            _validate_provenance(response.data, snapshot)
+            _validate_affected_requirements(response.data, snapshot)
+            return response.data
+        except GapDetectionError as error:
+            self._record_validation_failure(
+                "schema" if isinstance(error, GapDetectionSchemaError) else "business"
+            )
+            raise
 
     async def _validate_and_evaluate(
         self,
@@ -1094,20 +1107,30 @@ class DetectGapsUseCase:
         command: DetectGapsCommand,
     ) -> tuple[CandidateGapBatch, CriticalGapRuleEvaluation, int, int]:
         candidate_batch = self._validate_response(response, snapshot)
-        critical = await self._critical_rule_evaluator.evaluate(
-            snapshot=snapshot,
-            batch=candidate_batch,
-            rule_pack_version=command.critical_rule_pack_version,
-        )
-        self._validate_critical_evaluation(critical, candidate_batch)
-        evaluated_batch = _apply_critical_evaluation(candidate_batch, critical)
-        _reject_exact_duplicates(evaluated_batch)
+        try:
+            critical = await self._critical_rule_evaluator.evaluate(
+                snapshot=snapshot,
+                batch=candidate_batch,
+                rule_pack_version=command.critical_rule_pack_version,
+            )
+            self._validate_critical_evaluation(critical, candidate_batch)
+            evaluated_batch = _apply_critical_evaluation(candidate_batch, critical)
+            _reject_exact_duplicates(evaluated_batch)
+        except GapDetectionError:
+            self._record_validation_failure("business")
+            raise
         return (
             evaluated_batch,
             critical,
             len(candidate_batch.items),
             sum(candidate.severity == "critical" for candidate in candidate_batch.items),
         )
+
+    def _record_validation_failure(self, validation_kind: str) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_ai_validation_failure(
+                workflow="gap_detection", validation_kind=validation_kind
+            )
 
     async def _persist(
         self,

@@ -106,6 +106,12 @@ soft deactivation است. API به metadata داخلی Generation یا داده�
 کلید idempotency ingestion است و متن/محتوای دامنه، provenance، prompt و پاسخ Provider هرگز در
 event یا log قرار نمی‌گیرد. این baseline هیچ Provider، جدول یا deployable جدیدی اضافه نمی‌کند.
 
+مطابق ADR-047، Operational Metrics در Staging از adapter زیرساختی OpenTelemetry و OTLP/HTTP مستقیم
+به Grafana Cloud ارسال می‌شود؛ این مسیر fail-open، bounded و staging-only است و topology مبتنی بر
+Collector/Alloy برای Production تصمیمی Deferred باقی می‌ماند. PostgreSQL منبع حقیقت Queue/Outbox
+است و `aria_observer` فقط Viewهای صریح schema خصوصی `observability` را می‌خواند؛ Metricها هرگز
+شناسه Tenant/Resource یا محتوای مشتری را label نمی‌کنند و cost-by-project فقط query-driven است.
+
 ## AI و Generation Guardrails
 
 - تمام Taskها از Provider-neutral Gateway عبور می‌کنند.

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import UTC, datetime
 from time import perf_counter
 from uuid import UUID
 
 from aria_observability import (
+    NoOpOperationalMetrics,
+    OperationalMetrics,
     StructuredEventLogger,
     TraceContext,
     bind_trace_context,
@@ -30,12 +32,14 @@ class OutboxRelay:
         publisher: QueuePublisher,
         unit_of_work_factory: JobsUnitOfWorkFactory,
         event_logger: StructuredEventLogger,
+        operational_metrics: OperationalMetrics | None = None,
         *,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._publisher = publisher
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._clock = clock
 
     async def publish(self, event: OutboxEvent) -> None:
@@ -63,6 +67,7 @@ class OutboxRelay:
             try:
                 await self._publisher.publish(event)
             except Exception:
+                self._record_publish_metric("failed")
                 self._event_logger.emit(
                     "outbox.publish_failed",
                     level="ERROR",
@@ -75,6 +80,8 @@ class OutboxRelay:
                     status="failed",
                 )
                 raise
+
+            self._record_publish_metric("succeeded")
 
             self._event_logger.emit(
                 "outbox.publish_succeeded",
@@ -103,6 +110,10 @@ class OutboxRelay:
                     status="pending",
                 )
                 raise
+
+    def _record_publish_metric(self, status: str) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_outbox_publish(status=status)
 
 
 @contextmanager
