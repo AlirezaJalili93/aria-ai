@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from uuid import UUID, uuid4
 
-from aria_observability import StructuredEventLogger, enrich_trace_context
+from aria_observability import StructuredEventLogger, emit_product_analytics, enrich_trace_context
 
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.scope.application.version_ports import (
@@ -203,15 +203,17 @@ class ScopeVersionService:
             duration_ms=(perf_counter() - started_at) * 1000,
             status="succeeded",
         )
-        self._event_logger.emit(
-            "scope_version_saved",
-            actor_id=str(context.subject_id),
-            event_category="product_analytics",
-            scope_version_id=str(persisted.id),
-            version_no=persisted.version_no,
-            context_version=persisted.context_version,
-            schema_version=persisted.snapshot_data["schema_version"],
-            status="succeeded",
+        emit_product_analytics(
+            self._event_logger,
+            event_name="scope_version_saved",
+            logical_id=persisted.id,
+            account_id=persisted.account_id,
+            project_id=persisted.project_id,
+            actor_id=context.subject_id,
+            properties={
+                "context_version": persisted.context_version,
+                "version_no": persisted.version_no,
+            },
         )
         return persisted
 

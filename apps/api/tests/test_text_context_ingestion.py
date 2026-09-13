@@ -267,6 +267,7 @@ def test_ingestion_preserves_text_and_atomically_schedules_content_free_job() ->
     assert {json.loads(line)["event_name"] for line in stream.getvalue().splitlines()} == {
         "context_source.created",
         "context_source_version.created",
+        "context_added",
         "job.queued",
     }
 

@@ -29,7 +29,7 @@ export default async function ScopePage({ params }: Readonly<{ params: Promise<{
     }
     return <Failure error={error} />
   }
-  return <main id="main-content" className="projects-main" tabIndex={-1}><ScopeEditor projectId={projectId} draft={draft} /></main>
+  return <main id="main-content" className="projects-main" tabIndex={-1}><ScopeEditor accountId={access.account.id} projectId={projectId} draft={draft} /></main>
 }
 
 function Failure({ error }: Readonly<{ error: unknown }>) {

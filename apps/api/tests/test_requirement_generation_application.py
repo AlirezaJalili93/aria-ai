@@ -307,6 +307,7 @@ def test_valid_batch_uses_exact_context_and_persists_ai_drafts() -> None:
     assert [name for name, _ in logger.events] == [
         "requirements.generation_started",
         "requirements.generation_completed",
+        "requirements_generated",
     ]
 
 

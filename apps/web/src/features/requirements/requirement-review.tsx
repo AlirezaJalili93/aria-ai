@@ -215,7 +215,7 @@ function RequirementCard({ accountId, role, item, projectId }: Readonly<{ accoun
     for (const state of states) {
       if (state.event && !handledEvents.current.has(state.event.eventId)) {
         handledEvents.current.add(state.event.eventId)
-        emitProductEvent({ eventName: state.event.name, accountId, role, projectId, requirementId: state.event.requirementId })
+        emitProductEvent({ eventName: state.event.name, eventId: state.event.eventId, accountId, role, projectId, requirementId: state.event.requirementId })
       }
       if (state.completionId && !handledCompletions.current.has(state.completionId)) {
         handledCompletions.current.add(state.completionId)

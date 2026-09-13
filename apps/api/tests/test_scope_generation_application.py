@@ -186,6 +186,7 @@ def test_scope_generation_accepts_draft_and_confirmed_and_maps_usage() -> None:
     assert [event[0] for event in logger.events] == [
         "scope.generation_started",
         "scope.generation_completed",
+        "scope_generated",
     ]
 
 

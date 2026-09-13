@@ -6,10 +6,17 @@ import re
 import sys
 from datetime import UTC, datetime
 from itertools import count
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 from uuid import UUID
 
 from aria_observability.context import current_trace_context
+from aria_observability.product_analytics import (
+    PRODUCT_ANALYTICS_CATEGORY,
+    PRODUCT_ANALYTICS_SCHEMA_VERSION,
+)
+
+if TYPE_CHECKING:
+    from aria_observability.product_analytics import ProductAnalyticsEvent
 
 _LOGGER_SEQUENCE = count()
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
@@ -201,6 +208,7 @@ class StructuredEventLogger:
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
         self._logger = logger
+        self._product_event_ids: set[str] = set()
 
     def emit(self, event_name: str, *, level: str = "INFO", **fields: object) -> None:
         safe_event_name = _safe_name(event_name)
@@ -237,6 +245,28 @@ class StructuredEventLogger:
             _LEVELS[level],
             json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         )
+
+    def emit_product_analytics(self, event: ProductAnalyticsEvent) -> None:
+        """Emit one validated product event; repeated event IDs are ignored."""
+        event_id = str(event.event_id)
+        if event_id in self._product_event_ids:
+            return
+        self._product_event_ids.add(event_id)
+        payload = {
+            "event_id": event_id,
+            "event_name": event.event_name,
+            "event_category": PRODUCT_ANALYTICS_CATEGORY,
+            "schema_version": PRODUCT_ANALYTICS_SCHEMA_VERSION,
+            "occurred_at": _utc_timestamp(),
+            "account_id": str(event.account_id),
+            "project_id": str(event.project_id),
+            "actor_id": str(event.actor_id) if event.actor_id is not None else None,
+            "properties": {
+                key: (str(value) if key.endswith("_id") else value)
+                for key, value in event.properties.items()
+            },
+        }
+        self._logger.info(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
 def create_event_logger(

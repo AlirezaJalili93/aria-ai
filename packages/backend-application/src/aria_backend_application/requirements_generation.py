@@ -9,6 +9,8 @@ from types import TracebackType
 from typing import Literal, Protocol, Self, TypedDict
 from uuid import UUID, uuid4
 
+from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
 
@@ -811,6 +813,14 @@ class GenerateRequirementsUseCase:
             conflict_count=result.conflict_count,
             duration_ms=(self._clock() - started_at) * 1000,
             status="success",
+        )
+        emit_product_analytics(
+            self._event_logger,
+            event_name="requirements_generated",
+            logical_id=command.job_id,
+            account_id=command.account_id,
+            project_id=command.project_id,
+            properties={"context_version": command.context_version},
         )
         return result
 

@@ -8,7 +8,7 @@ from hashlib import sha256
 from time import perf_counter
 from uuid import UUID, uuid4
 
-from aria_observability import StructuredEventLogger, enrich_trace_context
+from aria_observability import StructuredEventLogger, emit_product_analytics, enrich_trace_context
 
 from app.modules.gaps.application.clarification_ports import (
     ClarificationHistoryEntry,
@@ -486,6 +486,15 @@ class ClarificationService:
                 clarification_id=str(clarification_id),
                 duration_ms=(perf_counter() - started_at) * 1000,
                 status="resolved",
+            )
+            emit_product_analytics(
+                self._event_logger,
+                event_name="gap_resolved",
+                logical_id=gap_id,
+                account_id=context.account_id,
+                project_id=project_id,
+                actor_id=context.subject_id,
+                properties={"gap_id": gap_id, "context_version": gap.context_version},
             )
         return persisted
 

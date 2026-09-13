@@ -101,6 +101,11 @@ Queue wiring، Gap و API همچنان خارج این Story هستند.
 manual create از Idempotency store موجود استفاده می‌کند، PATCH با CAS انجام می‌شود و DELETE فقط
 soft deactivation است. API به metadata داخلی Generation یا دادهٔ Tenant authority دسترسی نمی‌دهد.
 
+مطابق ADR-046، Product Analytics یک envelope نسخه‌دار و provider-neutral دارد؛ outcomeهای سروری
+پس از commit کسب‌وکار و interactionهای کاربر با نام‌های جداگانه ثبت می‌شوند. شناسهٔ پایدار event
+کلید idempotency ingestion است و متن/محتوای دامنه، provenance، prompt و پاسخ Provider هرگز در
+event یا log قرار نمی‌گیرد. این baseline هیچ Provider، جدول یا deployable جدیدی اضافه نمی‌کند.
+
 ## AI و Generation Guardrails
 
 - تمام Taskها از Provider-neutral Gateway عبور می‌کنند.

@@ -306,7 +306,9 @@ def test_full_valid_batch_is_persisted_as_one_context_version() -> None:
     )
     assert [event[0] for event in logger.events] == [
         "context.structuring_started",
+        "structuring_started",
         "context.structuring_completed",
+        "structuring_completed",
     ]
 
 

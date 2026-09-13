@@ -33,7 +33,7 @@ const stringArraySections = new Set<ScopeSectionId>([
 ])
 const idleState: ScopeMutationState = { status: "idle", message: "" }
 
-export function ScopeEditor({ projectId, draft }: Readonly<{ projectId: string; draft: ScopeDraft }>) {
+export function ScopeEditor({ accountId, projectId, draft }: Readonly<{ accountId: string; projectId: string; draft: ScopeDraft }>) {
   const initialValues = Object.fromEntries(
     draft.content.sections.map((section) => [section.section_id, clone(section.value)])
   ) as Record<ScopeSectionId, ScopeSectionValue>
@@ -85,6 +85,7 @@ export function ScopeEditor({ projectId, draft }: Readonly<{ projectId: string; 
         </nav>
         <ScopeSectionForm
           key={activeId}
+          accountId={accountId}
           projectId={projectId}
           section={active}
           initialUpdatedAt={draftUpdatedAt}
@@ -102,7 +103,8 @@ export function ScopeEditor({ projectId, draft }: Readonly<{ projectId: string; 
   )
 }
 
-function ScopeSectionForm({ projectId, section, initialUpdatedAt, value, dirty, onChange, onSaved }: Readonly<{
+function ScopeSectionForm({ accountId, projectId, section, initialUpdatedAt, value, dirty, onChange, onSaved }: Readonly<{
+  accountId: string
   projectId: string
   section: ScopeSection
   initialUpdatedAt: string
@@ -117,6 +119,7 @@ function ScopeSectionForm({ projectId, section, initialUpdatedAt, value, dirty, 
       if (result.updatedAt) onSaved(result.updatedAt)
       if (result.event) emitProductEvent({
         eventName: "scope_edited",
+        accountId,
         projectId,
         sectionId: result.event.sectionId,
         contextVersion: result.event.contextVersion

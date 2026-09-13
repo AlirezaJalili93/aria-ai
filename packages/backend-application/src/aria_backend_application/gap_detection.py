@@ -9,6 +9,8 @@ from types import TracebackType
 from typing import Literal, Protocol, Self
 from uuid import UUID, uuid4
 
+from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
 
@@ -1188,6 +1190,15 @@ class DetectGapsUseCase:
             rule_generated_gap_count=len(critical.generated_candidates),
             critical_gap_count=len(critical_gap_ids),
         )
+        for gap_id in result.gap_ids:
+            emit_product_analytics(
+                self._event_logger,
+                event_name="gap_detected",
+                logical_id=gap_id,
+                account_id=command.account_id,
+                project_id=command.project_id,
+                properties={"gap_id": gap_id, "context_version": command.context_version},
+            )
         self._event_logger.emit(
             "gap.detection_completed",
             correlation_id=str(command.correlation_id),

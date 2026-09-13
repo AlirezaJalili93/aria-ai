@@ -74,6 +74,7 @@ const requiredPaths = [
   "packages/config/README.md",
   "packages/contracts/openapi.yaml",
   "packages/contracts/events.schema.json",
+  "packages/contracts/product-analytics.schema.json",
   "packages/design-tokens/tokens.json",
   "packages/design-tokens/tokens.css",
   "infra/compose.yaml",
@@ -115,6 +116,7 @@ for (const jsonPath of [
   "package.json",
   "apps/web/package.json",
   "packages/contracts/events.schema.json",
+  "packages/contracts/product-analytics.schema.json",
   "packages/design-tokens/tokens.json"
 ]) {
   try {

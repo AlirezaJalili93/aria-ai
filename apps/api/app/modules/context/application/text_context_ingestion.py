@@ -9,7 +9,7 @@ from time import perf_counter
 from typing import cast
 from uuid import UUID, uuid4
 
-from aria_observability import StructuredEventLogger, enrich_trace_context
+from aria_observability import StructuredEventLogger, emit_product_analytics, enrich_trace_context
 
 from app.modules.context.application.text_ingestion_ports import (
     TextContextIngestionRepositoryError,
@@ -229,6 +229,15 @@ class CreateTextContextUseCase:
             source_id=str(source_id),
             version_no=1,
             status="pending",
+        )
+        emit_product_analytics(
+            self._event_logger,
+            event_name="context_added",
+            logical_id=source_id,
+            account_id=context.account_id,
+            project_id=command.project_id,
+            actor_id=context.subject_id,
+            properties={"source_id": source_id, "source_surface": "system"},
         )
         self._event_logger.emit(
             "job.queued",

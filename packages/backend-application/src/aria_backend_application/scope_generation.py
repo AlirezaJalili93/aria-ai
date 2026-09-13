@@ -7,6 +7,8 @@ from time import monotonic
 from typing import Literal, Protocol
 from uuid import UUID
 
+from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
 
@@ -277,6 +279,14 @@ class ScopeGenerationUseCase:
                 repair_no=repair_no,
                 duration_ms=(self._clock() - started_at) * 1000,
                 status="success",
+            )
+            emit_product_analytics(
+                self._event_logger,
+                event_name="scope_generated",
+                logical_id=draft_id,
+                account_id=command.account_id,
+                project_id=command.project_id,
+                properties={"context_version": command.context_version},
             )
             return result
         except Exception as error:

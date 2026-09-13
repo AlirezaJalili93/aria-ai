@@ -43,3 +43,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = ["../../packages/observability/src", "../../packages/backend-application/src"]

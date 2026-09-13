@@ -54,3 +54,4 @@ docs/development/NNNN-kebab-case/
 - [0020 — Project Domain and repository](./0020-project-domain-repository/development.md)
 - [0021 — Account Discovery and Project API](./0021-account-discovery-project-api/development.md)
 - [0057 — Scope Draft Editor](./0057-scope-draft-editor/development.md)
+- [0059 — Product Event Baseline](./0059-product-event-baseline/development.md)

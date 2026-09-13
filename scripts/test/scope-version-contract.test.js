@@ -59,7 +59,7 @@ test("K05 operational events never emit snapshot payload or hash", async () => {
   const emitBlocks = [...service.matchAll(/self\._event_logger\.emit\(([\s\S]*?)\n\s*\)/g)].map(
     (match) => match[1],
   );
-  assert.ok(emitBlocks.length >= 4);
+  assert.ok(emitBlocks.length >= 3);
   for (const block of emitBlocks) {
     assert.doesNotMatch(block, /snapshot_data=|snapshot_hash=|trace=/);
   }

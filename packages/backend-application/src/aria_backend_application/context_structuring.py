@@ -8,6 +8,8 @@ from types import TracebackType
 from typing import Literal, Protocol, Self, TypedDict
 from uuid import UUID, uuid4
 
+from aria_observability import emit_product_analytics  # type: ignore[attr-defined]
+
 from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
 
@@ -291,6 +293,14 @@ class ContextStructuringUseCase:
             project_id=str(command.project_id),
             job_id=str(command.job_id),
         )
+        emit_product_analytics(
+            self._event_logger,
+            event_name="structuring_started",
+            logical_id=command.job_id,
+            account_id=command.account_id,
+            project_id=command.project_id,
+            properties={},
+        )
         try:
             snapshot = await self._snapshot_reader.resolve_latest_ready(
                 account_id=command.account_id,
@@ -339,6 +349,14 @@ class ContextStructuringUseCase:
                 context_version=context_version,
                 duration_ms=(self._clock() - started_at) * 1000,
                 status="success",
+            )
+            emit_product_analytics(
+                self._event_logger,
+                event_name="structuring_completed",
+                logical_id=command.job_id,
+                account_id=command.account_id,
+                project_id=command.project_id,
+                properties={"context_version": context_version},
             )
             return result
         except Exception as error:
