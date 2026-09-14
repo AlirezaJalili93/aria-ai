@@ -6,10 +6,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.infrastructure.db.idempotency import SqlAlchemyIdempotencyRepository
+from app.modules.context.application.file_upload_ports import FileUploadAllocationRepository
 from app.modules.context.application.ports import ContextSourceRepository
 from app.modules.context.application.text_ingestion_ports import (
     TextContextIngestionRepositoryError,
-    TextContextIngestionUnitOfWork,
+)
+from app.modules.context.infrastructure.file_upload_allocation import (
+    SqlAlchemyFileUploadAllocationRepository,
 )
 from app.modules.context.infrastructure.repository import SqlAlchemyContextSourceRepository
 from app.modules.jobs.application.ports import JobRepository, OutboxRepository
@@ -31,6 +34,7 @@ class SqlAlchemyTextContextIngestionUnitOfWork:
         self._jobs: SqlAlchemyJobRepository | None = None
         self._outbox: SqlAlchemyOutboxRepository | None = None
         self._idempotency: SqlAlchemyIdempotencyRepository | None = None
+        self._upload_allocations: SqlAlchemyFileUploadAllocationRepository | None = None
         self._committed = False
 
     @property
@@ -63,6 +67,12 @@ class SqlAlchemyTextContextIngestionUnitOfWork:
             raise RuntimeError("Unit of Work has not entered a transaction")
         return self._idempotency
 
+    @property
+    def upload_allocations(self) -> FileUploadAllocationRepository:
+        if self._upload_allocations is None:
+            raise RuntimeError("Unit of Work has not entered a transaction")
+        return self._upload_allocations
+
     async def __aenter__(self) -> SqlAlchemyTextContextIngestionUnitOfWork:
         self._session = self._session_factory()
         self._projects = SqlAlchemyProjectRepository(self._session)
@@ -70,6 +80,7 @@ class SqlAlchemyTextContextIngestionUnitOfWork:
         self._jobs = SqlAlchemyJobRepository(self._session)
         self._outbox = SqlAlchemyOutboxRepository(self._session)
         self._idempotency = SqlAlchemyIdempotencyRepository(self._session)
+        self._upload_allocations = SqlAlchemyFileUploadAllocationRepository(self._session)
         return self
 
     async def __aexit__(
@@ -98,5 +109,5 @@ class SqlAlchemyTextContextIngestionUnitOfWorkFactory:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
-    def __call__(self) -> TextContextIngestionUnitOfWork:
+    def __call__(self) -> SqlAlchemyTextContextIngestionUnitOfWork:
         return SqlAlchemyTextContextIngestionUnitOfWork(self._session_factory)

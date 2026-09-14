@@ -57,3 +57,5 @@ docs/development/NNNN-kebab-case/
 - [0059 — Product Event Baseline](./0059-product-event-baseline/development.md)
 - [0060 — Operational Dashboard](./0060-operational-dashboard/development.md)
 - [0061 — Cross-Tenant Security Suite](./0061-cross-tenant-security-suite/development.md)
+- [0062 — TXT Upload Foundation](./0062-txt-upload-foundation/development.md)
+- [0063 — Upload Security Suite](./0063-upload-security-suite/development.md)

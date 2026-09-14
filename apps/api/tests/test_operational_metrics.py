@@ -117,6 +117,7 @@ def test_otlp_configuration_is_explicit_and_staging_only() -> None:
         "database_url": "postgresql://staging.example.test/aria",
         "queue_broker_url": "redis://queue-staging.example.test:6379/0",
         "storage_endpoint": "https://storage-staging.example.test",
+        "storage_region": "eu-central-1",
         "storage_bucket": "aria-staging-artifacts",
         "storage_access_key": "test-access-key",
         "storage_secret_key": "test-secret-key",

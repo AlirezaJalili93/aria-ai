@@ -20,6 +20,8 @@ from app.api.errors import (
     ContextVersionRequiredError,
     CriticalGapsOpenError,
     DuplicateClarificationError,
+    FeatureNotEnabledError,
+    FileTooLargeApiError,
     ForbiddenError,
     IdempotencyConflictError,
     InvalidClarificationStateError,
@@ -29,6 +31,8 @@ from app.api.errors import (
     ResourceNotFoundError,
     ScopeDraftStaleError,
     ScopeVersionUnchangedError,
+    StorageApiError,
+    UnsupportedFileTypeApiError,
     ValidationFailedError,
     VersionConflictError,
     account_bootstrap_failed_handler,
@@ -38,6 +42,8 @@ from app.api.errors import (
     context_version_required_handler,
     critical_gaps_open_handler,
     duplicate_clarification_handler,
+    feature_not_enabled_handler,
+    file_too_large_handler,
     forbidden_handler,
     idempotency_conflict_handler,
     invalid_clarification_state_handler,
@@ -48,6 +54,8 @@ from app.api.errors import (
     resource_not_found_handler,
     scope_draft_stale_handler,
     scope_version_unchanged_handler,
+    storage_error_handler,
+    unsupported_file_type_handler,
     validation_failed_handler,
     version_conflict_handler,
 )
@@ -72,10 +80,12 @@ from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_
 from app.infrastructure.db.runtime import DatabaseRuntime
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
 from app.modules.context.application.context_item_service import ContextItemReviewService
+from app.modules.context.application.file_context_ingestion import CreateFileContextUseCase
 from app.modules.context.application.text_context_ingestion import CreateTextContextUseCase
 from app.modules.context.infrastructure.context_item_repository import (
     SqlAlchemyContextItemUnitOfWorkFactory,
 )
+from app.modules.context.infrastructure.supabase_storage import SupabaseS3ObjectStorage
 from app.modules.context.infrastructure.text_ingestion import (
     SqlAlchemyTextContextIngestionUnitOfWorkFactory,
 )
@@ -150,6 +160,7 @@ def create_app(
     account_discovery: AccountDiscovery | None = None,
     project_service: ProjectApplicationService | None = None,
     text_context_use_case: CreateTextContextUseCase | None = None,
+    file_context_use_case: CreateFileContextUseCase | None = None,
     job_status_service: JobStatusApplicationService | None = None,
     context_item_review_service: ContextItemReviewService | None = None,
     requirement_crud_service: RequirementCrudService | None = None,
@@ -235,6 +246,10 @@ def create_app(
     app.add_exception_handler(ContextVersionRequiredError, context_version_required_handler)
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
+    app.add_exception_handler(UnsupportedFileTypeApiError, unsupported_file_type_handler)
+    app.add_exception_handler(FileTooLargeApiError, file_too_large_handler)
+    app.add_exception_handler(FeatureNotEnabledError, feature_not_enabled_handler)
+    app.add_exception_handler(StorageApiError, storage_error_handler)
     app.add_exception_handler(RequestValidationError, request_validation_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
@@ -273,6 +288,11 @@ def create_app(
         )
         if database_runtime is not None
         else None
+    )
+    app.state.file_context_use_case = file_context_use_case or _create_file_context_use_case(
+        settings=resolved_settings,
+        database_runtime=database_runtime,
+        event_logger=resolved_event_logger,
     )
     app.state.job_status_service = job_status_service or (
         JobStatusApplicationService(
@@ -327,7 +347,10 @@ def create_app(
     app.include_router(create_auth_router(), prefix="/api/v1")
     app.include_router(create_accounts_router(), prefix="/api/v1")
     app.include_router(create_projects_router(), prefix="/api/v1")
-    app.include_router(create_context_sources_router(), prefix="/api/v1")
+    app.include_router(
+        create_context_sources_router(txt_upload_enabled=resolved_settings.txt_upload_enabled),
+        prefix="/api/v1",
+    )
     app.include_router(create_context_items_router(), prefix="/api/v1")
     app.include_router(create_requirements_router(), prefix="/api/v1")
     app.include_router(create_clarifications_router(), prefix="/api/v1")
@@ -335,6 +358,36 @@ def create_app(
     app.include_router(create_scope_versions_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
+
+
+def _create_file_context_use_case(
+    *,
+    settings: ApiSettings,
+    database_runtime: DatabaseRuntime | None,
+    event_logger: StructuredEventLogger,
+) -> CreateFileContextUseCase | None:
+    if not settings.txt_upload_enabled:
+        return None
+    if database_runtime is None:
+        return None
+    assert settings.storage_endpoint is not None
+    assert settings.storage_region is not None
+    assert settings.storage_bucket is not None
+    assert settings.storage_access_key is not None
+    assert settings.storage_secret_key is not None
+    storage = SupabaseS3ObjectStorage(
+        endpoint_url=str(settings.storage_endpoint),
+        region_name=settings.storage_region,
+        bucket=settings.storage_bucket,
+        access_key_id=settings.storage_access_key.get_secret_value(),
+        secret_access_key=settings.storage_secret_key.get_secret_value(),
+    )
+    return CreateFileContextUseCase(
+        SqlAlchemyTextContextIngestionUnitOfWorkFactory(database_runtime.session_factory),
+        storage,
+        event_logger,
+        environment=settings.app_env,
+    )
 
 
 def _metrics_configuration(settings: ApiSettings) -> OtlpMetricsConfiguration | None:

@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
 _LOGGER_SEQUENCE = count()
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_SAFE_MIME_TYPE = re.compile(
+    r"^[a-z0-9][a-z0-9.+-]{0,63}/[a-z0-9][a-z0-9.+-]{0,63}$"
+)
 _LEVELS = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
@@ -54,6 +57,7 @@ _OPTIONAL_FIELDS = {
     "actor_id",
     "project_id",
     "source_id",
+    "source_version_id",
     "context_item_id",
     "requirement_id",
     "gap_id",
@@ -80,6 +84,9 @@ _OPTIONAL_FIELDS = {
     "conflict_count",
     "gap_count",
     "critical_candidate_count",
+    "file_size_bytes",
+    "declared_mime_normalized",
+    "validation_result",
 }
 
 
@@ -146,10 +153,17 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
+    if field == "declared_mime_normalized":
+        if not isinstance(value, str):
+            return None
+        return value if _SAFE_MIME_TYPE.fullmatch(value) is not None else None
+    if field == "validation_result":
+        return value if value in {"accepted", "rejected"} else None
     if field in {
         "actor_id",
         "project_id",
         "source_id",
+        "source_version_id",
         "context_item_id",
         "requirement_id",
         "gap_id",
@@ -172,6 +186,7 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         "conflict_count",
         "gap_count",
         "critical_candidate_count",
+        "file_size_bytes",
     }:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":

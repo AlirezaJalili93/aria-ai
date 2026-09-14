@@ -78,6 +78,26 @@ class ValidationFailedError(Exception):
     """API signal for documented domain or cursor validation failure."""
 
 
+class UnsupportedFileTypeApiError(Exception):
+    """API signal for the frozen 415 TXT upload type rejection."""
+
+
+class FileTooLargeApiError(Exception):
+    """API signal for the frozen 413 TXT upload size rejection."""
+
+
+class FeatureNotEnabledError(Exception):
+    """API signal for a fail-closed feature flag."""
+
+
+class StorageApiError(Exception):
+    """API signal for a safe provider-neutral storage failure."""
+
+    def __init__(self, *, retryable: bool) -> None:
+        super().__init__("Storage operation failed")
+        self.retryable = retryable
+
+
 async def authentication_required_handler(
     request: Request,
     error: Exception,
@@ -401,6 +421,56 @@ async def validation_failed_handler(request: Request, error: Exception) -> JSONR
         code="VALIDATION_FAILED",
         message="The request failed validation.",
         retryable=False,
+    )
+
+
+async def unsupported_file_type_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, UnsupportedFileTypeApiError):
+        raise TypeError("Unexpected exception type for unsupported file handler")
+    del request, error
+    return _error_response(
+        status_code=415,
+        code="UNSUPPORTED_FILE_TYPE",
+        message="The uploaded file type is not supported.",
+        retryable=False,
+    )
+
+
+async def file_too_large_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, FileTooLargeApiError):
+        raise TypeError("Unexpected exception type for file size handler")
+    del request, error
+    return _error_response(
+        status_code=413,
+        code="FILE_TOO_LARGE",
+        message="The uploaded file exceeds the allowed size.",
+        retryable=False,
+    )
+
+
+async def feature_not_enabled_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, FeatureNotEnabledError):
+        raise TypeError("Unexpected exception type for feature flag handler")
+    del request, error
+    return _error_response(
+        status_code=403,
+        code="FEATURE_NOT_ENABLED",
+        message="This feature is not enabled.",
+        retryable=False,
+    )
+
+
+async def storage_error_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, StorageApiError):
+        raise TypeError("Unexpected exception type for storage handler")
+    del request
+    return _error_response(
+        status_code=503,
+        code="STORAGE_ERROR",
+        message="Object storage is temporarily unavailable.",
+        retryable=error.retryable,
     )
 
 

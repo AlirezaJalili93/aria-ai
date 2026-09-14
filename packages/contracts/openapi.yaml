@@ -263,11 +263,12 @@ paths:
   /projects/{project_id}/context-sources:
     post:
       operationId: createTextContextSource
-      summary: Accept exact text Context and schedule its asynchronous parse
+      summary: Accept exact text or a feature-gated private TXT upload and schedule parsing
       description: >-
-        Creates Source version 1, a queued context_source_parse Job, and a transactional
-        context_added.v1 Outbox Event. The raw text is preserved exactly and is never copied into
-        the Job or Outbox payload.
+        JSON creates an exact text Source. Multipart accepts exactly source_type=file plus one
+        private .txt file when TXT upload is enabled. Both create Source version 1, a queued
+        context_source_parse Job, and a transactional context_added.v1 Outbox Event. Customer
+        content and storage references are never copied into the Job or Outbox payload.
       security:
         - bearerAuth: []
       parameters:
@@ -282,17 +283,23 @@ paths:
         content:
           application/json:
             schema: { $ref: "#/components/schemas/CreateTextContextRequest" }
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/CreateFileContextRequest" }
       responses:
         "202":
           description: >-
-            Text Context accepted, or the original result replayed for the same unexpired key and
-            complete request input.
+            Context accepted, or the original result replayed for the same unexpired key and
+            complete semantic request input. status_url is relative to the API host.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TextContextAccepted" }
         "400": { $ref: "#/components/responses/AccountContextRequired" }
         "401": { $ref: "#/components/responses/AuthenticationRequired" }
-        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "403":
+          description: Active Membership is required and TXT upload must be enabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
         "409":
           description: >-
@@ -301,10 +308,27 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "413":
+          description: `FILE_TOO_LARGE` when the upload exceeds 200,000 bytes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "415":
+          description: `UNSUPPORTED_FILE_TYPE` for a non-.txt name or non-text/plain declaration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422":
           description: >-
-            `VALIDATION_FAILED` for a non-text or extra-field body, blank text, more than 50,000
-            Unicode characters, NUL, another disallowed control, or a missing/empty key.
+            `VALIDATION_FAILED` for an invalid JSON body, multipart shape, filename, UTF-8 text,
+            decoded character count, text safety rule, or missing/empty key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503":
+          description: >-
+            Provider-neutral `STORAGE_ERROR`; retryable is true only for transient provider/network
+            failures.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -935,6 +959,16 @@ components:
       properties:
         source_type: { type: string, const: text }
         raw_text: { type: string, minLength: 1, maxLength: 50000 }
+    CreateFileContextRequest:
+      type: object
+      additionalProperties: false
+      required: [source_type, file]
+      properties:
+        source_type: { type: string, const: file }
+        file:
+          type: string
+          format: binary
+          description: Strict UTF-8 .txt, at most 200,000 bytes and 50,000 decoded characters.
     TextContextAccepted:
       type: object
       additionalProperties: false
@@ -943,11 +977,14 @@ components:
         data:
           type: object
           additionalProperties: false
-          required: [source_id, status, job_id]
+          required: [source_id, status, job_id, status_url]
           properties:
             source_id: { type: string, format: uuid }
             status: { type: string, const: uploaded }
             job_id: { type: string, format: uuid }
+            status_url:
+              type: string
+              pattern: ^/api/v1/jobs/[0-9a-fA-F-]{36}$
         meta:
           type: object
           additionalProperties: false

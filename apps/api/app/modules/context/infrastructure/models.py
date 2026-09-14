@@ -76,6 +76,66 @@ class ContextSourceModel(Base):
     )
 
 
+class FileUploadAllocationModel(Base):
+    __tablename__ = "file_upload_allocations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('allocated','uploading','committed','recovery_required')",
+            name="file_upload_allocation_status",
+        ),
+        CheckConstraint(
+            "(status = 'committed' AND response_status = 202) "
+            "OR (status <> 'committed' AND response_status IS NULL)",
+            name="file_upload_allocation_response",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "account_id"],
+            ["projects.id", "projects.account_id"],
+            name="fk_file_upload_allocation_project_tenant",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "account_id",
+            "actor_id",
+            "project_id",
+            "idempotency_key",
+            name="uq_file_upload_allocation_scope_key",
+        ),
+        UniqueConstraint("source_id", name="uq_file_upload_allocation_source"),
+        UniqueConstraint(
+            "source_version_id", name="uq_file_upload_allocation_source_version"
+        ),
+        UniqueConstraint("job_id", name="uq_file_upload_allocation_job"),
+        UniqueConstraint("object_key", name="uq_file_upload_allocation_object_key"),
+        Index(
+            "ix_file_upload_allocation_scope_status",
+            "account_id",
+            "project_id",
+            "status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    account_id: Mapped[UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    actor_id: Mapped[UUID] = mapped_column(
+        ForeignKey("profiles.user_id", ondelete="RESTRICT"), nullable=False
+    )
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_id: Mapped[UUID] = mapped_column(nullable=False)
+    source_version_id: Mapped[UUID] = mapped_column(nullable=False)
+    job_id: Mapped[UUID] = mapped_column(nullable=False)
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    response_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ContextSourceVersionModel(Base):
     __tablename__ = "context_source_versions"
     __table_args__ = (

@@ -112,6 +112,7 @@ def test_text_context_accepts_exact_body_and_returns_standard_202_envelope() -> 
         "source_id": str(use_case.accepted.source_id),
         "status": "uploaded",
         "job_id": str(use_case.accepted.job_id),
+        "status_url": f"/api/v1/jobs/{use_case.accepted.job_id}",
     }
     UUID(response.json()["meta"]["request_id"])
     assert use_case.command is not None
