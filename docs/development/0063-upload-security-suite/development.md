@@ -1,8 +1,8 @@
 # Development Record: 0063 — Upload Security Suite
 
-- **Status:** IN PROGRESS
+- **Status:** COMPLETE
 - **Increment:** S1-L04
-- **Source sync date:** 2026-09-14
+- **Source sync date:** 2026-09-15
 - [Test report](./test-report.md)
 
 ## Scope
@@ -42,9 +42,9 @@ Drive documents remain canonical; this record is the developer-facing implementa
 - The owner froze TXT identity as exact `.txt` + normalized `text/plain` + strict UTF-8 + approved
   text-safety validation. No arbitrary keyword or magic-signature blacklist is added.
 - The owner requires private-bucket and unauthenticated-access evidence before Staging activation.
-- The Supabase project `aria-ai-staging` was `INACTIVE` on 2026-09-14 and the read-only bucket query
-  timed out. The owner restored it and last reported `COMING_UP`; hosted evidence remains pending
-  until the project is ready and the gate runtime receives secrets from its secure source.
+- The Supabase project `aria-ai-staging` was restored by the owner and reached `ACTIVE_HEALTHY`.
+  Hosted evidence ran from the Railway API runtime with its injected credentials on 2026-09-14;
+  no credential value was displayed or copied into the repository.
 - The owner froze the durable Upload Allocation state machine and stable-ID behavior on 2026-09-14.
   Recovery reconciliation, lease/stale timeout and automatic retry remain explicitly undefined.
 - D04 and all missing runtime/list/archive/retry semantics remain explicitly deferred.
@@ -65,8 +65,9 @@ Drive documents remain canonical; this record is the developer-facing implementa
 - Added a real PostgreSQL Tenant A/B upload test proving a foreign Project is safe-not-found before
   any object write and persists no Source, Version, Job or Outbox row.
 - Added an opt-in hosted Supabase evidence test. It uploads a generated sentinel using server-side
-  S3 credentials, verifies the conventional public object endpoint denies access and deletes the
-  sentinel in `finally`. It is skipped unless the explicit hosted-evidence environment is enabled.
+  S3 credentials, verifies anonymous public read, private download and bucket list are denied, and
+  deletes the sentinel in `finally`. It is skipped unless the explicit hosted-evidence environment
+  is enabled.
 - Added `file_upload_allocations` and a provider-neutral allocation repository. Allocation is
   committed before Storage, owns stable Source/Version/Job/object identities, uses an atomic upload
   claim and is protected by RLS plus revoked Data API grants.
@@ -86,7 +87,7 @@ Drive documents remain canonical; this record is the developer-facing implementa
 
 ## Senior Review
 
-**Status:** PASS for code and local PostgreSQL; hosted evidence remains open.
+**Status:** PASS.
 
 Senior review traced validation before storage, request-to-Application error mapping, key
 construction, tenant-scoped Project resolution, idempotency reservation, compensation and all
@@ -109,13 +110,12 @@ detail is added to logs or public responses.
 
 Local contract, Domain/Application/API/adapter, real PostgreSQL concurrency/Tenant/RLS, migration
 round-trip, lint, strict type check, CI, eval, Web, API, Worker, build, secret-scan and whitespace
-checks executed successfully. Supabase is healthy and the private bucket flag is confirmed, but the
-hosted sentinel/anonymous-denial evidence remains unavailable. Exact current evidence is in
-[test-report.md](./test-report.md).
+checks executed successfully. Railway deployed exact commit
+`a67bfe461d8ffc057b4632ee242f48b267045b1b`; `/health/live` and `/health/ready` passed. The hosted
+private-bucket sentinel then passed upload, denial of all three anonymous operations and mandatory
+cleanup. Exact evidence is in [test-report.md](./test-report.md).
 
 ## Remaining Risks
 
-- Hosted bucket privacy and anonymous denial cannot be marked PASS until restored Supabase Staging
-  is ready and the opt-in gate runs with secrets injected by its runtime.
 - The Python vulnerability audit remains `INCOMPLETE / ENVIRONMENTAL FAILURE` due the documented
   TLS/PyPI availability issue; this is not represented as PASS.
