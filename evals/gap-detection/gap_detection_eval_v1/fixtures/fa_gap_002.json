@@ -1,0 +1,81 @@
+{
+  "fixture_id": "fa_gap_002",
+  "eval_set_id": "gap_detection_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "source_versions": [
+      {
+        "source_id": "fa_gap_002_src",
+        "source_version_id": "fa_gap_002_src_v1",
+        "canonical_length": 64
+      }
+    ],
+    "context_items": [
+      {
+        "context_item_id": "fa_gap_002_ctx_1",
+        "item_type": "fact",
+        "content": "مشخص نیست اولویت اصلی صفحه معرفی خدمات است یا دریافت سرنخ فروش.",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_002_src",
+            "source_version_id": "fa_gap_002_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "status": "confirmed"
+      }
+    ],
+    "requirements": []
+  },
+  "expected_output": {
+    "no_gap": false,
+    "gaps": [
+      {
+        "gold_gap_id": "fa_gap_002_gold_1",
+        "gap_type": "ambiguity",
+        "severity": "high",
+        "source_refs_expectation": "required",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_002_src",
+            "source_version_id": "fa_gap_002_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "affected_requirement_ids": [],
+        "critical_for_scope": false,
+        "critical_rule_id": null,
+        "semantic_group_id": "fa_gap_002_group_1"
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "deterministic_output_candidate_ids": [
+      "fa_gap_002_candidate_1"
+    ],
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_gap_002_candidate_1",
+        "gold_gap_id": "fa_gap_002_gold_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": false,
+        "source_refs_expectation": "required"
+      }
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "contradictory",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "ambiguity",
+      "non_critical"
+    ],
+    "fixture_version": "1"
+  }
+}

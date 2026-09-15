@@ -1,0 +1,51 @@
+{
+  "fixture_id": "fa_gap_019",
+  "eval_set_id": "gap_detection_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "source_versions": [
+      {
+        "source_id": "fa_gap_019_src",
+        "source_version_id": "fa_gap_019_src_v1",
+        "canonical_length": 64
+      }
+    ],
+    "context_items": [
+      {
+        "context_item_id": "fa_gap_019_ctx_1",
+        "item_type": "fact",
+        "content": "مخاطب و اقدام اصلی صفحه به‌صورت روشن ثبت شده است.",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_019_src",
+            "source_version_id": "fa_gap_019_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "status": "confirmed"
+      }
+    ],
+    "requirements": []
+  },
+  "expected_output": {
+    "no_gap": true,
+    "gaps": []
+  },
+  "evaluation_annotations": {
+    "deterministic_output_candidate_ids": [],
+    "candidate_annotations": [],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "no_gap"
+    ],
+    "fixture_version": "1"
+  }
+}

@@ -32,7 +32,9 @@ remain separate so traceability is not lost.
 - `created_by` is a required FK to `profiles.user_id`.
 - The database recognizes `text|file|message|url_reference`; the S1-D01 Application policy admits
   only `text`. File/message/URL ingestion remains unavailable until its own approved increment.
-- Hash algorithm, normalization, encoding and maximum text length are deferred together to S1-D02.
+- Text normalization semantics are now defined by [ADR-019](ADR-019-text-parser-contract.md).
+  The content-hash algorithm remains deferred; maximum text length and Source checksum remain
+  governed by their existing contracts.
 - Lifecycle logs include safe IDs/state only and never raw/canonical text, storage URL or metadata.
 
 ## Consequences
@@ -58,4 +60,3 @@ sequence.
 - Database Migration Execution Plan v1.0 — M003
 - Access Control & Authorization Matrix v1.0 — active tenant and resource isolation
 - Owner clarification dated 2026-09-02
-

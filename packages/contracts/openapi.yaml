@@ -45,7 +45,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Project" }
         "409":
-          description: `IDEMPOTENCY_CONFLICT` when the key has different normalized input.
+          description: "IDEMPOTENCY_CONFLICT when the key has different normalized input."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -105,7 +105,7 @@ paths:
               schema: { $ref: "#/components/schemas/Project" }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
         "409":
-          description: `VERSION_CONFLICT` when expected_updated_at is stale.
+          description: "VERSION_CONFLICT when expected_updated_at is stale."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -118,6 +118,675 @@ paths:
         "204": { description: Project soft-deleted; response is empty. }
         "403": { description: Active Membership role is not owner or admin. }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/draft:
+    get:
+      operationId: getCurrentScopeDraft
+      summary: Read the Scope Draft bound to the Project current Context Version
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      responses:
+        "200":
+          description: Current editable Scope Draft.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeDraftEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/draft/sections/{section_id}:
+    patch:
+      operationId: replaceCurrentScopeDraftSection
+      summary: Atomically replace one current Scope Draft section value
+      description: >-
+        Uses updated_at compare-and-swap. The server preserves lineage trace and assigns IDs to
+        new structured items. The value is a full replacement, never a merge.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: section_id
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ScopeSectionId" }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateScopeSectionRequest" }
+      responses:
+        "200":
+          description: Scope Draft with the replaced section and new updated_at.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeDraftEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT or SCOPE_DRAFT_STALE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Invalid section value, fabricated item ID, or request shape.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/scope/versions:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    post:
+      operationId: createScopeVersion
+      summary: Freeze the exact current ready Scope Draft as an immutable snapshot
+      description: >-
+        Idempotency replay/conflict is evaluated before semantic duplicate detection. A new key
+        with a snapshot equal to the latest version is rejected as SCOPE_VERSION_UNCHANGED.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateScopeVersionRequest" }
+      responses:
+        "201":
+          description: Scope snapshot created or the exact successful request replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT, IDEMPOTENCY_CONFLICT, or SCOPE_VERSION_UNCHANGED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: CRITICAL_GAPS_OPEN or invalid request content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    get:
+      operationId: listScopeVersions
+      summary: List tenant-authorized Scope Version summaries newest first
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Scope Version summary collection without snapshot content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionCollectionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/versions/{version_no}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    get:
+      operationId: getScopeVersion
+      summary: Read one tenant-authorized immutable Scope snapshot
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Exact Scope Version snapshot and summary metadata.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeVersionDetailEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/context-sources:
+    post:
+      operationId: createTextContextSource
+      summary: Accept exact text or a feature-gated private TXT upload and schedule parsing
+      description: >-
+        JSON creates an exact text Source. Multipart accepts exactly source_type=file plus one
+        private .txt file when TXT upload is enabled. Both create Source version 1, a queued
+        context_source_parse Job, and a transactional context_added.v1 Outbox Event. Customer
+        content and storage references are never copied into the Job or Outbox payload.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTextContextRequest" }
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/CreateFileContextRequest" }
+      responses:
+        "202":
+          description: >-
+            Context accepted, or the original result replayed for the same unexpired key and
+            complete semantic request input. status_url is relative to the API host.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TextContextAccepted" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403":
+          description: Active Membership is required and TXT upload must be enabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: >-
+            `IDEMPOTENCY_CONFLICT` when the key is reused within 24 hours for different request
+            input or a different Project.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "413":
+          description: `FILE_TOO_LARGE` when the upload exceeds 200,000 bytes.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "415":
+          description: `UNSUPPORTED_FILE_TYPE` for a non-.txt name or non-text/plain declaration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: >-
+            `VALIDATION_FAILED` for an invalid JSON body, multipart shape, filename, UTF-8 text,
+            decoded character count, text safety rule, or missing/empty key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "503":
+          description: >-
+            Provider-neutral `STORAGE_ERROR`; retryable is true only for transient provider/network
+            failures.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/context-items:
+    get:
+      operationId: listCurrentContextItems
+      summary: List Context Items from the Project's current Context version
+      description: >-
+        Returns only the tenant-authorized Project current_context_version. Missing Information is
+        represented by the canonical item_type=unknown. The source_id filter matches an actual
+        source_id entry inside source_refs and never supplies Tenant authority.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: item_type
+          in: query
+          schema: { $ref: "#/components/schemas/ContextItemType" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ContextItemStatus" }
+        - name: source_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor for created_at DESC, id DESC ordering.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current-version Context Items in the standard collection envelope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextItemsCollection" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: A filter or cursor failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/context-items/{item_id}:
+    patch:
+      operationId: reviewCurrentContextItem
+      summary: Confirm, reject, or edit a proposed current-version Context Item
+      description: >-
+        All commands use updated_at compare-and-swap. Edit changes only content, preserves
+        source_refs and proposed status, and does not claim semantic re-validation of provenance.
+        Confirm records human acceptance; for a Fact, at least one structurally valid SourceRef is
+        still required. Confirmed, rejected, and superseded items are immutable in this Increment.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: item_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewContextItemRequest" }
+      responses:
+        "200":
+          description: Reviewed Context Item with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextItemEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: >-
+            VERSION_CONFLICT for a stale expected_updated_at, or INVALID_CONTEXT_ITEM_STATE when
+            the target is no longer proposed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The command body failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/requirements:
+    get:
+      operationId: listRequirements
+      summary: List tenant-scoped active Requirements in descending keyset order
+      description: >-
+        Removed and superseded Requirements are hidden by default. An explicit status filter may
+        retrieve either terminal state. The category and status filters are whitelist-only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: category
+          in: query
+          schema: { $ref: "#/components/schemas/RequirementCategory" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/RequirementStatus" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque continuation cursor for created_at DESC, id DESC ordering.
+          schema: { type: string }
+      responses:
+        "200":
+          description: Requirement collection in the standard collection envelope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementsCollection" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: A filter or cursor failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    post:
+      operationId: createManualRequirement
+      summary: Add a manual draft Requirement to the current Project Context Version
+      description: >-
+        The current_context_version must be at least one. The server owns status=draft,
+        created_by_type=user, empty source_refs, null confidence, and unsupported=false.
+        Reusing the same unexpired Idempotency-Key and exact input returns the same Requirement.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateManualRequirementRequest" }
+      responses:
+        "201":
+          description: Manual Requirement created or the original resource replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT for the same key with different exact input.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: VALIDATION_FAILED or CONTEXT_VERSION_REQUIRED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/requirements/{requirement_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: requirement_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    patch:
+      operationId: updateRequirement
+      summary: Edit or confirm a Requirement with optimistic concurrency
+      description: >-
+        Only title, description, priority, acceptance_note and draft-to-confirmed status are
+        mutable. Editing a confirmed Requirement demotes it to draft. Removed and superseded
+        Requirements are immutable. Source references and origin metadata are read-only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateRequirementRequest" }
+      responses:
+        "200":
+          description: Updated Requirement with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RequirementEnvelope" }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT or INVALID_REQUIREMENT_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The partial update body failed validation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    delete:
+      operationId: deactivateDraftRequirement
+      summary: Soft-deactivate a draft Requirement
+      description: >-
+        This command changes draft to removed and never hard-deletes the row. Confirmed,
+        superseded and already removed Requirements return INVALID_REQUIREMENT_STATE.
+      security:
+        - bearerAuth: []
+      responses:
+        "204": { description: Draft Requirement changed to removed; response is empty. }
+        "400": { $ref: "#/components/responses/AccountContextRequired" }
+        "401": { $ref: "#/components/responses/AuthenticationRequired" }
+        "403": { $ref: "#/components/responses/MembershipRequired" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: INVALID_REQUIREMENT_STATE or a concurrent VERSION_CONFLICT.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps:
+    get:
+      operationId: listCurrentProjectGaps
+      summary: List Gaps for the Project current Context Version
+      description: >-
+        A Project whose current_context_version is zero returns an empty collection. Cursor state
+        is bound to the active status, severity and gap_type filters.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/GapStatus" }
+        - name: severity
+          in: query
+          schema: { $ref: "#/components/schemas/GapSeverity" }
+        - name: gap_type
+          in: query
+          schema: { $ref: "#/components/schemas/GapType" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Current-version Gaps ordered by created_at and id descending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GapCollection" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: Invalid filter, limit or cursor/filter combination.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/dismiss:
+    post:
+      operationId: dismissGap
+      summary: Explicitly and idempotently dismiss an open Gap
+      description: >-
+        This command is distinct from ignoring one Clarification. It changes only the Gap to
+        dismissed and does not mark open Clarifications ignored or resolved.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      responses:
+        "204": { description: The open Gap changed to dismissed; response is empty. }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT or INVALID_CLARIFICATION_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications:
+    get:
+      operationId: listGapClarifications
+      summary: Read chronological Clarification history for a tenant-scoped Gap
+      description: >-
+        Historical Gaps remain readable after the Project current Context Version changes. Missing,
+        cross-account and cross-project identifiers share RESOURCE_NOT_FOUND semantics.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      responses:
+        "200":
+          description: Questions and optional terminal Resolutions ordered by created_at and id ascending.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationHistoryCollection" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+    post:
+      operationId: createClarificationQuestion
+      summary: Create a normalized open Clarification question
+      description: >-
+        Exact normalized duplicate open questions for the same Gap are rejected. The public API
+        attributes the question to the authenticated user. Provider-neutral AI candidates use the
+        internal Application port; no real Provider is selected in J03-A.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateClarificationQuestionRequest" }
+      responses:
+        "201":
+          description: Question created or its idempotent result replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: DUPLICATE_CLARIFICATION, IDEMPOTENCY_CONFLICT or invalid terminal state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications/{clarification_id}:
+    patch:
+      operationId: editClarificationQuestion
+      summary: Edit only an open Clarification question using compare-and-swap
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: clarification_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EditClarificationQuestionRequest" }
+      responses:
+        "200":
+          description: Updated open question with its new updated_at timestamp.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: VERSION_CONFLICT, DUPLICATE_CLARIFICATION or terminal state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/gaps/{gap_id}/clarifications/{clarification_id}/resolutions:
+    post:
+      operationId: resolveClarification
+      summary: Register one authoritative human Resolution for an open Clarification
+      description: >-
+        A Clarification has at most one terminal Resolution. Ignoring a Clarification does not
+        dismiss the Gap. After the target becomes terminal, the deterministic evaluator resolves
+        the Gap only when no open Clarification remains.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: gap_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: clarification_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateClarificationResolutionRequest" }
+      responses:
+        "201":
+          description: Resolution created or its idempotent result replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClarificationResolutionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT or INVALID_CLARIFICATION_STATE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /auth/bootstrap:
     post:
       operationId: bootstrapAuthenticatedAccount
@@ -283,6 +952,45 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 255 }
         expected_updated_at: { type: string, format: date-time }
+    CreateTextContextRequest:
+      type: object
+      additionalProperties: false
+      required: [source_type, raw_text]
+      properties:
+        source_type: { type: string, const: text }
+        raw_text: { type: string, minLength: 1, maxLength: 50000 }
+    CreateFileContextRequest:
+      type: object
+      additionalProperties: false
+      required: [source_type, file]
+      properties:
+        source_type: { type: string, const: file }
+        file:
+          type: string
+          format: binary
+          description: Strict UTF-8 .txt, at most 200,000 bytes and 50,000 decoded characters.
+    TextContextAccepted:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [source_id, status, job_id, status_url]
+          properties:
+            source_id: { type: string, format: uuid }
+            status: { type: string, const: uploaded }
+            job_id: { type: string, format: uuid }
+            status_url:
+              type: string
+              pattern: ^/api/v1/jobs/[0-9a-fA-F-]{36}$
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
     Project:
       type: object
       additionalProperties: false
@@ -306,6 +1014,444 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Project" }
         meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ScopeSectionId:
+      type: string
+      enum:
+        - summary
+        - goals
+        - pages_sections
+        - requirements
+        - content
+        - visual_direction
+        - constraints
+        - assumptions
+        - resolved_gaps
+        - remaining_non_blocking_gaps
+        - out_of_scope
+        - acceptance_notes
+    ScopeTrace:
+      type: object
+      additionalProperties: false
+      required: [context_item_ids, requirement_ids, gap_ids]
+      properties:
+        context_item_ids:
+          type: array
+          items: { type: string, format: uuid }
+        requirement_ids:
+          type: array
+          items: { type: string, format: uuid }
+        gap_ids:
+          type: array
+          items: { type: string, format: uuid }
+    ScopeSection:
+      type: object
+      additionalProperties: false
+      required: [section_id, value, trace]
+      properties:
+        section_id: { $ref: "#/components/schemas/ScopeSectionId" }
+        value: {}
+        trace: { $ref: "#/components/schemas/ScopeTrace" }
+    ScopeContent:
+      type: object
+      additionalProperties: false
+      required: [schema_version, sections]
+      properties:
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        sections:
+          type: array
+          minItems: 12
+          maxItems: 12
+          items: { $ref: "#/components/schemas/ScopeSection" }
+    ScopeDraft:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, content, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        content: { $ref: "#/components/schemas/ScopeContent" }
+        updated_at: { type: string, format: date-time }
+    ScopeDraftEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeDraft" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    UpdateScopeSectionRequest:
+      type: object
+      additionalProperties: false
+      required: [value, expected_updated_at]
+      properties:
+        value: {}
+        expected_updated_at: { type: string, format: date-time }
+    CreateScopeVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_draft_updated_at]
+      properties:
+        expected_draft_updated_at: { type: string, format: date-time }
+    ScopeVersionStatus:
+      type: string
+      enum: [awaiting_approval, approved, changes_requested, superseded]
+    ScopeVersionSummary:
+      type: object
+      additionalProperties: false
+      required: [version_no, context_version, status, snapshot_hash, schema_version, created_at]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        context_version: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/ScopeVersionStatus" }
+        snapshot_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        created_at: { type: string, format: date-time }
+    ScopeVersionDetail:
+      type: object
+      additionalProperties: false
+      required: [version_no, context_version, status, snapshot_hash, schema_version, created_at, snapshot_data]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        context_version: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/ScopeVersionStatus" }
+        snapshot_hash:
+          type: string
+          pattern: '^sha256:[0-9a-f]{64}$'
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        created_at: { type: string, format: date-time }
+        snapshot_data: { $ref: "#/components/schemas/ScopeContent" }
+    ScopeVersionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeVersionSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ScopeVersionDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeVersionDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ScopeVersionCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ScopeVersionSummary" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ContextItemType:
+      type: string
+      enum: [fact, assumption, decision, constraint, reference, unknown]
+    ContextItemStatus:
+      type: string
+      enum: [proposed, confirmed, rejected, superseded]
+    SourceReference:
+      type: object
+      additionalProperties: false
+      required: [source_id, source_version_id]
+      properties:
+        source_id: { type: string, format: uuid }
+        source_version_id: { type: string, format: uuid }
+        start_offset: { type: integer, minimum: 0 }
+        end_offset: { type: integer, minimum: 1 }
+    ContextItem:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        item_type: { $ref: "#/components/schemas/ContextItemType" }
+        content: { type: string }
+        source_refs:
+          type: array
+          items: { $ref: "#/components/schemas/SourceReference" }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        status: { $ref: "#/components/schemas/ContextItemStatus" }
+        created_by_type: { type: string, enum: [ai, user, system] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ContextItemsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ContextItem" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ContextItemEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ContextItem" }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
+    ReviewContextItemRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at]
+          properties:
+            command: { type: string, const: confirm }
+            expected_updated_at: { type: string, format: date-time }
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at]
+          properties:
+            command: { type: string, const: reject }
+            expected_updated_at: { type: string, format: date-time }
+        - type: object
+          additionalProperties: false
+          required: [command, expected_updated_at, content]
+          properties:
+            command: { type: string, const: edit }
+            expected_updated_at: { type: string, format: date-time }
+            content: { type: string }
+    RequirementCategory:
+      type: string
+      enum: [functional, content, visual, technical, constraint, business]
+    RequirementPriority:
+      type: string
+      enum: [must, should, could]
+    RequirementStatus:
+      type: string
+      enum: [draft, confirmed, superseded, removed]
+    RequirementCreatorType:
+      type: string
+      enum: [ai, user]
+    Requirement:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, created_by_type, acceptance_note, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        category: { $ref: "#/components/schemas/RequirementCategory" }
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+        status: { $ref: "#/components/schemas/RequirementStatus" }
+        source_refs:
+          type: array
+          items: { $ref: "#/components/schemas/SourceReference" }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        is_unsupported: { type: boolean }
+        created_by_type: { $ref: "#/components/schemas/RequirementCreatorType" }
+        acceptance_note: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RequirementsCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Requirement" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    RequirementEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Requirement" }
+        meta:
+          type: object
+          additionalProperties: false
+          required: [request_id]
+          properties:
+            request_id: { type: string, format: uuid }
+    CreateManualRequirementRequest:
+      type: object
+      additionalProperties: false
+      required: [title, description, category, priority]
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        category: { $ref: "#/components/schemas/RequirementCategory" }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+    UpdateRequirementRequest:
+      type: object
+      additionalProperties: false
+      required: [expected_updated_at]
+      description: >-
+        At least one of title, description, priority, status or acceptance_note is required.
+        Explicit null is accepted only for acceptance_note and clears it.
+      properties:
+        expected_updated_at: { type: string, format: date-time }
+        title: { type: string, maxLength: 255 }
+        description: { type: string }
+        priority: { $ref: "#/components/schemas/RequirementPriority" }
+        status: { type: string, const: confirmed }
+        acceptance_note: { type: [string, "null"] }
+    ClarificationStatus:
+      type: string
+      enum: [open, answered, ignored]
+    ClarificationCreatorType:
+      type: string
+      enum: [ai, user, system]
+    ClarificationResolutionType:
+      type: string
+      enum: [provided_information, internal_decision, accepted_assumption, ignored]
+    ClarificationAuthorType:
+      type: string
+      enum: [user, client]
+    Clarification:
+      type: object
+      additionalProperties: false
+      required: [id, gap_id, question_text, status, created_by_type, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        gap_id: { type: string, format: uuid }
+        question_text: { type: string, minLength: 1 }
+        status: { $ref: "#/components/schemas/ClarificationStatus" }
+        created_by_type: { $ref: "#/components/schemas/ClarificationCreatorType" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ClarificationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/Clarification" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ClarificationResolution:
+      type: object
+      additionalProperties: false
+      required: [id, clarification_id, resolution_type, answer_text, author_type, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        clarification_id: { type: string, format: uuid }
+        resolution_type: { $ref: "#/components/schemas/ClarificationResolutionType" }
+        answer_text: { type: [string, "null"] }
+        author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+        created_at: { type: string, format: date-time }
+    ClarificationResolutionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ClarificationResolution" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    CreateClarificationQuestionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_text]
+      properties:
+        question_text: { type: string, minLength: 1 }
+    EditClarificationQuestionRequest:
+      type: object
+      additionalProperties: false
+      required: [question_text, expected_updated_at]
+      properties:
+        question_text: { type: string, minLength: 1 }
+        expected_updated_at: { type: string, format: date-time }
+    CreateClarificationResolutionRequest:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [resolution_type, answer_text, author_type]
+          properties:
+            resolution_type: { type: string, enum: [provided_information, internal_decision] }
+            answer_text: { type: string, minLength: 1 }
+            author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+        - type: object
+          additionalProperties: false
+          required: [resolution_type, author_type]
+          properties:
+            resolution_type: { type: string, enum: [accepted_assumption, ignored] }
+            author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+    GapType:
+      type: string
+      enum: [missing_information, ambiguity, conflict, decision_required, unsupported_assumption, scope_risk]
+    GapSeverity:
+      type: string
+      enum: [critical, high, medium, low]
+    GapStatus:
+      type: string
+      enum: [open, resolved, dismissed]
+    SuggestedGapResolutionType:
+      type: string
+      enum: [provide_information, clarify_ambiguity, resolve_conflict, make_decision, validate_assumption, mitigate_scope_risk]
+    Gap:
+      type: object
+      additionalProperties: false
+      required: [id, context_version, gap_type, severity, status, explanation, suggested_resolution_type, created_at, updated_at, resolved_at]
+      properties:
+        id: { type: string, format: uuid }
+        context_version: { type: integer, minimum: 1 }
+        gap_type: { $ref: "#/components/schemas/GapType" }
+        severity: { $ref: "#/components/schemas/GapSeverity" }
+        status: { $ref: "#/components/schemas/GapStatus" }
+        explanation: { type: [string, "null"] }
+        suggested_resolution_type:
+          oneOf:
+            - { $ref: "#/components/schemas/SuggestedGapResolutionType" }
+            - { type: "null" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        resolved_at: { type: [string, "null"], format: date-time }
+    GapCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Gap" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ClarificationHistoryResolution:
+      type: object
+      additionalProperties: false
+      required: [id, resolution_type, answer_text, author_type, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        resolution_type: { $ref: "#/components/schemas/ClarificationResolutionType" }
+        answer_text: { type: [string, "null"] }
+        author_type: { $ref: "#/components/schemas/ClarificationAuthorType" }
+        created_at: { type: string, format: date-time }
+    ClarificationHistoryItem:
+      type: object
+      additionalProperties: false
+      required: [id, gap_id, question_text, status, created_by_type, created_at, updated_at, resolution]
+      properties:
+        id: { type: string, format: uuid }
+        gap_id: { type: string, format: uuid }
+        question_text: { type: string, minLength: 1 }
+        status: { $ref: "#/components/schemas/ClarificationStatus" }
+        created_by_type: { $ref: "#/components/schemas/ClarificationCreatorType" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        resolution:
+          oneOf:
+            - { $ref: "#/components/schemas/ClarificationHistoryResolution" }
+            - { type: "null" }
+    ClarificationHistoryCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ClarificationHistoryItem" }
+        meta: { $ref: "#/components/schemas/CollectionMeta" }
+    ResponseMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id]
+      properties:
+        request_id: { type: string, format: uuid }
     CollectionMeta:
       type: object
       additionalProperties: false

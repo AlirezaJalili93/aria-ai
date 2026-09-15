@@ -2,7 +2,13 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from aria_observability import StructuredEventLogger, create_event_logger
+from aria_observability import (
+    OperationalMetrics,
+    OtlpMetricsConfiguration,
+    StructuredEventLogger,
+    create_event_logger,
+    create_otlp_operational_metrics,
+)
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
@@ -11,29 +17,60 @@ from app.api.errors import (
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    ContextVersionRequiredError,
+    CriticalGapsOpenError,
+    DuplicateClarificationError,
+    FeatureNotEnabledError,
+    FileTooLargeApiError,
     ForbiddenError,
     IdempotencyConflictError,
+    InvalidClarificationStateError,
+    InvalidContextItemStateError,
+    InvalidRequirementStateError,
     MembershipRequiredError,
     ResourceNotFoundError,
+    ScopeDraftStaleError,
+    ScopeVersionUnchangedError,
+    StorageApiError,
+    UnsupportedFileTypeApiError,
     ValidationFailedError,
     VersionConflictError,
     account_bootstrap_failed_handler,
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    context_version_required_handler,
+    critical_gaps_open_handler,
+    duplicate_clarification_handler,
+    feature_not_enabled_handler,
+    file_too_large_handler,
     forbidden_handler,
     idempotency_conflict_handler,
+    invalid_clarification_state_handler,
+    invalid_context_item_state_handler,
+    invalid_requirement_state_handler,
     membership_required_handler,
     request_validation_handler,
     resource_not_found_handler,
+    scope_draft_stale_handler,
+    scope_version_unchanged_handler,
+    storage_error_handler,
+    unsupported_file_type_handler,
     validation_failed_handler,
     version_conflict_handler,
 )
 from app.api.middleware.observability import ObservabilityMiddleware
 from app.api.routers.accounts import create_accounts_router
 from app.api.routers.auth import create_auth_router
+from app.api.routers.clarifications import create_clarifications_router
+from app.api.routers.context_items import create_context_items_router
+from app.api.routers.context_sources import create_context_sources_router
 from app.api.routers.health import create_health_router
+from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
+from app.api.routers.requirements import create_requirements_router
+from app.api.routers.scope_drafts import create_scope_drafts_router
+from app.api.routers.scope_versions import create_scope_versions_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -42,6 +79,20 @@ from app.infrastructure.auth.supabase_jwt import (
 from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_database_probe
 from app.infrastructure.db.runtime import DatabaseRuntime
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
+from app.modules.context.application.context_item_service import ContextItemReviewService
+from app.modules.context.application.file_context_ingestion import CreateFileContextUseCase
+from app.modules.context.application.text_context_ingestion import CreateTextContextUseCase
+from app.modules.context.infrastructure.context_item_repository import (
+    SqlAlchemyContextItemUnitOfWorkFactory,
+)
+from app.modules.context.infrastructure.supabase_storage import SupabaseS3ObjectStorage
+from app.modules.context.infrastructure.text_ingestion import (
+    SqlAlchemyTextContextIngestionUnitOfWorkFactory,
+)
+from app.modules.gaps.application.clarification_service import ClarificationService
+from app.modules.gaps.infrastructure.clarification_repository import (
+    SqlAlchemyClarificationUnitOfWorkFactory,
+)
 from app.modules.identity.application.account_bootstrap import (
     AccountBootstrapContext,
     AccountBootstrapInfrastructureError,
@@ -62,8 +113,24 @@ from app.modules.identity.infrastructure.account_discovery import SqlAlchemyAcco
 from app.modules.identity.infrastructure.membership_resolution import (
     SqlAlchemyMembershipResolver,
 )
+from app.modules.jobs.application.job_status import JobStatusApplicationService
+from app.modules.jobs.infrastructure.repository import SqlAlchemyJobsUnitOfWorkFactory
 from app.modules.projects.application.project_service import ProjectApplicationService
 from app.modules.projects.infrastructure.repository import SqlAlchemyProjectUnitOfWorkFactory
+from app.modules.requirements.application.requirement_crud_service import (
+    RequirementCrudService,
+)
+from app.modules.requirements.infrastructure.repository import (
+    SqlAlchemyRequirementCrudUnitOfWorkFactory,
+)
+from app.modules.scope.application.scope_draft_service import ScopeDraftService
+from app.modules.scope.application.scope_version_service import ScopeVersionService
+from app.modules.scope.infrastructure.repository import (
+    SqlAlchemyScopeDraftUnitOfWorkFactory,
+)
+from app.modules.scope.infrastructure.version_repository import (
+    SqlAlchemyScopeVersionUnitOfWorkFactory,
+)
 
 
 class UnavailableAccountBootstrapper:
@@ -92,6 +159,15 @@ def create_app(
     tenant_context_resolver: TenantContextResolver | None = None,
     account_discovery: AccountDiscovery | None = None,
     project_service: ProjectApplicationService | None = None,
+    text_context_use_case: CreateTextContextUseCase | None = None,
+    file_context_use_case: CreateFileContextUseCase | None = None,
+    job_status_service: JobStatusApplicationService | None = None,
+    context_item_review_service: ContextItemReviewService | None = None,
+    requirement_crud_service: RequirementCrudService | None = None,
+    clarification_service: ClarificationService | None = None,
+    scope_draft_service: ScopeDraftService | None = None,
+    scope_version_service: ScopeVersionService | None = None,
+    operational_metrics: OperationalMetrics | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
     database_runtime = (
@@ -109,12 +185,25 @@ def create_app(
         if resolved_settings.queue_broker_url
         else unavailable_queue_probe
     )
+    metrics_configuration = _metrics_configuration(resolved_settings)
+    resolved_operational_metrics = operational_metrics or create_otlp_operational_metrics(
+        service="aria-api",
+        environment=resolved_settings.app_env,
+        app_version=resolved_settings.app_version,
+        configuration=metrics_configuration,
+    )
+    metric_shutdown_timeout = (
+        metrics_configuration.export_timeout_seconds if metrics_configuration else 0
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        yield
-        if database_runtime is not None:
-            await database_runtime.close()
+        try:
+            yield
+        finally:
+            resolved_operational_metrics.shutdown(metric_shutdown_timeout)
+            if database_runtime is not None:
+                await database_runtime.close()
 
     app = FastAPI(
         title="Aria API",
@@ -131,7 +220,11 @@ def create_app(
         release_commit_sha=resolved_settings.release_commit_sha,
         level=resolved_settings.log_level,
     )
-    app.add_middleware(ObservabilityMiddleware, event_logger=resolved_event_logger)
+    app.add_middleware(
+        ObservabilityMiddleware,
+        event_logger=resolved_event_logger,
+        operational_metrics=resolved_operational_metrics,
+    )
     app.add_exception_handler(AuthenticationRequiredError, authentication_required_handler)
     app.add_exception_handler(
         AuthenticationProviderUnavailableError,
@@ -142,9 +235,21 @@ def create_app(
     app.add_exception_handler(AccountContextRequiredError, account_context_required_handler)
     app.add_exception_handler(ResourceNotFoundError, resource_not_found_handler)
     app.add_exception_handler(IdempotencyConflictError, idempotency_conflict_handler)
+    app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
+    app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
+    app.add_exception_handler(CriticalGapsOpenError, critical_gaps_open_handler)
+    app.add_exception_handler(ScopeVersionUnchangedError, scope_version_unchanged_handler)
+    app.add_exception_handler(InvalidContextItemStateError, invalid_context_item_state_handler)
+    app.add_exception_handler(InvalidRequirementStateError, invalid_requirement_state_handler)
+    app.add_exception_handler(InvalidClarificationStateError, invalid_clarification_state_handler)
+    app.add_exception_handler(ContextVersionRequiredError, context_version_required_handler)
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
+    app.add_exception_handler(UnsupportedFileTypeApiError, unsupported_file_type_handler)
+    app.add_exception_handler(FileTooLargeApiError, file_too_large_handler)
+    app.add_exception_handler(FeatureNotEnabledError, feature_not_enabled_handler)
+    app.add_exception_handler(StorageApiError, storage_error_handler)
     app.add_exception_handler(RequestValidationError, request_validation_handler)
     app.state.event_logger = resolved_event_logger
     app.state.access_token_verifier = access_token_verifier or _create_access_token_verifier(
@@ -159,9 +264,7 @@ def create_app(
         else UnavailableAccountBootstrapper()
     )
     app.state.tenant_context_resolver = tenant_context_resolver or (
-        ResolveTenantContextUseCase(
-            SqlAlchemyMembershipResolver(database_runtime.session_factory)
-        )
+        ResolveTenantContextUseCase(SqlAlchemyMembershipResolver(database_runtime.session_factory))
         if database_runtime is not None
         else UnavailableTenantContextResolver()
     )
@@ -178,13 +281,135 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.text_context_use_case = text_context_use_case or (
+        CreateTextContextUseCase(
+            SqlAlchemyTextContextIngestionUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.file_context_use_case = file_context_use_case or _create_file_context_use_case(
+        settings=resolved_settings,
+        database_runtime=database_runtime,
+        event_logger=resolved_event_logger,
+    )
+    app.state.job_status_service = job_status_service or (
+        JobStatusApplicationService(
+            SqlAlchemyJobsUnitOfWorkFactory(database_runtime.session_factory)
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.context_item_review_service = context_item_review_service or (
+        ContextItemReviewService(
+            SqlAlchemyContextItemUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.requirement_crud_service = requirement_crud_service or (
+        RequirementCrudService(
+            SqlAlchemyRequirementCrudUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.clarification_service = clarification_service or (
+        ClarificationService(
+            SqlAlchemyClarificationUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.scope_draft_service = scope_draft_service or (
+        ScopeDraftService(
+            SqlAlchemyScopeDraftUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.scope_version_service = scope_version_service or (
+        ScopeVersionService(
+            SqlAlchemyScopeVersionUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
     app.include_router(create_auth_router(), prefix="/api/v1")
     app.include_router(create_accounts_router(), prefix="/api/v1")
     app.include_router(create_projects_router(), prefix="/api/v1")
+    app.include_router(
+        create_context_sources_router(txt_upload_enabled=resolved_settings.txt_upload_enabled),
+        prefix="/api/v1",
+    )
+    app.include_router(create_context_items_router(), prefix="/api/v1")
+    app.include_router(create_requirements_router(), prefix="/api/v1")
+    app.include_router(create_clarifications_router(), prefix="/api/v1")
+    app.include_router(create_scope_drafts_router(), prefix="/api/v1")
+    app.include_router(create_scope_versions_router(), prefix="/api/v1")
+    app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
+
+
+def _create_file_context_use_case(
+    *,
+    settings: ApiSettings,
+    database_runtime: DatabaseRuntime | None,
+    event_logger: StructuredEventLogger,
+) -> CreateFileContextUseCase | None:
+    if not settings.txt_upload_enabled:
+        return None
+    if database_runtime is None:
+        return None
+    assert settings.storage_endpoint is not None
+    assert settings.storage_region is not None
+    assert settings.storage_bucket is not None
+    assert settings.storage_access_key is not None
+    assert settings.storage_secret_key is not None
+    storage = SupabaseS3ObjectStorage(
+        endpoint_url=str(settings.storage_endpoint),
+        region_name=settings.storage_region,
+        bucket=settings.storage_bucket,
+        access_key_id=settings.storage_access_key.get_secret_value(),
+        secret_access_key=settings.storage_secret_key.get_secret_value(),
+    )
+    return CreateFileContextUseCase(
+        SqlAlchemyTextContextIngestionUnitOfWorkFactory(database_runtime.session_factory),
+        storage,
+        event_logger,
+        environment=settings.app_env,
+    )
+
+
+def _metrics_configuration(settings: ApiSettings) -> OtlpMetricsConfiguration | None:
+    if settings.otel_exporter_otlp_endpoint is None:
+        return None
+    assert settings.otel_exporter_otlp_headers is not None
+    assert settings.otel_metric_export_timeout_seconds is not None
+    assert settings.otel_metric_export_interval_seconds is not None
+    assert settings.otel_metric_queue_capacity is not None
+    allowed_models = frozenset(
+        value.strip()
+        for value in (settings.otel_metric_allowed_models or "").split(",")
+        if value.strip()
+    )
+    return OtlpMetricsConfiguration(
+        endpoint=str(settings.otel_exporter_otlp_endpoint),
+        headers=settings.otel_exporter_otlp_headers.get_secret_value(),
+        export_timeout_seconds=float(settings.otel_metric_export_timeout_seconds),
+        export_interval_seconds=float(settings.otel_metric_export_interval_seconds),
+        queue_capacity=settings.otel_metric_queue_capacity,
+        allowed_models=allowed_models,
+    )
 
 
 def _create_access_token_verifier(

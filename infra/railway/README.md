@@ -31,9 +31,11 @@ screenshots, or development records.
 - `DATABASE_URL`
 - `QUEUE_BROKER_URL`
 - `STORAGE_ENDPOINT`
+- `STORAGE_REGION`
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`
+- `TXT_UPLOAD_ENABLED=false` until the S1-L04 Upload Security Suite passes
 - `AUTH_PROVIDER_URL`
 - `AUTH_JWKS_URL`
 - `AUTH_AUDIENCE=authenticated`
@@ -46,7 +48,11 @@ screenshots, or development records.
 - `LOG_LEVEL=INFO`
 - `DATABASE_URL`
 - `QUEUE_BROKER_URL`
+- `QUEUE_NAME`
+- `QUEUE_VISIBILITY_TIMEOUT_SECONDS`
+- `WORKER_CONCURRENCY`
 - `STORAGE_ENDPOINT`
+- `STORAGE_REGION`
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`

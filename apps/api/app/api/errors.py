@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from aria_observability import current_trace_context
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -36,12 +38,64 @@ class VersionConflictError(Exception):
     """API signal for an optimistic concurrency mismatch."""
 
 
+class ScopeDraftStaleError(Exception):
+    """API signal for mutation of a historical Scope Draft."""
+
+
+class CriticalGapsOpenError(Exception):
+    """API signal for a Scope freeze blocked by unresolved Critical Gaps."""
+
+
+class ScopeVersionUnchangedError(Exception):
+    """API signal for a Scope freeze identical to the latest snapshot."""
+
+
+class InvalidContextItemStateError(Exception):
+    """API signal for a Context Item command rejected by its immutable state."""
+
+
+class InvalidRequirementStateError(Exception):
+    """API signal for a Requirement command rejected by its lifecycle state."""
+
+
+class InvalidClarificationStateError(Exception):
+    """API signal for a Clarification or Gap command rejected by terminal state."""
+
+
+class DuplicateClarificationError(Exception):
+    """API signal for an exact duplicate open Clarification question."""
+
+
+class ContextVersionRequiredError(Exception):
+    """API signal for a manual Requirement without a valid Project Context Version."""
+
+
 class ForbiddenError(Exception):
     """API signal for an authenticated caller lacking role authority."""
 
 
 class ValidationFailedError(Exception):
     """API signal for documented domain or cursor validation failure."""
+
+
+class UnsupportedFileTypeApiError(Exception):
+    """API signal for the frozen 415 TXT upload type rejection."""
+
+
+class FileTooLargeApiError(Exception):
+    """API signal for the frozen 413 TXT upload size rejection."""
+
+
+class FeatureNotEnabledError(Exception):
+    """API signal for a fail-closed feature flag."""
+
+
+class StorageApiError(Exception):
+    """API signal for a safe provider-neutral storage failure."""
+
+    def __init__(self, *, retryable: bool) -> None:
+        super().__init__("Storage operation failed")
+        self.retryable = retryable
 
 
 async def authentication_required_handler(
@@ -168,13 +222,50 @@ async def account_context_required_handler(
 async def resource_not_found_handler(request: Request, error: Exception) -> JSONResponse:
     if not isinstance(error, ResourceNotFoundError):
         raise TypeError("Unexpected exception type for resource handler")
-    del request, error
+    del error
+    route = request.scope.get("route")
+    route_template = getattr(route, "path", None)
+    resource_type = _resource_type_for_route(route_template)
+    project_id = request.path_params.get("project_id")
+    with suppress(Exception):
+        request.app.state.event_logger.emit(
+            "resource.access_denied",
+            level="WARNING",
+            route=route_template if isinstance(route_template, str) else "/<unmatched>",
+            project_id=str(project_id) if project_id is not None else None,
+            resource_type=resource_type,
+            operation=request.method.lower(),
+            reason_code="not_visible_in_tenant_scope",
+            error_code="RESOURCE_NOT_FOUND",
+        )
     return _error_response(
         status_code=404,
         code="RESOURCE_NOT_FOUND",
         message="The requested resource was not found.",
         retryable=False,
     )
+
+
+def _resource_type_for_route(route_template: object) -> str:
+    if not isinstance(route_template, str):
+        return "resource"
+    if "/scope/versions" in route_template:
+        return "scope_version"
+    if "/scope/draft" in route_template:
+        return "scope_draft"
+    if "/context-items" in route_template:
+        return "context_item"
+    if "/context-sources" in route_template:
+        return "context_source"
+    if "/requirements" in route_template:
+        return "requirement"
+    if "/gaps" in route_template:
+        return "gap"
+    if "/jobs" in route_template:
+        return "job"
+    if "/projects" in route_template:
+        return "project"
+    return "resource"
 
 
 async def idempotency_conflict_handler(request: Request, error: Exception) -> JSONResponse:
@@ -201,6 +292,114 @@ async def version_conflict_handler(request: Request, error: Exception) -> JSONRe
     )
 
 
+async def scope_draft_stale_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, ScopeDraftStaleError):
+        raise TypeError("Unexpected exception type for Scope Draft stale handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_DRAFT_STALE",
+        message="The Scope Draft belongs to a historical Context Version.",
+        retryable=False,
+    )
+
+
+async def critical_gaps_open_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, CriticalGapsOpenError):
+        raise TypeError("Unexpected exception type for Critical Gaps handler")
+    del request, error
+    return _error_response(
+        status_code=422,
+        code="CRITICAL_GAPS_OPEN",
+        message="Unresolved Critical Gaps prevent freezing the Scope.",
+        retryable=False,
+    )
+
+
+async def scope_version_unchanged_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ScopeVersionUnchangedError):
+        raise TypeError("Unexpected exception type for unchanged Scope Version handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_VERSION_UNCHANGED",
+        message="The current Scope is unchanged from the latest version.",
+        retryable=False,
+    )
+
+
+async def invalid_context_item_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidContextItemStateError):
+        raise TypeError("Unexpected exception type for Context Item state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_CONTEXT_ITEM_STATE",
+        message="The Context Item is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def invalid_requirement_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidRequirementStateError):
+        raise TypeError("Unexpected exception type for Requirement state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_REQUIREMENT_STATE",
+        message="The Requirement is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def invalid_clarification_state_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, InvalidClarificationStateError):
+        raise TypeError("Unexpected exception type for Clarification state handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="INVALID_CLARIFICATION_STATE",
+        message="The Clarification or Gap is not mutable in its current state.",
+        retryable=False,
+    )
+
+
+async def duplicate_clarification_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, DuplicateClarificationError):
+        raise TypeError("Unexpected exception type for duplicate Clarification handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="DUPLICATE_CLARIFICATION",
+        message="The same open Clarification already exists for this Gap.",
+        retryable=False,
+    )
+
+
+async def context_version_required_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ContextVersionRequiredError):
+        raise TypeError("Unexpected exception type for Context Version handler")
+    del request, error
+    return _error_response(
+        status_code=422,
+        code="CONTEXT_VERSION_REQUIRED",
+        message="A valid Project Context Version is required.",
+        retryable=False,
+    )
+
+
 async def forbidden_handler(request: Request, error: Exception) -> JSONResponse:
     if not isinstance(error, ForbiddenError):
         raise TypeError("Unexpected exception type for forbidden handler")
@@ -222,6 +421,56 @@ async def validation_failed_handler(request: Request, error: Exception) -> JSONR
         code="VALIDATION_FAILED",
         message="The request failed validation.",
         retryable=False,
+    )
+
+
+async def unsupported_file_type_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, UnsupportedFileTypeApiError):
+        raise TypeError("Unexpected exception type for unsupported file handler")
+    del request, error
+    return _error_response(
+        status_code=415,
+        code="UNSUPPORTED_FILE_TYPE",
+        message="The uploaded file type is not supported.",
+        retryable=False,
+    )
+
+
+async def file_too_large_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, FileTooLargeApiError):
+        raise TypeError("Unexpected exception type for file size handler")
+    del request, error
+    return _error_response(
+        status_code=413,
+        code="FILE_TOO_LARGE",
+        message="The uploaded file exceeds the allowed size.",
+        retryable=False,
+    )
+
+
+async def feature_not_enabled_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, FeatureNotEnabledError):
+        raise TypeError("Unexpected exception type for feature flag handler")
+    del request, error
+    return _error_response(
+        status_code=403,
+        code="FEATURE_NOT_ENABLED",
+        message="This feature is not enabled.",
+        retryable=False,
+    )
+
+
+async def storage_error_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, StorageApiError):
+        raise TypeError("Unexpected exception type for storage handler")
+    del request
+    return _error_response(
+        status_code=503,
+        code="STORAGE_ERROR",
+        message="Object storage is temporarily unavailable.",
+        retryable=error.retryable,
     )
 
 

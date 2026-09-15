@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal, cast
+from unicodedata import category
 from uuid import UUID
 
 ContextSourceType = Literal["text", "file", "message", "url_reference"]
@@ -12,6 +14,8 @@ ContextSourceParseStatus = Literal["pending", "parsing", "ready", "failed"]
 CONTEXT_SOURCE_TYPES = frozenset({"text", "file", "message", "url_reference"})
 CONTEXT_SOURCE_STATUSES = frozenset({"uploaded", "parsing", "ready", "failed", "deleted"})
 CONTEXT_SOURCE_PARSE_STATUSES = frozenset({"pending", "parsing", "ready", "failed"})
+TEXT_CONTEXT_MAX_CHARACTERS = 50_000
+_ALLOWED_TEXT_CONTROLS = frozenset({"\t", "\n", "\r"})
 
 
 class ContextSourceValidationError(ValueError):
@@ -110,6 +114,24 @@ def validate_ready_content(canonical_text: str | None, storage_ref: str | None) 
         raise ContextSourceValidationError(
             "A ready Context Source Version requires canonical_text or storage_ref"
         )
+
+
+def validate_text_context(value: str) -> str:
+    if not value or value.isspace():
+        raise ContextSourceValidationError("Text Context cannot be blank")
+    if len(value) > TEXT_CONTEXT_MAX_CHARACTERS:
+        raise ContextSourceValidationError("Text Context exceeds the approved character limit")
+    if any(
+        character not in _ALLOWED_TEXT_CONTROLS and category(character) == "Cc"
+        for character in value
+    ):
+        raise ContextSourceValidationError("Text Context contains a disallowed control character")
+    return value
+
+
+def text_context_checksum(value: str) -> str:
+    validate_text_context(value)
+    return sha256(value.encode("utf-8")).hexdigest()
 
 
 def _require_timezone(value: datetime, field: str) -> None:

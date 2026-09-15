@@ -1,0 +1,113 @@
+{
+  "fixture_id": "fa_req_003",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "portfolio",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_003_ctx_1",
+        "item_type": "fact",
+        "content": "صاحب پروژه عکاس معماری است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_003_src_a",
+            "source_version_id": "fa_req_003_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_003_ctx_2",
+        "item_type": "decision",
+        "content": "نمونه‌کارها در گالری نمایش داده شوند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_003_src_a",
+            "source_version_id": "fa_req_003_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_003_ctx_3",
+        "item_type": "decision",
+        "content": "بخش معرفی عکاس وجود داشته باشد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_003_src_a",
+            "source_version_id": "fa_req_003_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_003_req_1",
+        "title": "گالری نمونه‌کارهای معماری",
+        "description": "پروژه‌های عکاسی معماری باید در یک گالری قابل مشاهده باشند.",
+        "category": "visual",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_003_src_a",
+            "source_version_id": "fa_req_003_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_003_req_2",
+        "title": "معرفی عکاس",
+        "description": "سایت باید بخش معرفی عکاس داشته باشد.",
+        "category": "content",
+        "priority": "should",
+        "source_refs": [
+          {
+            "source_id": "fa_req_003_src_a",
+            "source_version_id": "fa_req_003_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": false
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_003_cand_1",
+        "gold_requirement_id": "fa_req_003_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_003_cand_2",
+        "gold_requirement_id": "fa_req_003_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": false
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_003_cand_1",
+      "fa_req_003_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "portfolio",
+      "visual",
+      "content"
+    ],
+    "fixture_version": "1"
+  }
+}

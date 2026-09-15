@@ -3,11 +3,16 @@ name = "aria-worker"
 version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
+  "aria-backend-application",
   "aria-observability",
+  "asyncpg==0.31.0",
+  "celery[redis]==5.6.3",
   "pydantic-settings==2.15.0",
+  "sqlalchemy[asyncio]==2.0.51",
 ]
 
 [tool.uv.sources]
+aria-backend-application = { path = "../../packages/backend-application" }
 aria-observability = { path = "../../packages/observability" }
 
 [dependency-groups]
@@ -21,7 +26,11 @@ dev = [
 package = false
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [
+  ".",
+  "../../packages/backend-application/src",
+  "../../packages/observability/src",
+]
 testpaths = ["tests"]
 
 [tool.ruff]
@@ -34,3 +43,4 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+mypy_path = ["../../packages/observability/src", "../../packages/backend-application/src"]

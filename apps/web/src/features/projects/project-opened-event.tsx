@@ -22,7 +22,8 @@ export function ProjectOpenedEvent({
       accountId,
       projectId,
       projectType,
-      role
+      role,
+      dedupeKey: `project_opened:${projectId}`
     })
   }, [accountId, projectId, projectType, role])
   return null

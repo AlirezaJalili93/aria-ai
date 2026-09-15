@@ -1,0 +1,62 @@
+{
+  "version": "1",
+  "scope": "sprint_1_internal_alpha",
+  "calculation": "pooled_exact_counts_no_rounding",
+  "metrics": {
+    "requirement_recall": {
+      "direction": "higher",
+      "release_blocker_below": 0.80,
+      "minimum_acceptable": 0.90,
+      "target": 0.95
+    },
+    "critical_omission_rate": {
+      "direction": "lower",
+      "release_blocker_above": 0,
+      "minimum_acceptable": 0,
+      "target": 0,
+      "item_blocker": "any_critical_gold_unmatched"
+    },
+    "unsupported_output_rate": {
+      "direction": "lower",
+      "release_blocker_above": 0.15,
+      "minimum_acceptable": 0.10,
+      "target": 0.05
+    },
+    "unsupported_detection_rate": {
+      "direction": "higher",
+      "release_blocker_below": 0.90,
+      "minimum_acceptable": 0.95,
+      "target": 1.0,
+      "item_blocker": "any_critical_unsupported_not_detected",
+      "zero_denominator": "not_applicable_non_blocking"
+    },
+    "duplicate_rate": {
+      "direction": "lower",
+      "release_blocker_above": 0.10,
+      "minimum_acceptable": 0.05,
+      "target": 0
+    },
+    "clarity_score": {
+      "direction": "higher",
+      "release_blocker_below": 3.5,
+      "minimum_acceptable": 4.0,
+      "target": 4.5,
+      "item_blocker": "any_critical_score_below_3",
+      "zero_generated": "not_applicable_non_passing"
+    },
+    "actionability_score": {
+      "direction": "higher",
+      "release_blocker_below": 3.5,
+      "minimum_acceptable": 4.0,
+      "target": 4.5,
+      "item_blocker": "any_critical_score_below_3",
+      "zero_generated": "not_applicable_non_passing"
+    }
+  },
+  "gate_semantics": {
+    "release_blocker": "stop_release",
+    "below_minimum_without_blocker": "fail_and_iterate",
+    "all_minimums": "internal_alpha_acceptable",
+    "all_targets": "target_quality_achieved"
+  }
+}
