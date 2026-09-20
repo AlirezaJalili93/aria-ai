@@ -9,6 +9,10 @@ const adapter = readFileSync(
   "utf8",
 );
 const adr = readFileSync(resolve(root, "docs/adr/ADR-022-generic-provider-adapter-port.md"), "utf8");
+const candidateAdr = readFileSync(
+  resolve(root, "docs/adr/ADR-055-provider-adapter-candidates.md"),
+  "utf8",
+);
 
 test("generic ProviderAdapter exposes only the provider-neutral execute boundary", () => {
   assert.match(adapter, /class ProviderAdapter\(Protocol\)/);
@@ -29,8 +33,10 @@ test("generic ProviderAdapter exposes only the provider-neutral execute boundary
   assert.doesNotMatch(adapter, /openai|anthropic|gemini|google\.generativeai|redis|celery/i);
 });
 
-test("concrete providers remain deferred until a selection decision", () => {
-  assert.match(adr, /G02.*Deferred/s);
-  assert.match(adr, /G03.*Deferred/s);
-  assert.match(adr, /No provider name, model name, SDK/i);
+test("candidate selection supersedes only the concrete-adapter deferral", () => {
+  assert.match(adr, /ADR-055 later selected two evaluation-only/);
+  assert.match(adr, /Runtime routing, primary\/fallback promotion.*remain undecided/s);
+  assert.match(candidateAdr, /Primary:\s*none/i);
+  assert.match(candidateAdr, /Fallback:\s*none/i);
+  assert.match(candidateAdr, /Customer content.*prohibited/is);
 });

@@ -46,6 +46,9 @@ Infrastructure Adapters ─implements→ Domain/Application Ports
 - Application transaction، authorization، repository coordination، domain policy و outbox scheduling را کنترل می‌کند.
 - Domain فقط Entity، Value Object، Invariant، Policy و Port دارد و FastAPI، Pydantic، SQLAlchemy، Redis، Supabase و AI SDK را import نمی‌کند.
 - Provider SDK فقط در Infrastructure Adapter مجاز است.
+- مطابق ADR-055، دو Adapter زیرساختی فقط برای Evaluation مصنوعی تعریف شده‌اند؛ هیچ Primary/Fallback
+  runtime وجود ندارد، Price پیش از paid call resolve می‌شود و accounting پشتیبانی‌نشده fail-closed
+  است.
 
 ## Domain Boundaries
 

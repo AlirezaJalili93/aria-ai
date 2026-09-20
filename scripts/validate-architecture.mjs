@@ -16,6 +16,7 @@ const skippedDirectories = new Set([
   ".pytest_cache",
   ".ruff_cache",
   ".tools",
+  ".uv-cache",
   ".venv",
   "__pycache__",
   "node_modules"
@@ -341,8 +342,8 @@ for (const secretName of [
   "QUEUE_BROKER_URL",
   "STORAGE_ACCESS_KEY",
   "STORAGE_SECRET_KEY",
-  "AI_PROVIDER_A_KEY",
-  "AI_PROVIDER_B_KEY",
+  "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
   "ANALYTICS_SERVER_KEY",
   "ERROR_TRACKING_DSN"
 ]) {

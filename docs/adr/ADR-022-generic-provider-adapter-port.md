@@ -1,6 +1,6 @@
 # ADR-022 — Generic Provider Adapter Port
 
-- Status: Accepted for Sprint 1 contract boundary; concrete adapters deferred
+- Status: Accepted; concrete evaluation adapters added by ADR-055
 - Date: 2026-09-05
 - Scope: Provider-neutral adapter boundary following S1-G01
 - Source: [Aria AI — AI Workflow Specification v1.0](https://docs.google.com/document/d/1a2sOibUb5C-JP1-H1UKzDqIgreve9v5RSro_y2nOXTo/edit?usp=drivesdk)
@@ -14,8 +14,8 @@ The Worker Application defines one generic `ProviderAdapter` port:
 execute(request) -> ProviderResult
 ```
 
-`request` remains an opaque provider-neutral structured mapping until a Provider Selection Decision
-defines the provider-independent request schema. The normalized `ProviderResult` contains only:
+ADR-055 now constrains `request` to the exact provider-neutral keys `instructions`, `input` and
+`output_schema`. The normalized `ProviderResult` contains only:
 
 ```text
 data
@@ -32,14 +32,12 @@ status
 The adapter maps provider failures to the existing bounded AI error classes and carries explicit
 retryability. Raw SDK exceptions, response bodies and credentials never cross this boundary.
 
-## Explicit non-decisions
+## Original non-decisions and later refinement
 
-- No Provider A or Provider B is selected.
-- No provider name, model name, SDK, API-key environment variable, endpoint, timeout value or retry
-  count is introduced.
-- No concrete adapter, routing implementation, fallback behavior or Usage Ledger write is added.
-- `S1-G02 — Provider Adapter A` and `S1-G03 — Provider Adapter B` are **Deferred/Blocked** until a
-  Provider Selection Decision and Evaluation Gate are approved.
+- This ADR did not select a provider or adapter. ADR-055 later selected two evaluation-only
+  candidates and their SDK/timeout/accounting contracts.
+- Runtime routing, primary/fallback promotion and customer-data use remain undecided.
+- The generic port and normalized result are unchanged.
 
 ## Consequences
 

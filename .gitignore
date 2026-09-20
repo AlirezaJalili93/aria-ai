@@ -15,5 +15,6 @@ apps/*/.venv/
 !.env.example
 .npm-cache/
 .pip-cache/
+.uv-cache/
 .tools/
 .data/
