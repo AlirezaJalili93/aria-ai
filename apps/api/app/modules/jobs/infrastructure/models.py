@@ -38,13 +38,33 @@ class JobModel(Base):
             name="fk_jobs_project_account_projects",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["retry_of_job_id", "account_id", "project_id"],
+            ["jobs.id", "jobs.account_id", "jobs.project_id"],
+            name="fk_jobs_retry_parent_tenant",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "retry_of_job_id IS NULL OR retry_of_job_id <> id", name="job_retry_parent"
+        ),
         UniqueConstraint("id", "account_id", "project_id", name="uq_jobs_id_account_project"),
+        UniqueConstraint("retry_of_job_id", name="uq_jobs_retry_of_job_id"),
         Index("ix_jobs_status_available_at", "status", "available_at"),
         Index(
             "ix_jobs_account_project_created_at",
             "account_id",
             "project_id",
             text("created_at DESC"),
+        ),
+        Index(
+            "uq_jobs_active_context_source_version",
+            "account_id",
+            "project_id",
+            text("(payload_ref ->> 'source_version_id')"),
+            unique=True,
+            postgresql_where=text(
+                "job_type = 'context_source_parse' AND status IN ('queued','running')"
+            ),
         ),
     )
 
@@ -65,6 +85,7 @@ class JobModel(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_of_job_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

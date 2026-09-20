@@ -13,6 +13,9 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
+from app.modules.context.infrastructure.management_repository import (
+    SqlAlchemyContextSourceManagementUnitOfWorkFactory,
+)
 from app.modules.context.infrastructure.repository import SqlAlchemyContextSourceRepository
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
@@ -189,6 +192,115 @@ def test_m003_schema_has_exact_fields_tenant_indexes_rls_and_foreign_keys() -> N
         "fk_context_source_versions_source_tenant",
     }.issubset(foreign_keys)
     assert source_rls and version_rls
+
+
+def test_management_projection_selects_latest_and_ready_versions_without_content() -> None:
+    user_id, account_id, project_id, source_id = asyncio.run(_seed_source())
+    ready_version_id, failed_version_id, failed_job_id = uuid4(), uuid4(), uuid4()
+    asyncio.run(
+        _execute(
+            "UPDATE context_sources SET status='failed', storage_ref='private/object' "
+            "WHERE id=:id",
+            {"id": source_id},
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO context_source_versions "
+            "(id, account_id, project_id, source_id, version_no, canonical_text, "
+            "parse_status) VALUES (:id, :account_id, :project_id, :source_id, 1, "
+            "'customer text', 'ready')",
+            {
+                "id": ready_version_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "source_id": source_id,
+            },
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO context_source_versions "
+            "(id, account_id, project_id, source_id, version_no, storage_ref, parse_status) "
+            "VALUES (:id, :account_id, :project_id, :source_id, 2, 'private/object', 'failed')",
+            {
+                "id": failed_version_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "source_id": source_id,
+            },
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO jobs "
+            "(id, account_id, project_id, job_type, status, payload_ref, max_attempts, "
+            "correlation_id, error_code) VALUES (:id, :account_id, :project_id, "
+            "'context_source_parse', 'failed', CAST(:payload AS jsonb), 1, "
+            ":correlation_id, 'PARSER_STORAGE_UNAVAILABLE')",
+            {
+                "id": failed_job_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "payload": (
+                    f'{{"source_id":"{source_id}",'
+                    f'"source_version_id":"{failed_version_id}"}}'
+                ),
+                "correlation_id": uuid4(),
+            },
+        )
+    )
+
+    async def scenario():
+        assert TEST_DATABASE_URL is not None
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        try:
+            factory = SqlAlchemyContextSourceManagementUnitOfWorkFactory(
+                runtime.session_factory
+            )
+            async with factory() as unit_of_work:
+                rows = await unit_of_work.repository.list_sources(
+                    account_id=account_id,
+                    project_id=project_id,
+                    limit=20,
+                    cursor_created_at=None,
+                    cursor_id=None,
+                )
+                assert len(rows) == 1
+                row = rows[0]
+                assert row.latest_version is not None
+                assert row.latest_version.id == failed_version_id
+                assert row.current_ready_version is not None
+                assert row.current_ready_version.id == ready_version_id
+                assert row.latest_job is not None
+                assert row.latest_job.id == failed_job_id
+                assert row.latest_job.retryable is True
+                assert not hasattr(row, "storage_ref")
+                assert not hasattr(row.latest_version, "canonical_text")
+                assert await unit_of_work.repository.archive_source(
+                    account_id=account_id,
+                    project_id=project_id,
+                    source_id=source_id,
+                )
+                await unit_of_work.commit()
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+    assert asyncio.run(
+        _scalar("SELECT status FROM context_sources WHERE id=:id", {"id": source_id})
+    ) == "deleted"
+    assert int(
+        asyncio.run(
+            _scalar(
+                "SELECT count(*) FROM context_source_versions WHERE source_id=:id",
+                {"id": source_id},
+            )
+        )
+    ) == 2
+    assert asyncio.run(
+        _scalar("SELECT storage_ref FROM context_sources WHERE id=:id", {"id": source_id})
+    ) == "private/object"
 
 
 def test_database_rejects_invalid_vocabularies_version_and_ready_without_content() -> None:

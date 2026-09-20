@@ -98,6 +98,14 @@ class StorageApiError(Exception):
         self.retryable = retryable
 
 
+class ContextSourceBusyError(Exception):
+    """API signal for a Source with an active parser Job."""
+
+
+class JobNotRetryableError(Exception):
+    """API signal for an explicit parser retry rejected by contract."""
+
+
 async def authentication_required_handler(
     request: Request,
     error: Exception,
@@ -471,6 +479,30 @@ async def storage_error_handler(request: Request, error: Exception) -> JSONRespo
         code="STORAGE_ERROR",
         message="Object storage is temporarily unavailable.",
         retryable=error.retryable,
+    )
+
+
+async def context_source_busy_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, ContextSourceBusyError):
+        raise TypeError("Unexpected exception type for Context Source busy handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="CONTEXT_SOURCE_BUSY",
+        message="The Context Source is currently being processed.",
+        retryable=False,
+    )
+
+
+async def job_not_retryable_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, JobNotRetryableError):
+        raise TypeError("Unexpected exception type for Job retry handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="JOB_NOT_RETRYABLE",
+        message="The Job is not retryable.",
+        retryable=False,
     )
 
 

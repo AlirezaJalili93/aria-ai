@@ -53,6 +53,7 @@ class Job(NewJob):
     error_code: str | None
     error_detail: str | None
     created_at: datetime
+    retry_of_job_id: UUID | None = None
 
     def __post_init__(self) -> None:
         NewJob.__post_init__(self)

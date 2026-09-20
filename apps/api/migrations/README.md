@@ -80,3 +80,14 @@ Draft. Snapshot hashes use `scope_snapshot_canonicalization_v1`; payload and lin
 by a database trigger, while lifecycle status remains a separately controlled projection. The
 table uses restrictive tenant foreign keys, safe public-schema grants and summary/detail indexes.
 See ADR-045.
+
+`0021_txt_parser_worker_access` adds only the read/update authority required by the controlled TXT
+Parser consumer. `aria_worker` can read and update Jobs, Context Sources and Source Versions and can
+read the referenced Outbox row; it cannot insert or delete those records. Session advisory locking,
+atomic finalization and crash-recovery semantics are recorded in ADR-051. No Relay Scheduler is
+introduced.
+
+`0022_context_source_management` adds immediate-parent retry lineage to Jobs, enforces at most one
+direct child per failed Job and one queued/running parser Job per Source Version, and extends the
+Source cursor index with the stable UUID tie-breaker. Source archive remains status-based and does
+not remove Versions or Storage objects. See ADR-052.

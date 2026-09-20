@@ -17,6 +17,9 @@ class Guard:
     async def complete(self, job_id: UUID) -> None:
         del job_id
 
+    async def release(self, job_id: UUID) -> None:
+        del job_id
+
 
 class ExplodingMetrics:
     def record_worker_job(self, **fields: object) -> None:
@@ -53,4 +56,3 @@ def test_telemetry_failure_does_not_fail_worker_job() -> None:
     result = asyncio.run(coordinator.execute(context, handler))
     assert result == "acquired"
     assert calls == 1
-

@@ -28,7 +28,8 @@ from app.modules.jobs.domain.job import NewJob, NewOutboxEvent
 TEXT_CONTEXT_ROUTE_KEY = "POST /api/v1/projects/{project_id}/context-sources"
 TEXT_CONTEXT_JOB_TYPE = "context_source_parse"
 TEXT_CONTEXT_IDEMPOTENCY_TTL = timedelta(hours=24)
-TEXT_CONTEXT_JOB_MAX_ATTEMPTS = 3
+PARSER_AUTOMATIC_RETRY_ENABLED = False
+TEXT_CONTEXT_JOB_MAX_ATTEMPTS = 1
 
 
 class TextContextNotFound(Exception):

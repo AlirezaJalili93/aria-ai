@@ -1237,6 +1237,161 @@ select {
   margin: var(--primitive-space-0);
 }
 
+.context-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--primitive-space-2);
+  margin-block-end: var(--primitive-space-6);
+  border-block-end: var(--border-width-default) solid hsl(var(--color-border));
+}
+
+.context-navigation__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--button-height);
+  padding-inline: var(--primitive-space-3);
+  color: hsl(var(--color-text-muted));
+  font-weight: var(--font-weight-label);
+  text-decoration: none;
+}
+
+.context-navigation__link--active {
+  border-block-end: calc(var(--border-width-default) * 2) solid hsl(var(--color-primary));
+  color: hsl(var(--color-text));
+}
+
+.context-inbox,
+.context-source-list,
+.context-source-create-card {
+  display: grid;
+}
+
+.context-inbox {
+  gap: var(--primitive-space-6);
+}
+
+.context-inbox__heading,
+.context-source-card__heading,
+.context-source-title,
+.context-source-actions {
+  display: flex;
+}
+
+.context-inbox__heading,
+.context-source-card__heading {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--primitive-space-4);
+}
+
+.context-inbox__heading h1,
+.context-inbox__heading p,
+.context-source-create-card h2,
+.context-source-create-card p,
+.context-source-card h2,
+.context-source-card p {
+  margin-block-start: var(--primitive-space-0);
+}
+
+.context-inbox__heading h1,
+.context-source-create-card h2,
+.context-source-card h2 {
+  margin-block-end: var(--primitive-space-2);
+}
+
+.context-inbox__heading > div > p:last-child,
+.context-source-create-card p,
+.context-source-title p {
+  margin-block-end: var(--primitive-space-0);
+  color: hsl(var(--color-text-muted));
+}
+
+.context-source-create-grid {
+  display: grid;
+  gap: var(--primitive-space-4);
+}
+
+.context-source-create-card,
+.context-source-card {
+  gap: var(--primitive-space-4);
+  padding: var(--primitive-space-6);
+  border: var(--border-width-default) solid hsl(var(--card-border));
+  border-radius: var(--card-radius);
+  background: hsl(var(--card-background));
+}
+
+.context-source-create-card > label {
+  font-weight: var(--font-weight-label);
+}
+
+.context-source-textarea {
+  min-block-size: calc(var(--field-height) * 4);
+  padding-block: var(--primitive-space-3);
+  resize: vertical;
+}
+
+.context-source-file {
+  padding-block: var(--primitive-space-2);
+}
+
+.context-source-empty {
+  justify-self: center;
+}
+
+.context-source-list {
+  gap: var(--primitive-space-4);
+  margin: var(--primitive-space-0);
+  padding: var(--primitive-space-0);
+  list-style: none;
+}
+
+.context-source-title {
+  align-items: center;
+  gap: var(--primitive-space-3);
+}
+
+.context-source-status-icon {
+  flex: 0 0 auto;
+  inline-size: var(--primitive-space-6);
+  block-size: var(--primitive-space-6);
+  color: hsl(var(--color-primary));
+}
+
+.context-source-meta {
+  display: grid;
+  gap: var(--primitive-space-3);
+  margin: var(--primitive-space-0);
+}
+
+.context-source-meta > div {
+  display: grid;
+  gap: var(--primitive-space-1);
+}
+
+.context-source-meta dt {
+  color: hsl(var(--color-text-muted));
+  font-size: var(--font-size-small);
+}
+
+.context-source-meta dd {
+  margin: var(--primitive-space-0);
+}
+
+.context-source-meta time {
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+.context-source-error {
+  color: hsl(var(--field-error));
+}
+
+.context-source-actions {
+  flex-wrap: wrap;
+  gap: var(--primitive-space-3);
+}
+
 @media (max-width: 47.999rem) {
   .app-header {
     align-items: flex-start;
@@ -1263,7 +1418,9 @@ select {
   }
 
   .section-heading,
-  .overview-heading {
+  .overview-heading,
+  .context-inbox__heading,
+  .context-source-card__heading {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1304,6 +1461,11 @@ select {
   .project-list,
   .module-grid,
   .project-metadata {
+    grid-template-columns: repeat(2, minmax(var(--primitive-space-0), 1fr));
+  }
+
+  .context-source-create-grid,
+  .context-source-meta {
     grid-template-columns: repeat(2, minmax(var(--primitive-space-0), 1fr));
   }
 }

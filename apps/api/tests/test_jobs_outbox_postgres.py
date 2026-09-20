@@ -138,6 +138,7 @@ def test_m008_schema_uses_current_dictionary_fields_indexes_rls_and_fks() -> Non
         "finished_at",
         "error_code",
         "error_detail",
+        "retry_of_job_id",
         "created_at",
     }
     assert columns["outbox_events"] == {
@@ -208,6 +209,96 @@ def test_job_constraints_and_cross_tenant_project_linkage_are_enforced() -> None
     ):
         with pytest.raises(IntegrityError):
             asyncio.run(_execute(sql, parameters))
+
+
+def test_parser_retry_lineage_and_one_active_job_per_source_version_are_enforced() -> None:
+    user_id, account_id, project_id = asyncio.run(_seed_project())
+    source_id, version_id, parent_id, child_id = uuid4(), uuid4(), uuid4(), uuid4()
+    asyncio.run(
+        _execute(
+            "INSERT INTO context_sources "
+            "(id, account_id, project_id, source_type, status, created_by) "
+            "VALUES (:id, :account_id, :project_id, 'file', 'failed', :created_by)",
+            {
+                "id": source_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "created_by": user_id,
+            },
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO context_source_versions "
+            "(id, account_id, project_id, source_id, version_no, parse_status) "
+            "VALUES (:id, :account_id, :project_id, :source_id, 1, 'failed')",
+            {
+                "id": version_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "source_id": source_id,
+            },
+        )
+    )
+    payload = f'{{"source_id":"{source_id}","source_version_id":"{version_id}"}}'
+    asyncio.run(
+        _execute(
+            "INSERT INTO jobs "
+            "(id, account_id, project_id, job_type, status, payload_ref, max_attempts, "
+            "correlation_id, error_code) VALUES (:id, :account_id, :project_id, "
+            "'context_source_parse', 'failed', CAST(:payload AS jsonb), 1, "
+            ":correlation_id, 'PARSER_STORAGE_UNAVAILABLE')",
+            {
+                "id": parent_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "payload": payload,
+                "correlation_id": uuid4(),
+            },
+        )
+    )
+    child_values = {
+        "id": child_id,
+        "account_id": account_id,
+        "project_id": project_id,
+        "payload": payload,
+        "correlation_id": uuid4(),
+        "parent_id": parent_id,
+    }
+    asyncio.run(
+        _execute(
+            "INSERT INTO jobs "
+            "(id, account_id, project_id, job_type, status, payload_ref, max_attempts, "
+            "correlation_id, retry_of_job_id) VALUES (:id, :account_id, :project_id, "
+            "'context_source_parse', 'queued', CAST(:payload AS jsonb), 1, "
+            ":correlation_id, :parent_id)",
+            child_values,
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        asyncio.run(
+            _execute(
+                "INSERT INTO jobs "
+                "(id, account_id, project_id, job_type, status, payload_ref, max_attempts, "
+                "correlation_id, retry_of_job_id) VALUES (:id, :account_id, :project_id, "
+                "'context_source_parse', 'failed', CAST(:payload AS jsonb), 1, "
+                ":correlation_id, :parent_id)",
+                {**child_values, "id": uuid4(), "correlation_id": uuid4()},
+            )
+        )
+
+    with pytest.raises(IntegrityError):
+        asyncio.run(
+            _execute(
+                "INSERT INTO jobs "
+                "(id, account_id, project_id, job_type, status, payload_ref, max_attempts, "
+                "correlation_id) VALUES (:id, :account_id, :project_id, "
+                "'context_source_parse', 'running', CAST(:payload AS jsonb), 1, "
+                ":correlation_id)",
+                {**child_values, "id": uuid4(), "correlation_id": uuid4()},
+            )
+        )
 
 
 def test_job_and_outbox_commit_atomically_and_outbox_payload_is_immutable() -> None:

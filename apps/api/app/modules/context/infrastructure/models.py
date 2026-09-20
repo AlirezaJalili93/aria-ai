@@ -52,6 +52,7 @@ class ContextSourceModel(Base):
             "account_id",
             "project_id",
             text("created_at DESC"),
+            text("id DESC"),
         ),
     )
 
@@ -102,9 +103,7 @@ class FileUploadAllocationModel(Base):
             name="uq_file_upload_allocation_scope_key",
         ),
         UniqueConstraint("source_id", name="uq_file_upload_allocation_source"),
-        UniqueConstraint(
-            "source_version_id", name="uq_file_upload_allocation_source_version"
-        ),
+        UniqueConstraint("source_version_id", name="uq_file_upload_allocation_source_version"),
         UniqueConstraint("job_id", name="uq_file_upload_allocation_job"),
         UniqueConstraint("object_key", name="uq_file_upload_allocation_object_key"),
         Index(

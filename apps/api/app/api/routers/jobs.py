@@ -4,12 +4,25 @@ from typing import Annotated, cast
 from uuid import UUID
 
 from aria_observability import current_trace_context
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Header, Request, status
 from pydantic import BaseModel, ConfigDict
 
 from app.api.dependencies.tenant_context import require_tenant_context
-from app.api.errors import ResourceNotFoundError
+from app.api.errors import (
+    IdempotencyConflictError,
+    JobNotRetryableError,
+    ResourceNotFoundError,
+    ValidationFailedError,
+)
 from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.jobs.application.job_retry import (
+    JobRetryIdempotencyConflict,
+    JobRetryNotAllowed,
+    JobRetryNotFound,
+    RetriedJob,
+    RetryJobCommand,
+    RetryJobUseCase,
+)
 from app.modules.jobs.application.job_status import (
     JobNotFound,
     JobStatusApplicationService,
@@ -49,8 +62,28 @@ class JobStatusResponse(BaseModel):
     meta: JobStatusMetaResponse
 
 
+class JobRetryDataResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: UUID
+    status: str
+    retry_of_job_id: UUID
+    status_url: str
+
+
+class JobRetryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: JobRetryDataResponse
+    meta: JobStatusMetaResponse
+
+
 def _job_status_service(request: Request) -> JobStatusApplicationService:
     return cast(JobStatusApplicationService, request.app.state.job_status_service)
+
+
+def _job_retry_use_case(request: Request) -> RetryJobUseCase:
+    return cast(RetryJobUseCase, request.app.state.job_retry_use_case)
 
 
 def create_jobs_router() -> APIRouter:
@@ -74,7 +107,52 @@ def create_jobs_router() -> APIRouter:
             meta=JobStatusMetaResponse(request_id=UUID(trace.request_id)),
         )
 
+    @router.post(
+        "/{job_id}/retry",
+        response_model=JobRetryResponse,
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    async def retry_job(
+        job_id: UUID,
+        context: Annotated[TenantContext, Depends(require_tenant_context)],
+        use_case: Annotated[RetryJobUseCase, Depends(_job_retry_use_case)],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> JobRetryResponse:
+        trace = current_trace_context()
+        if trace is None or trace.request_id is None:
+            raise RuntimeError("Job retry requires an active request context")
+        try:
+            retried = await use_case.execute(
+                context,
+                RetryJobCommand(
+                    job_id=job_id,
+                    idempotency_key=idempotency_key,
+                    correlation_id=UUID(trace.correlation_id),
+                ),
+            )
+        except JobRetryNotFound:
+            raise ResourceNotFoundError from None
+        except JobRetryNotAllowed:
+            raise JobNotRetryableError from None
+        except JobRetryIdempotencyConflict:
+            raise IdempotencyConflictError from None
+        except ValueError:
+            raise ValidationFailedError from None
+        return _retry_response(retried, UUID(trace.request_id))
+
     return router
+
+
+def _retry_response(value: RetriedJob, request_id: UUID) -> JobRetryResponse:
+    return JobRetryResponse(
+        data=JobRetryDataResponse(
+            job_id=value.id,
+            status=value.status,
+            retry_of_job_id=value.retry_of_job_id,
+            status_url=f"/api/v1/jobs/{value.id}",
+        ),
+        meta=JobStatusMetaResponse(request_id=request_id),
+    )
 
 
 def _data_response(view: JobStatusView) -> JobStatusDataResponse:

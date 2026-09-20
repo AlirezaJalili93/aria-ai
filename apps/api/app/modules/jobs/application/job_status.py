@@ -59,7 +59,10 @@ def _to_status_view(job: Job) -> JobStatusView:
         status=job.status,
         # The approved Job persistence model has no progress-stage field.
         progress_stage=None,
-        # Retry classification is deferred; failed Jobs are not retryable by default.
-        retryable=False,
+        retryable=(
+            job.status == "failed"
+            and job.job_type == "context_source_parse"
+            and job.error_code == "PARSER_STORAGE_UNAVAILABLE"
+        ),
         error=error,
     )

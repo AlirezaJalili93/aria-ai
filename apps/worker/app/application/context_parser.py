@@ -57,7 +57,11 @@ class CanonicalTextParser:
 
     def parse(self, source_version: SourceVersionInput) -> ParsedText:
         started_at = self._clock()
-        self._emit("parser.parse_started", source_id=str(source_version.id), status="started")
+        self._emit(
+            "parser.parse_started",
+            source_version_id=str(source_version.id),
+            status="started",
+        )
         try:
             canonical_text = normalize_text(source_version.raw_text)
             if not canonical_text:
@@ -79,7 +83,7 @@ class CanonicalTextParser:
             self._metrics.record_parse_outcome(parser_type="text", outcome="success")
         self._emit(
             "parser.parse_succeeded",
-            source_id=str(source_version.id),
+            source_version_id=str(source_version.id),
             duration_ms=duration_ms,
             status="succeeded",
         )
@@ -108,7 +112,7 @@ class CanonicalTextParser:
         self._emit(
             "parser.parse_failed",
             level="ERROR",
-            source_id=str(source_version.id),
+            source_version_id=str(source_version.id),
             duration_ms=duration_ms,
             status="failed",
             error_code=failure_class,

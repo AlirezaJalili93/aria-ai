@@ -33,7 +33,7 @@ class SqlAlchemyJobRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def add(self, job: NewJob) -> Job:
+    async def add(self, job: NewJob, *, retry_of_job_id: UUID | None = None) -> Job:
         model = JobModel(
             id=job.id,
             account_id=job.account_id,
@@ -46,6 +46,7 @@ class SqlAlchemyJobRepository:
             idempotency_key=job.idempotency_key,
             correlation_id=job.correlation_id,
             available_at=job.available_at,
+            retry_of_job_id=retry_of_job_id,
         )
         self._session.add(model)
         await self._session.flush()
@@ -64,6 +65,42 @@ class SqlAlchemyJobRepository:
             )
         )
         return _job_from_model(model) if model is not None else None
+
+    async def get_for_account_for_update(self, account_id: UUID, job_id: UUID) -> Job | None:
+        model = await self._session.scalar(
+            select(JobModel)
+            .where(JobModel.id == job_id, JobModel.account_id == account_id)
+            .with_for_update()
+        )
+        return _job_from_model(model) if model is not None else None
+
+    async def get_retry_child(
+        self, *, account_id: UUID, project_id: UUID, retry_of_job_id: UUID
+    ) -> Job | None:
+        model = await self._session.scalar(
+            select(JobModel).where(
+                JobModel.account_id == account_id,
+                JobModel.project_id == project_id,
+                JobModel.retry_of_job_id == retry_of_job_id,
+            )
+        )
+        return _job_from_model(model) if model is not None else None
+
+    async def has_active_parser_job(
+        self, *, account_id: UUID, project_id: UUID, source_version_id: UUID
+    ) -> bool:
+        model = await self._session.scalar(
+            select(JobModel.id)
+            .where(
+                JobModel.account_id == account_id,
+                JobModel.project_id == project_id,
+                JobModel.job_type == "context_source_parse",
+                JobModel.status.in_(("queued", "running")),
+                JobModel.payload_ref["source_version_id"].astext == str(source_version_id),
+            )
+            .limit(1)
+        )
+        return model is not None
 
 
 class SqlAlchemyOutboxRepository:
@@ -180,6 +217,7 @@ def _job_from_model(model: JobModel) -> Job:
         error_code=model.error_code,
         error_detail=model.error_detail,
         created_at=model.created_at,
+        retry_of_job_id=model.retry_of_job_id,
     )
 
 

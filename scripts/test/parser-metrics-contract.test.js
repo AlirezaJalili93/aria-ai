@@ -27,7 +27,8 @@ test("parser metrics stay provider-neutral and expose only approved measurements
 
 test("parser instrumentation does not place identifiers or free text in metric labels", () => {
   assert.match(parser, /parser_type="text"/);
-  assert.match(parser, /source_id=str\(source_version\.id\)/);
+  assert.match(parser, /source_version_id=str\(source_version\.id\)/);
+  assert.doesNotMatch(parser, /source_id=str\(source_version\.id\)/);
   assert.doesNotMatch(parser, /observe_parse_latency\([^)]*source_id/i);
   assert.match(adr, /Tenant, Project, Source, Job/);
   assert.match(adr, /failure_rate/);

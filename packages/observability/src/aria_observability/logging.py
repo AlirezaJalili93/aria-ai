@@ -33,6 +33,7 @@ _LEVELS = {
 _OPTIONAL_FIELDS = {
     "route",
     "task_type",
+    "job_type",
     "duration_ms",
     "latency_ms",
     "status",

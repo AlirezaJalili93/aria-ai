@@ -88,6 +88,7 @@ class JobExecutionCoordinator:
                 await handler()
                 await self._guard.complete(context.job_id)
             except BaseException:
+                await self._guard.release(context.job_id)
                 self._record_job_metric(context, "failed", started_at)
                 self._event_logger.emit(
                     "worker.job_execution_interrupted",

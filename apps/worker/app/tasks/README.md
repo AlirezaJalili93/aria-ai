@@ -1,14 +1,17 @@
 # Worker tasks
 
-S1-E04 now provides the provider-neutral `JobExecutionGuard` and execution coordinator foundation.
-They suppress `already_in_progress` and `already_completed` duplicate deliveries and emit safe
-telemetry. Business task wrappers, PostgreSQL claim/lock implementation, Job lifecycle transitions,
-artifact-specific constraints, timeout/retry/backoff and Celery ACK/requeue behavior remain deferred
-until their explicit contracts are approved. A future wrapper may deserialize a job reference, invoke
-an application workflow, update Job state and emit safe telemetry; it cannot duplicate business logic
-or rely on a Celery result backend.
+S1-E04 provides the provider-neutral `JobExecutionGuard` and execution coordinator foundation.
+Increment 0064 supplies the approved controlled TXT Parser path: an exact versioned message is
+validated, PostgreSQL remains authoritative, and a PostgreSQL advisory lock suppresses concurrent
+execution. Automatic retry is disabled. Queue ACK/requeue policy, retry/backoff policy and
+artifact-specific constraints remain deferred until separately approved.
 
-S1-F01/F02 now provides the provider-neutral `TextParser` boundary and deterministic
-`CanonicalTextParser`. Queue task registration, Source Version persistence, content-hash algorithm,
-metadata schema and Job state transitions remain separate contracts.
+S1-F01/F02 provides the provider-neutral `TextParser` boundary and deterministic
+`CanonicalTextParser`. Increment 0064 adds Source Version persistence, strict private TXT reread,
+lowercase SHA-256 canonical hashing and atomic Parser finalization.
+
+Hosted automatic processing remains disabled: no Continuous Outbox Relay Scheduler, cadence,
+claim/lease loop, periodic task or Celery Parser task name is registered. The controlled runner
+accepts one explicitly supplied message for verification. Queue producer/task registration remains
+deferred until its own contract is approved.
 

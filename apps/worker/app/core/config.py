@@ -68,6 +68,7 @@ WORKER_STAGING_REQUIRED_SETTINGS = (
     "queue_visibility_timeout_seconds",
     "worker_concurrency",
     "storage_endpoint",
+    "storage_region",
     "storage_bucket",
     "storage_access_key",
     "storage_secret_key",
@@ -85,6 +86,7 @@ class WorkerSettings(BaseSettings):
     queue_visibility_timeout_seconds: PositiveInteger | None = None
     worker_concurrency: PositiveInteger | None = None
     storage_endpoint: AnyHttpUrl | None = None
+    storage_region: NonEmptyString | None = None
     storage_bucket: NonEmptyString | None = None
     storage_access_key: SecretStr | None = None
     storage_secret_key: SecretStr | None = None

@@ -17,6 +17,7 @@ class FakeJobExecutionGuard:
         self.acquisitions = acquisitions
         self.acquired: list[UUID] = []
         self.completed: list[UUID] = []
+        self.released: list[UUID] = []
 
     async def acquire(self, job_id: UUID) -> ExecutionAcquisition:
         acquisition = self.acquisitions.pop(0)
@@ -26,6 +27,9 @@ class FakeJobExecutionGuard:
 
     async def complete(self, job_id: UUID) -> None:
         self.completed.append(job_id)
+
+    async def release(self, job_id: UUID) -> None:
+        self.released.append(job_id)
 
 
 class RecoverableFakeGuard(FakeJobExecutionGuard):
@@ -129,6 +133,7 @@ def test_interrupted_execution_does_not_complete_guard_and_is_recoverable_by_fix
     with pytest.raises(RuntimeError):
         asyncio.run(coordinator.execute(context, interrupted_handler))
     assert guard.completed == []
+    assert guard.released == [context.job_id]
     assert '"event_name":"worker.job_execution_interrupted"' in stream.getvalue()
 
     guard.recover_interrupted()

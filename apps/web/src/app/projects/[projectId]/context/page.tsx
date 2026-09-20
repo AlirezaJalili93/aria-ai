@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation"
 
 import { fetchContextItems } from "../../../../features/context/api"
 import { ContextReview } from "../../../../features/context/context-review"
+import { ContextNavigation } from "../../../../features/context/context-navigation"
 import { ProjectApiError, resolveProjectAccess } from "../../../../features/projects/api"
 import { AccountBlockedState, ProjectRequestFailure } from "../../../../features/projects/project-state"
 
@@ -27,7 +28,7 @@ export default async function ContextPage({ params }: Readonly<{ params: Promise
     if (error instanceof ProjectApiError && error.status === 404) notFound()
     return <Failure message="زمینه پروژه بارگذاری نشد. دوباره تلاش کنید." error={error} />
   }
-  return <main id="main-content" className="projects-main" tabIndex={-1}><ContextReview projectId={projectId} items={contextPage.data} /></main>
+  return <main id="main-content" className="projects-main" tabIndex={-1}><ContextNavigation projectId={projectId} current="structured" /><ContextReview projectId={projectId} items={contextPage.data} /></main>
 }
 
 function Failure({ message, error }: Readonly<{ message: string; error: unknown }>) {

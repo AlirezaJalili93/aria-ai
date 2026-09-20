@@ -4,8 +4,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
 from typing import Literal, cast
-from unicodedata import category
 from uuid import UUID
+
+from aria_backend_application.text_normalization import (
+    TEXT_CONTEXT_MAX_CHARACTERS as SHARED_TEXT_CONTEXT_MAX_CHARACTERS,
+)
+from aria_backend_application.text_normalization import (
+    TextSafetyValidationError,
+    normalize_text,
+    validate_text_safety,
+)
+
+TEXT_CONTEXT_MAX_CHARACTERS = SHARED_TEXT_CONTEXT_MAX_CHARACTERS
 
 ContextSourceType = Literal["text", "file", "message", "url_reference"]
 ContextSourceStatus = Literal["uploaded", "parsing", "ready", "failed", "deleted"]
@@ -14,8 +24,6 @@ ContextSourceParseStatus = Literal["pending", "parsing", "ready", "failed"]
 CONTEXT_SOURCE_TYPES = frozenset({"text", "file", "message", "url_reference"})
 CONTEXT_SOURCE_STATUSES = frozenset({"uploaded", "parsing", "ready", "failed", "deleted"})
 CONTEXT_SOURCE_PARSE_STATUSES = frozenset({"pending", "parsing", "ready", "failed"})
-TEXT_CONTEXT_MAX_CHARACTERS = 50_000
-_ALLOWED_TEXT_CONTROLS = frozenset({"\t", "\n", "\r"})
 
 
 class ContextSourceValidationError(ValueError):
@@ -117,16 +125,13 @@ def validate_ready_content(canonical_text: str | None, storage_ref: str | None) 
 
 
 def validate_text_context(value: str) -> str:
-    if not value or value.isspace():
+    try:
+        validated = validate_text_safety(value)
+    except TextSafetyValidationError as error:
+        raise ContextSourceValidationError(str(error)) from None
+    if not normalize_text(validated):
         raise ContextSourceValidationError("Text Context cannot be blank")
-    if len(value) > TEXT_CONTEXT_MAX_CHARACTERS:
-        raise ContextSourceValidationError("Text Context exceeds the approved character limit")
-    if any(
-        character not in _ALLOWED_TEXT_CONTROLS and category(character) == "Cc"
-        for character in value
-    ):
-        raise ContextSourceValidationError("Text Context contains a disallowed control character")
-    return value
+    return validated
 
 
 def text_context_checksum(value: str) -> str:

@@ -133,11 +133,7 @@ class FakeUploadAllocations:
         now: datetime,
         response_status: int | None = None,
     ) -> bool:
-        if (
-            self.row is None
-            or self.row.id != allocation_id
-            or self.row.status != expected_status
-        ):
+        if self.row is None or self.row.id != allocation_id or self.row.status != expected_status:
             return False
         self.row = FileUploadAllocation(
             **{
@@ -296,6 +292,7 @@ def test_file_ingestion_uploads_then_atomically_persists_content_free_job() -> N
         "source_id": str(source.id),
         "source_version_id": str(version.id),
     }
+    assert job.max_attempts == 1
     assert outbox.payload["jobId"] == str(job.id)
     assert accepted.source_id == source.id and accepted.job_id == job.id
     serialized = json.dumps({"job": job.payload_ref, "outbox": outbox.payload})
@@ -331,9 +328,7 @@ def test_same_semantic_upload_replays_without_second_object_and_changed_bytes_co
     replay = _execute(
         service,
         context,
-        CreateFileContextCommand(
-            **{**asdict(command), "filename": "display-name-changed.txt"}
-        ),
+        CreateFileContextCommand(**{**asdict(command), "filename": "display-name-changed.txt"}),
     )
     assert replay == first
     assert len(storage.puts) == 1

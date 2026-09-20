@@ -84,9 +84,7 @@ class FakeOutbox:
         self.rows: list[OutboxEvent] = []
 
     async def add(self, event: NewOutboxEvent) -> OutboxEvent:
-        persisted = OutboxEvent(
-            **asdict(event), created_at=datetime.now(UTC), published_at=None
-        )
+        persisted = OutboxEvent(**asdict(event), created_at=datetime.now(UTC), published_at=None)
         self.rows.append(persisted)
         return persisted
 
@@ -258,6 +256,7 @@ def test_ingestion_preserves_text_and_atomically_schedules_content_free_job() ->
         "source_id": str(source.id),
         "source_version_id": str(version.id),
     }
+    assert job.max_attempts == 1
     assert outbox.payload["jobId"] == str(job.id)
     assert accepted.source_id == source.id and accepted.job_id == job.id
     assert raw_text not in json.dumps(job.payload_ref, ensure_ascii=False)

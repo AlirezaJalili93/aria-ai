@@ -17,6 +17,7 @@ from app.api.errors import (
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    ContextSourceBusyError,
     ContextVersionRequiredError,
     CriticalGapsOpenError,
     DuplicateClarificationError,
@@ -27,6 +28,7 @@ from app.api.errors import (
     InvalidClarificationStateError,
     InvalidContextItemStateError,
     InvalidRequirementStateError,
+    JobNotRetryableError,
     MembershipRequiredError,
     ResourceNotFoundError,
     ScopeDraftStaleError,
@@ -39,6 +41,7 @@ from app.api.errors import (
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    context_source_busy_handler,
     context_version_required_handler,
     critical_gaps_open_handler,
     duplicate_clarification_handler,
@@ -49,6 +52,7 @@ from app.api.errors import (
     invalid_clarification_state_handler,
     invalid_context_item_state_handler,
     invalid_requirement_state_handler,
+    job_not_retryable_handler,
     membership_required_handler,
     request_validation_handler,
     resource_not_found_handler,
@@ -80,10 +84,16 @@ from app.infrastructure.db.readiness import PostgresReadinessProbe, unavailable_
 from app.infrastructure.db.runtime import DatabaseRuntime
 from app.infrastructure.queue.readiness import RedisQueueReadinessProbe, unavailable_queue_probe
 from app.modules.context.application.context_item_service import ContextItemReviewService
+from app.modules.context.application.context_source_management import (
+    ContextSourceManagementService,
+)
 from app.modules.context.application.file_context_ingestion import CreateFileContextUseCase
 from app.modules.context.application.text_context_ingestion import CreateTextContextUseCase
 from app.modules.context.infrastructure.context_item_repository import (
     SqlAlchemyContextItemUnitOfWorkFactory,
+)
+from app.modules.context.infrastructure.management_repository import (
+    SqlAlchemyContextSourceManagementUnitOfWorkFactory,
 )
 from app.modules.context.infrastructure.supabase_storage import SupabaseS3ObjectStorage
 from app.modules.context.infrastructure.text_ingestion import (
@@ -113,6 +123,7 @@ from app.modules.identity.infrastructure.account_discovery import SqlAlchemyAcco
 from app.modules.identity.infrastructure.membership_resolution import (
     SqlAlchemyMembershipResolver,
 )
+from app.modules.jobs.application.job_retry import RetryJobUseCase
 from app.modules.jobs.application.job_status import JobStatusApplicationService
 from app.modules.jobs.infrastructure.repository import SqlAlchemyJobsUnitOfWorkFactory
 from app.modules.projects.application.project_service import ProjectApplicationService
@@ -162,6 +173,8 @@ def create_app(
     text_context_use_case: CreateTextContextUseCase | None = None,
     file_context_use_case: CreateFileContextUseCase | None = None,
     job_status_service: JobStatusApplicationService | None = None,
+    job_retry_use_case: RetryJobUseCase | None = None,
+    context_source_management_service: ContextSourceManagementService | None = None,
     context_item_review_service: ContextItemReviewService | None = None,
     requirement_crud_service: RequirementCrudService | None = None,
     clarification_service: ClarificationService | None = None,
@@ -244,6 +257,8 @@ def create_app(
     app.add_exception_handler(InvalidRequirementStateError, invalid_requirement_state_handler)
     app.add_exception_handler(InvalidClarificationStateError, invalid_clarification_state_handler)
     app.add_exception_handler(ContextVersionRequiredError, context_version_required_handler)
+    app.add_exception_handler(ContextSourceBusyError, context_source_busy_handler)
+    app.add_exception_handler(JobNotRetryableError, job_not_retryable_handler)
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
     app.add_exception_handler(UnsupportedFileTypeApiError, unsupported_file_type_handler)
@@ -297,6 +312,22 @@ def create_app(
     app.state.job_status_service = job_status_service or (
         JobStatusApplicationService(
             SqlAlchemyJobsUnitOfWorkFactory(database_runtime.session_factory)
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.job_retry_use_case = job_retry_use_case or (
+        RetryJobUseCase(
+            SqlAlchemyTextContextIngestionUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.context_source_management_service = context_source_management_service or (
+        ContextSourceManagementService(
+            SqlAlchemyContextSourceManagementUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
         )
         if database_runtime is not None
         else None

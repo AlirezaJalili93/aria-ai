@@ -35,7 +35,8 @@ from app.modules.jobs.domain.job import NewJob, NewOutboxEvent
 
 FILE_CONTEXT_JOB_TYPE = "context_source_parse"
 FILE_CONTEXT_IDEMPOTENCY_TTL = timedelta(hours=24)
-FILE_CONTEXT_JOB_MAX_ATTEMPTS = 3
+PARSER_AUTOMATIC_RETRY_ENABLED = False
+FILE_CONTEXT_JOB_MAX_ATTEMPTS = 1
 
 
 class FileContextNotFound(Exception):
@@ -283,9 +284,7 @@ class CreateFileContextUseCase:
             await unit_of_work.commit()
         return allocation
 
-    async def _claim(
-        self, allocation: FileUploadAllocation
-    ) -> tuple[bool, FileUploadAllocation]:
+    async def _claim(self, allocation: FileUploadAllocation) -> tuple[bool, FileUploadAllocation]:
         now = self._clock()
         async with self._unit_of_work_factory() as unit_of_work:
             claimed = await unit_of_work.upload_allocations.transition(
@@ -471,9 +470,7 @@ class CreateFileContextUseCase:
             level="WARNING",
             actor_id=str(context.subject_id),
             file_size_bytes=len(command.content),
-            declared_mime_normalized=normalize_declared_mime_type(
-                command.declared_mime_type
-            ),
+            declared_mime_normalized=normalize_declared_mime_type(command.declared_mime_type),
             validation_result="rejected",
             error_code=error_code,
             duration_ms=(perf_counter() - started_at) * 1000,

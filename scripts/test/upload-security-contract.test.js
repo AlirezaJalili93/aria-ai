@@ -62,7 +62,7 @@ test("security tests cover malicious input, tenant, retry, compensation and leak
   assert.match(applicationTests, /cleanup_failure_is_a_safe_discoverable_incident/);
   assert.match(postgresTests, /cross_tenant_project/);
   assert.match(storageTests, /without_public_url_acl_or_upsert/);
-  assert.match(hostedTests, /denies_public_object_access/);
+  assert.match(hostedTests, /denies_anonymous_access/);
   assert.match(hostedTests, /RUN_HOSTED_UPLOAD_SECURITY/);
 });
 
