@@ -52,5 +52,6 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-051 — TXT Parser Consumer and Recovery](ADR-051-txt-parser-consumer-recovery.md)
 - [ADR-052 — Context Source Query, Soft Delete, and Explicit Parser Retry](ADR-052-context-source-management-and-retry.md)
 - [ADR-053 — Context Inbox UI](ADR-053-context-inbox-ui.md)
+- [ADR-054 — Immutable Provider Price Versioning](ADR-054-provider-price-versioning.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

@@ -34,6 +34,15 @@ class UsageRecord:
     correlation_id: UUID
     currency: str = "USD"
 
+    def __post_init__(self) -> None:
+        if (
+            self.input_tokens < 0
+            or self.cached_input_tokens < 0
+            or self.output_tokens < 0
+            or self.cached_input_tokens > self.input_tokens
+        ):
+            raise ValueError("invalid_token_accounting")
+
 
 class UsageLedgerError(RuntimeError):
     """Declared persistence failure at the Usage Ledger boundary."""

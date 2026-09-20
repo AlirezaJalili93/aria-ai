@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-12
+- تاریخ همگام‌سازی: 2026-09-20
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -73,8 +73,8 @@ M000 extensions
 | jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد |
 | outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
-| provider_price_versions | id, provider, model, unit prices, currency, validity | Historical price version تغییر نمی‌کند |
-| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ status فقط success/failed/partial؛ مقدارهای عددی نامنفی؛ cost بدون default؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Account/Project/Job همگی `ON DELETE RESTRICT` |
+| provider_price_versions | id, provider, model, pricing_version, currency, input/cached-input/output rate per 1M, effective_from, created_at | global Platform catalog؛ identity و effective time برای هر Provider/Model یکتا؛ append-only؛ Worker فقط read |
+| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
 
 ## Index و RLS Baseline
 
@@ -96,6 +96,10 @@ M000 extensions
 - Usage Ledger با `(account_id, created_at desc)` و FKهای Project/Job index می‌شود. واژهٔ
   `retry_no` برای Usage canonical است و `attempt_no` قدیمی را supersede می‌کند. Provider و Model
   دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application.
+- Provider Price Catalog طبق [ADR-054](../adr/ADR-054-provider-price-versioning.md) global و
+  append-only است. Resolution برابر آخرین `effective_from` غیرآینده و بدون tie است؛ نرخ‌ها per-1M
+  و محاسبه با Decimal بدون گردکردن میانی انجام می‌شود. Catalog اولیه هیچ Provider/Price واقعی
+  ندارد و Runtime فقط از مسیر read-only Worker به آن دسترسی دارد.
 - `repair_no` اجرای معنایی AI را از Provider retry جدا می‌کند: اجرای اصلی `0` و Repair نخست `1`
   است. سقف Sprint 1 در Policy نسخه‌دار Application است و DB فقط `repair_no >= 0` را enforce می‌کند؛
   جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md) ثبت شده است.

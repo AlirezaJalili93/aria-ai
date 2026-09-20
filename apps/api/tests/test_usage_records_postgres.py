@@ -65,7 +65,8 @@ def clean_usage_schema() -> Iterator[None]:
     command.upgrade(_migration_config(), "head")
     asyncio.run(
         _execute(
-            "TRUNCATE usage_records, outbox_events, jobs, idempotency_records, "
+            "TRUNCATE usage_records, provider_price_versions, outbox_events, jobs, "
+            "idempotency_records, "
             "context_source_versions, context_sources, project_create_requests, projects, "
             "account_memberships, profiles, accounts RESTART IDENTITY CASCADE"
         )
@@ -77,6 +78,13 @@ async def _seed_job() -> tuple[UUID, UUID, UUID, UUID]:
     user_id, account_id, project_id, job_id = uuid4(), uuid4(), uuid4(), uuid4()
     await _execute("INSERT INTO profiles (user_id) VALUES (:user_id)", {"user_id": user_id})
     await _execute("INSERT INTO accounts (id) VALUES (:account_id)", {"account_id": account_id})
+    await _execute(
+        "INSERT INTO provider_price_versions "
+        "(provider, model, pricing_version, currency, input_rate_per_1m, "
+        "cached_input_rate_per_1m, output_rate_per_1m, effective_from) "
+        "VALUES ('provider-recorded-as-data', 'model-recorded-as-data', "
+        "'pricing-v1', 'USD', 1, 1, 1, '2026-01-01T00:00:00Z')"
+    )
     await _execute(
         "INSERT INTO account_memberships (id, account_id, user_id, role, status) "
         "VALUES (:id, :account_id, :user_id, 'owner', 'active')",
@@ -202,6 +210,7 @@ def test_m009_usage_schema_matches_the_tightened_contract() -> None:
         "fk_usage_records_account_id_accounts": "RESTRICT",
         "fk_usage_records_project_id_projects": "RESTRICT",
         "fk_usage_records_job_id_jobs": "RESTRICT",
+        "fk_usage_records_provider_price": "RESTRICT",
     }
     assert asyncio.run(
         _scalar(

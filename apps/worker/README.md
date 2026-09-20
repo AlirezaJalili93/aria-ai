@@ -16,5 +16,11 @@ database credential must resolve to the non-superuser, non-RLS-bypass `aria_work
 has only `INSERT` on the Ledger and cannot read or mutate raw Usage. API and Worker credentials must
 not be shared. No public Usage endpoint or provider-specific branch is implemented.
 
+S1-G06 adds the read-only `ProviderPriceCatalog` boundary. The Worker resolves the exact effective
+Price Version before any future paid Provider invocation, then uses the retained resolution and
+normalized token counts to calculate the ledger cost with Decimal/`ROUND_HALF_UP`. The catalog has
+no runtime write path, no public management API and no real Provider prices in Sprint 1 until
+G02/G03 are approved.
+
 Business task handlers, product timeout, retry/backoff and exhausted-message behavior are deferred
 to S1-E04 and must not inherit evaluation fixture values.
