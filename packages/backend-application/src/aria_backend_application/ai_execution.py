@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, Protocol
+from uuid import UUID
 
 ExecutionStatus = Literal["success", "failed", "partial"]
 AIErrorClass = Literal[
@@ -25,6 +26,7 @@ class StructuredAIResponse:
     """Provider-neutral response fields defined by the AI execution contract."""
 
     data: StructuredValue
+    provider_attempt_id: UUID
     provider: str
     model: str
     provider_request_id: str | None

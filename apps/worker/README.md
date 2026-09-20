@@ -29,5 +29,9 @@ OpenAI explicit cache mode must report `cache_write_tokens=0`; any missing/malfo
 fails closed because the current Usage Ledger cannot price cache writes. Gemini output tokens include
 both candidate and thinking tokens, while Context Cache creation remains disabled.
 
-Business task handlers, product timeout, retry/backoff and exhausted-message behavior are deferred
-to S1-E04 and must not inherit evaluation fixture values.
+S1-L05 adds the Provider-neutral failure coordinator without promoting either candidate. Primary is
+bounded to initial plus one technical retry; an explicitly authorized Fallback receives one call and
+no retry, so a complete execution can never exceed three Provider invocations. SDK retry remains
+disabled. Every actual invocation receives a unique `provider_attempt_id`; persistence replay is
+idempotent, and timeout Usage that the Provider did not return is recorded as unavailable with NULL
+token/cost fields rather than fabricated zeroes. Runtime Primary/Fallback wiring remains absent.

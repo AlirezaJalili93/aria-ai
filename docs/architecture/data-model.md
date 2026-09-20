@@ -74,7 +74,7 @@ M000 extensions
 | outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
 | provider_price_versions | id, provider, model, pricing_version, currency, input/cached-input/output rate per 1M, effective_from, created_at | global Platform catalog؛ identity و effective time برای هر Provider/Model یکتا؛ append-only؛ Worker فقط read |
-| usage_records | id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
+| usage_records | id؛ provider_attempt_id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ accounting_status؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ attempt یکتا و persistence idempotent؛ Usage کامل یا unknown با NULL، نه صفر جعلی؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
 
 ## Index و RLS Baseline
 
@@ -95,7 +95,9 @@ M000 extensions
   [ADR-013](../adr/ADR-013-jobs-outbox-persistence.md) superseded هستند.
 - Usage Ledger با `(account_id, created_at desc)` و FKهای Project/Job index می‌شود. واژهٔ
   `retry_no` برای Usage canonical است و `attempt_no` قدیمی را supersede می‌کند. Provider و Model
-  دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application.
+  دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application. طبق
+  [ADR-056](../adr/ADR-056-ai-failure-policy.md)، `provider_attempt_id` مرز یکتای هر فراخوانی واقعی
+  است و `accounting_status=unavailable` فقط با token/costهای NULL و `status=failed` معتبر است.
 - Provider Price Catalog طبق [ADR-054](../adr/ADR-054-provider-price-versioning.md) global و
   append-only است. Resolution برابر آخرین `effective_from` غیرآینده و بدون tie است؛ نرخ‌ها per-1M
   و محاسبه با Decimal بدون گردکردن میانی انجام می‌شود. Catalog اولیه هیچ Provider/Price واقعی

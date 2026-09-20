@@ -29,6 +29,7 @@ The standardized response contains exactly the approved execution fields:
 
 ```text
 data
+provider_attempt_id
 provider
 model
 provider_request_id
@@ -54,8 +55,9 @@ timeout | rate_limited | auth_error | invalid_response |
 safety_block | provider_unavailable | quota_error | unknown_provider_error
 ```
 
-Retryability is explicit on the mapped error. The port does not infer retryability, perform
-backoff/jitter, select a provider, or persist Usage Records.
+Retryability is explicit on the mapped error. ADR-056 later assigns bounded backoff/jitter,
+fallback authorization and Usage persistence to a separate Application coordinator; this low-level
+port still does not infer policy or select a provider.
 
 ## Boundary rules
 
@@ -64,8 +66,9 @@ backoff/jitter, select a provider, or persist Usage Records.
   unrelated project data are forbidden.
 - `output_schema`, `routing_policy`, `cost_budget`, `timeout_policy` and `metadata` remain structured
   provider-neutral mappings; their detailed policies belong to later stories where specified.
-- The port does not implement provider adapters, routing selection, fallback, retry execution,
-  schema/business validation, Usage persistence or model evaluation.
+- The port does not itself implement provider adapters, routing selection, fallback, retry
+  execution, schema/business validation, Usage persistence or model evaluation. ADR-056 composes
+  those existing ports without changing this boundary.
 - The limited G04 routing-policy contract is recorded in [ADR-023](ADR-023-limited-routing-policy-contract.md);
   task mapping, escalation, fallback and provider selection remain deferred.
 

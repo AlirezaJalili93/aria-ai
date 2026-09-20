@@ -9,6 +9,7 @@ from google.genai import errors, types
 
 from app.application.provider_adapter import (
     ProviderAdapterError,
+    ProviderFailureUsage,
     ProviderRequest,
     ProviderResult,
 )
@@ -98,14 +99,31 @@ class GeminiGenerateContentAdapter:
             getattr(usage, "candidates_token_count", None)
         )
         thoughts = non_negative_count(getattr(usage, "thoughts_token_count", None))
+        output_tokens = candidates + thoughts
+        try:
+            data = decode_structured_output(getattr(response, "text", None))
+        except ProviderAdapterError as error:
+            raise ProviderAdapterError(
+                error.error_class,
+                retryable=error.retryable,
+                usage=ProviderFailureUsage(
+                    provider_request_id=_optional_string(
+                        getattr(response, "response_id", None)
+                    ),
+                    input_tokens=input_tokens,
+                    cached_input_tokens=cached_input_tokens,
+                    output_tokens=output_tokens,
+                    latency_ms=(monotonic() - started_at) * 1000,
+                ),
+            ) from None
         return ProviderResult(
-            data=decode_structured_output(getattr(response, "text", None)),
+            data=data,
             provider=GEMINI_PROVIDER,
             model=self._model,
             provider_request_id=_optional_string(getattr(response, "response_id", None)),
             input_tokens=input_tokens,
             cached_input_tokens=cached_input_tokens,
-            output_tokens=candidates + thoughts,
+            output_tokens=output_tokens,
             latency_ms=(monotonic() - started_at) * 1000,
             status="success",
         )

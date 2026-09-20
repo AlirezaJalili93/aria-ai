@@ -111,6 +111,7 @@ async def _seed_job() -> tuple[UUID, UUID, UUID, UUID]:
 
 def _usage_values(account_id: UUID, project_id: UUID, job_id: UUID) -> dict[str, object]:
     return {
+        "provider_attempt_id": uuid4(),
         "account_id": account_id,
         "project_id": project_id,
         "job_id": job_id,
@@ -129,6 +130,7 @@ def _usage_values(account_id: UUID, project_id: UUID, job_id: UUID) -> dict[str,
         "retry_no": 0,
         "repair_no": 0,
         "estimated_cost": Decimal("0.00000001"),
+        "accounting_status": "complete",
         "pricing_version": "pricing-v1",
         "correlation_id": uuid4(),
     }
@@ -136,15 +138,17 @@ def _usage_values(account_id: UUID, project_id: UUID, job_id: UUID) -> dict[str,
 
 USAGE_INSERT = """
 INSERT INTO usage_records (
-    account_id, project_id, job_id, task_type, workflow_version, prompt_version,
+    provider_attempt_id, account_id, project_id, job_id, task_type,
+    workflow_version, prompt_version,
     provider, model, provider_request_id, input_tokens, cached_input_tokens,
     output_tokens, latency_ms, status, error_code, retry_no, repair_no, estimated_cost,
-    pricing_version, correlation_id
+    accounting_status, pricing_version, correlation_id
 ) VALUES (
-    :account_id, :project_id, :job_id, :task_type, :workflow_version, :prompt_version,
+    :provider_attempt_id, :account_id, :project_id, :job_id, :task_type,
+    :workflow_version, :prompt_version,
     :provider, :model, :provider_request_id, :input_tokens, :cached_input_tokens,
     :output_tokens, :latency_ms, :status, :error_code, :retry_no, :repair_no, :estimated_cost,
-    :pricing_version, :correlation_id
+    :accounting_status, :pricing_version, :correlation_id
 )
 """
 
@@ -178,6 +182,7 @@ def test_m009_usage_schema_matches_the_tightened_contract() -> None:
     columns, indexes, foreign_keys = asyncio.run(inspect_schema())
     assert columns == {
         "id",
+        "provider_attempt_id",
         "account_id",
         "project_id",
         "job_id",
@@ -196,6 +201,7 @@ def test_m009_usage_schema_matches_the_tightened_contract() -> None:
         "retry_no",
         "repair_no",
         "estimated_cost",
+        "accounting_status",
         "currency",
         "pricing_version",
         "correlation_id",
@@ -311,6 +317,68 @@ def test_usage_records_are_immutable_and_parent_hard_delete_is_restricted() -> N
     ):
         with pytest.raises(IntegrityError):
             asyncio.run(_execute(statement, parameters))
+
+
+def test_provider_attempt_identity_is_unique_and_unavailable_usage_uses_nulls() -> None:
+    _, account_id, project_id, job_id = asyncio.run(_seed_job())
+    values = _usage_values(account_id, project_id, job_id)
+    asyncio.run(_execute(USAGE_INSERT, values))
+    with pytest.raises(IntegrityError):
+        asyncio.run(_execute(USAGE_INSERT, values))
+
+    unavailable = _usage_values(account_id, project_id, job_id)
+    unavailable.update(
+        {
+            "provider_attempt_id": uuid4(),
+            "provider_request_id": None,
+            "input_tokens": None,
+            "cached_input_tokens": None,
+            "output_tokens": None,
+            "status": "failed",
+            "error_code": "timeout",
+            "estimated_cost": None,
+            "accounting_status": "unavailable",
+        }
+    )
+    asyncio.run(_execute(USAGE_INSERT, unavailable))
+    assert asyncio.run(
+        _scalar(
+            "SELECT count(*) FROM usage_records "
+            "WHERE accounting_status='unavailable' "
+            "AND input_tokens IS NULL AND estimated_cost IS NULL"
+        )
+    ) == 1
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"accounting_status": "unavailable"},
+        {
+            "accounting_status": "unavailable",
+            "status": "success",
+            "input_tokens": None,
+            "cached_input_tokens": None,
+            "output_tokens": None,
+            "estimated_cost": None,
+        },
+        {
+            "accounting_status": "complete",
+            "input_tokens": None,
+            "cached_input_tokens": None,
+            "output_tokens": None,
+            "estimated_cost": None,
+        },
+    ],
+)
+def test_usage_accounting_coherence_is_database_enforced(
+    overrides: dict[str, object],
+) -> None:
+    _, account_id, project_id, job_id = asyncio.run(_seed_job())
+    values = _usage_values(account_id, project_id, job_id)
+    values.update(overrides)
+    with pytest.raises(IntegrityError):
+        asyncio.run(_execute(USAGE_INSERT, values))
 
 
 def test_usage_repair_number_defaults_to_zero_and_has_no_sprint_policy_ceiling() -> None:

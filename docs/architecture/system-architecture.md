@@ -91,6 +91,10 @@ Batch معتبر را همراه با پیشروی اتمیک Context Version د
 مطابق ADR-027، H03 فقط defectهای deterministic خروجی مدل را با Policy صریح و حداکثر یک Repair از
 همان AI Execution/Routing boundary اصلاح می‌کند؛ Repair و Provider retry شماره و metering مستقل
 دارند و هیچ مسیر Repair نمی‌تواند Validation کامل H02 را دور بزند.
+مطابق ADR-056، Technical Retry در Application به اجرای اولیه و حداکثر یک Retry محدود است؛
+Fallback تنها پس از exhaustion و با مجوز مستقل Quality/Budget یک بار اجرا می‌شود. هر invocation
+شناسهٔ حسابداری یکتا دارد و زنجیرهٔ کامل حداکثر سه فراخوانی Provider می‌سازد؛ هیچ Provider واقعی
+به‌عنوان Primary/Fallback در Composition Root فعال نشده است.
 مطابق ADR-030، Requirement Domain نسخهٔ عددی Context و provenance آمادهٔ همان Tenant را حفظ می‌کند؛
 پایداری تک Requirement از Application Port عبور می‌کند و I01 هیچ API، Generation یا merge policy
 معرفی نمی‌کند.

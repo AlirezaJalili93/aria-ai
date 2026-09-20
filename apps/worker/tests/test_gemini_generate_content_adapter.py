@@ -66,6 +66,39 @@ def test_gemini_adapter_rejects_unapproved_model_before_any_call() -> None:
         GeminiGenerateContentAdapter(client=FakeGeminiAsyncClient(), model="unapproved-model")
 
 
+def test_gemini_invalid_json_preserves_only_safe_numeric_usage() -> None:
+    client = FakeGeminiAsyncClient()
+
+    async def invalid_response(**kwargs: object) -> object:
+        client.models.kwargs = kwargs
+        return SimpleNamespace(
+            response_id="gemini-safe",
+            text="not-json",
+            usage_metadata=SimpleNamespace(
+                prompt_token_count=13,
+                cached_content_token_count=2,
+                candidates_token_count=5,
+                thoughts_token_count=7,
+            ),
+        )
+
+    client.models.generate_content = invalid_response  # type: ignore[method-assign]
+    adapter = GeminiGenerateContentAdapter(client=client, model="gemini-3.8-flash")
+
+    with pytest.raises(ProviderAdapterError) as captured:
+        asyncio.run(
+            adapter.execute(
+                {"instructions": "safe", "input": {}, "output_schema": {"type": "object"}}
+            )
+        )
+
+    assert captured.value.error_class == "invalid_response"
+    assert captured.value.retryable is False
+    assert captured.value.usage is not None
+    assert captured.value.usage.input_tokens == 13
+    assert captured.value.usage.output_tokens == 12
+
+
 def test_gemini_adapter_maps_safety_finish_reason_without_exposing_content() -> None:
     client = FakeGeminiAsyncClient()
 

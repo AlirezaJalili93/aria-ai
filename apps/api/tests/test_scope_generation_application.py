@@ -134,6 +134,7 @@ class FakeLogger:
 def _response(data: object, *, prompt_version: str = "scope-prompt-v1") -> StructuredAIResponse:
     return StructuredAIResponse(
         data=data,
+        provider_attempt_id=uuid4(),
         provider="fake",
         model="fake-scope-v1",
         provider_request_id="req-1",

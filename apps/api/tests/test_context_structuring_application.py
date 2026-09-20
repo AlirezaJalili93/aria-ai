@@ -49,6 +49,7 @@ class FakeAIExecution:
             self.during_execute()
         return StructuredAIResponse(
             data=self.data,
+            provider_attempt_id=uuid4(),
             provider="fake",
             model="fake-model",
             provider_request_id="fake-request",
@@ -78,6 +79,7 @@ class SequenceAIExecution:
             raise outcome
         return StructuredAIResponse(
             data=outcome,
+            provider_attempt_id=uuid4(),
             provider="fake",
             model="fake-model",
             provider_request_id=f"fake-request-{call_no}",

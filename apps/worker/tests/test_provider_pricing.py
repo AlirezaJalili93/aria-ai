@@ -89,6 +89,7 @@ def test_missing_price_is_an_explicit_preflight_failure() -> None:
 def test_resolved_price_builds_authoritative_usage_record() -> None:
     draft = UnpricedUsageRecord(
         account_id=uuid4(),
+        provider_attempt_id=uuid4(),
         project_id=None,
         job_id=None,
         task_type="synthetic-task",

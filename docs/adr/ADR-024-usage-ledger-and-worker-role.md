@@ -25,6 +25,9 @@ would bypass the intended Ledger boundary.
   Repair limit belongs to a versioned Application policy.
 - `prompt_version` and `correlation_id` are required.
 - `estimated_cost` has no default. A real zero must be supplied explicitly by the caller.
+- ADR-056 adds a unique `provider_attempt_id` for idempotent persistence and
+  `accounting_status=complete|unavailable`. Unavailable Usage requires failed status and NULL
+  token/cost fields; unknown accounting is never represented as zero.
 - `provider` and `model` are recorded data. Domain/Application code does not branch on a provider.
 - The Application boundary exposes only `UsageLedger.append(record)`; no raw read/update/delete
   port or public endpoint is added.

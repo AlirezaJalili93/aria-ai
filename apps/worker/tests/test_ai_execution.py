@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from uuid import uuid4
 
 import pytest
 
@@ -14,6 +15,7 @@ from app.application.ai_execution import (
 def test_structured_response_contains_only_the_approved_gateway_fields() -> None:
     response = StructuredAIResponse(
         data={"items": []},
+        provider_attempt_id=uuid4(),
         provider="provider-a",
         model="model-a",
         provider_request_id=None,

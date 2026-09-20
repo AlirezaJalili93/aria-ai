@@ -142,6 +142,7 @@ class FakeAI:
         self.calls += 1
         return StructuredAIResponse(
             data=self.batch,
+            provider_attempt_id=uuid4(),
             provider="fake",
             model="fake-model",
             provider_request_id="fake-request",

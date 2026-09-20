@@ -89,6 +89,10 @@ credentials never cross this boundary or enter logs.
 - Promotion, fallback, customer-data approval, real Price Catalog provisioning and cache-write
   Ledger expansion remain explicit later decisions.
 
+ADR-056 subsequently defines a Provider-neutral bounded retry/fallback capability and synthetic
+failure tests. It does not change this ADR's `Primary: none` / `Fallback: none` runtime promotion
+decision.
+
 ## Sources
 
 - [Sprint 1 Technical Backlog v1.0](https://docs.google.com/document/d/1O0yayIY1Akal6sV1jVJa6LGkZuJZSYGL_JhqMf6UNsA/edit), S1-G02/G03; synced 2026-09-20.

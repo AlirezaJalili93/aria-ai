@@ -14,6 +14,17 @@ ProviderRequest = StructuredMapping
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderFailureUsage:
+    """Safe numeric Usage returned even though structured Provider output failed."""
+
+    provider_request_id: str | None
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    latency_ms: float
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderResult:
     """Normalized result returned by any future provider adapter."""
 
@@ -31,10 +42,17 @@ class ProviderResult:
 class ProviderAdapterError(RuntimeError):
     """Provider-neutral mapped error; raw SDK exceptions stay inside an adapter."""
 
-    def __init__(self, error_class: AIErrorClass, *, retryable: bool) -> None:
+    def __init__(
+        self,
+        error_class: AIErrorClass,
+        *,
+        retryable: bool,
+        usage: ProviderFailureUsage | None = None,
+    ) -> None:
         super().__init__(error_class)
         self.error_class = error_class
         self.retryable = retryable
+        self.usage = usage
 
 
 class ProviderAdapter(Protocol):

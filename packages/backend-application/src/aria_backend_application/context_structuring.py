@@ -503,6 +503,7 @@ class ContextStructuringUseCase:
         await self._usage_ledger.append(
             UsageRecord(
                 account_id=command.account_id,
+                provider_attempt_id=response.provider_attempt_id,
                 project_id=command.project_id,
                 job_id=command.job_id,
                 task_type=command.task_type,

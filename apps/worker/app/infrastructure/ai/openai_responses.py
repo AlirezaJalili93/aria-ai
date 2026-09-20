@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 
 from app.application.provider_adapter import (
     ProviderAdapterError,
+    ProviderFailureUsage,
     ProviderRequest,
     ProviderResult,
 )
@@ -103,7 +104,23 @@ class OpenAIResponsesAdapter:
         require_cached_subset(
             input_tokens=input_tokens, cached_input_tokens=cached_input_tokens
         )
-        data = decode_structured_output(getattr(response, "output_text", None))
+        output_tokens = required_non_negative_count(
+            getattr(usage, "output_tokens", None)
+        )
+        try:
+            data = decode_structured_output(getattr(response, "output_text", None))
+        except ProviderAdapterError as error:
+            raise ProviderAdapterError(
+                error.error_class,
+                retryable=error.retryable,
+                usage=ProviderFailureUsage(
+                    provider_request_id=_optional_string(getattr(response, "id", None)),
+                    input_tokens=input_tokens,
+                    cached_input_tokens=cached_input_tokens,
+                    output_tokens=output_tokens,
+                    latency_ms=(monotonic() - started_at) * 1000,
+                ),
+            ) from None
         return ProviderResult(
             data=data,
             provider=OPENAI_PROVIDER,
@@ -111,9 +128,7 @@ class OpenAIResponsesAdapter:
             provider_request_id=_optional_string(getattr(response, "id", None)),
             input_tokens=input_tokens,
             cached_input_tokens=cached_input_tokens,
-            output_tokens=required_non_negative_count(
-                getattr(usage, "output_tokens", None)
-            ),
+            output_tokens=output_tokens,
             latency_ms=(monotonic() - started_at) * 1000,
             status="success",
         )

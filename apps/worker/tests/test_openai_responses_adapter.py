@@ -113,6 +113,27 @@ def test_openai_adapter_rejects_unapproved_model_before_any_call() -> None:
         )
 
 
+def test_openai_invalid_json_preserves_only_safe_numeric_usage() -> None:
+    response = openai_response()
+    response.output_text = "not-json"  # type: ignore[attr-defined]
+    adapter = OpenAIResponsesAdapter(
+        client=FakeOpenAIClient(response), model="gpt-5.6-terra"
+    )
+
+    with pytest.raises(ProviderAdapterError) as captured:
+        asyncio.run(
+            adapter.execute(
+                {"instructions": "safe", "input": {}, "output_schema": {"type": "object"}}
+            )
+        )
+
+    assert captured.value.error_class == "invalid_response"
+    assert captured.value.retryable is False
+    assert captured.value.usage is not None
+    assert captured.value.usage.input_tokens == 11
+    assert captured.value.usage.output_tokens == 7
+
+
 def test_openai_adapter_maps_content_filter_to_non_retryable_safety_block() -> None:
     response = SimpleNamespace(
         id="resp-safe",

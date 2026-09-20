@@ -80,6 +80,7 @@ class UnpricedUsageRecord:
     """Provider result metadata before authoritative catalog pricing is attached."""
 
     account_id: UUID
+    provider_attempt_id: UUID
     project_id: UUID | None
     job_id: UUID | None
     task_type: str
@@ -145,6 +146,7 @@ def price_usage_record(
     )
     return UsageRecord(
         account_id=record.account_id,
+        provider_attempt_id=record.provider_attempt_id,
         project_id=record.project_id,
         job_id=record.job_id,
         task_type=record.task_type,

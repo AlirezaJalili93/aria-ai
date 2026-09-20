@@ -30,14 +30,17 @@ status
 ```
 
 The adapter maps provider failures to the existing bounded AI error classes and carries explicit
-retryability. Raw SDK exceptions, response bodies and credentials never cross this boundary.
+retryability. ADR-056 permits an error to retain only safe numeric Usage and Provider request ID
+when the Provider returned valid accounting before structured-output parsing failed. Raw SDK
+exceptions, response bodies, structured output and credentials never cross this boundary.
 
 ## Original non-decisions and later refinement
 
 - This ADR did not select a provider or adapter. ADR-055 later selected two evaluation-only
   candidates and their SDK/timeout/accounting contracts.
 - Runtime routing, primary/fallback promotion and customer-data use remain undecided.
-- The generic port and normalized result are unchanged.
+- ADR-056 extends the generic error with optional safe numeric Usage; the request/result contract
+  and Provider-neutral boundary are unchanged.
 
 ## Consequences
 

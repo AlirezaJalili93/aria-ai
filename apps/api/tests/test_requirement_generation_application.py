@@ -129,6 +129,7 @@ class SequenceAI:
             raise outcome
         return StructuredAIResponse(
             data=outcome,
+            provider_attempt_id=uuid4(),
             provider="fake",
             model="fake-model",
             provider_request_id=f"fake-{index}",
