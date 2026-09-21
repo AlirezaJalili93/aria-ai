@@ -15,16 +15,17 @@ test("TXT Parser consumer keeps Queue input minimal and PostgreSQL authoritative
   assert.doesNotMatch(runtime, /celery|boto3|sqlalchemy|asyncpg/i);
 });
 
-test("TXT hash, automatic-retry and Scheduler boundaries are explicit", async () => {
+test("TXT hash, automatic-retry and durable Relay boundaries are explicit", async () => {
   const adr = await read("docs/adr/ADR-051-txt-parser-consumer-recovery.md");
   const workerReadme = await read("apps/worker/app/tasks/README.md");
-  const controlledRunner = await read("apps/worker/app/tasks/txt_parser.py");
+  const taskAdapter = await read("apps/worker/app/infrastructure/queue/parser_task.py");
 
   assert.match(adr, /lowercase SHA-256/);
   assert.match(adr, /automatic retry is disabled/);
-  assert.match(adr, /Continuous Outbox relay scheduler/);
-  assert.match(workerReadme, /Hosted automatic processing remains disabled/);
-  assert.doesNotMatch(controlledRunner, /Celery|celery|register_/);
+  const relayAdr = await read("docs/adr/ADR-057-durable-outbox-delivery-runtime.md");
+  assert.match(relayAdr, /Hosted Relay activation remains disabled/);
+  assert.match(workerReadme, /aria\.context\.parse\.v1/);
+  assert.match(taskAdapter, /register_txt_parser_task/);
 });
 
 test("Worker storage and DB details remain Infrastructure concerns", async () => {

@@ -105,6 +105,7 @@ def _command() -> ScheduleJobCommand:
         idempotency_key="private-key",
         correlation_id=uuid4(),
         event_type="context_added.v1",
+        delivery_channel="job_queue",
         aggregate_type="context_source",
         aggregate_id=uuid4(),
         event_payload={"private": "do-not-log"},

@@ -239,6 +239,14 @@ class ContextStructuringRepository(Protocol):
         self, *, account_id: UUID, project_id: UUID, context_version: int
     ) -> None: ...
 
+    async def complete_job_success(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        job_id: UUID,
+    ) -> None: ...
+
 
 class ContextStructuringUnitOfWork(Protocol):
     @property
@@ -341,6 +349,11 @@ class ContextStructuringUseCase:
                     account_id=command.account_id,
                     project_id=command.project_id,
                     context_version=context_version,
+                )
+                await unit_of_work.repository.complete_job_success(
+                    account_id=command.account_id,
+                    project_id=command.project_id,
+                    job_id=command.job_id,
                 )
                 await unit_of_work.commit()
 

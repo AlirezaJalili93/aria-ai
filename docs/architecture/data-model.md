@@ -70,8 +70,8 @@ M000 extensions
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد |
-| outbox_events | id, account_id, aggregate_type/id, event_type, payload, status, attempt_count, available/created/published time | همراه تغییر Business در یک Transaction؛ payload immutable |
+| jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد؛ AI-01 در هر Project حداکثر یک Job فعال `queued|running` دارد |
+| outbox_events | id, account_id, aggregate_type/id, event_type, delivery_channel, payload, status, attempt_count, available/created/published time, claim_id/claimed_at/lease_until | همراه تغییر Business در یک Transaction؛ payload immutable؛ channel صریح؛ claim کوتاه و crash-safe مطابق ADR-057 |
 | idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
 | provider_price_versions | id, provider, model, pricing_version, currency, input/cached-input/output rate per 1M, effective_from, created_at | global Platform catalog؛ identity و effective time برای هر Provider/Model یکتا؛ append-only؛ Worker فقط read |
 | usage_records | id؛ provider_attempt_id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ accounting_status؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ attempt یکتا و persistence idempotent؛ Usage کامل یا unknown با NULL، نه صفر جعلی؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
@@ -117,6 +117,11 @@ M000 extensions
   کامل persist می‌شود؛ Project با row lock نسخهٔ بعدی را تخصیص می‌دهد و درج همهٔ Context Itemها و
   پیشروی `current_context_version` در یک Transaction انجام می‌شود. جزئیات در
   [ADR-026](../adr/ADR-026-context-structuring-workflow.md) ثبت شده است.
+- 0071 مسیر Job مصنوعی AI-01 را بدون Public Endpoint فعال می‌کند. Context Itemهای جدید، افزایش
+  `projects.current_context_version` و `jobs.status=succeeded` در یک Transaction Worker ثبت
+  می‌شوند. Partial unique index ایجاد دو Job فعال Context Structuring برای یک Project را در DB
+  متوقف می‌کند؛ جزئیات و activation exclusions در
+  [ADR-058](../adr/ADR-058-context-structuring-job-runtime-foundation.md) ثبت شده است.
 - H03 فقط defectهای deterministic خروجی مدل را حداکثر یک‌بار با همان Workflow/Routing و Prompt
   نسخه‌دار Repair می‌کند. هر خروجی دوباره کل validation را طی می‌کند و exhaustion هیچ Context
   write یا Version increment ندارد؛ جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md)

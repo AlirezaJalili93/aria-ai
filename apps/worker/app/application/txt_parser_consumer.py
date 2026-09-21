@@ -24,7 +24,11 @@ from app.application.context_parser import (
     TextParser,
 )
 from app.application.parser_metrics import ParserMetrics
-from app.application.ports import JobExecutionGuard
+from app.application.ports import (
+    JobExecutionGuard,
+    JobExecutionGuardPersistenceError,
+    JobExecutionGuardValidationError,
+)
 
 PARSER_MESSAGE_VERSION = "1"
 PARSER_JOB_TYPE = "context_source_parse"
@@ -143,7 +147,12 @@ class TxtParserConsumer:
         self._clock = clock
 
     async def execute(self, message: ParserJobMessage) -> ParserConsumerResult:
-        acquisition = await self._guard.acquire(message.job_id)
+        try:
+            acquisition = await self._guard.acquire(message.job_id)
+        except JobExecutionGuardValidationError:
+            raise ParserMessageValidationError("Parser Job is not available") from None
+        except JobExecutionGuardPersistenceError:
+            raise ParserRuntimePersistenceError from None
         if acquisition == "already_in_progress":
             self._event_logger.emit(
                 "worker.job_duplicate_suppressed",

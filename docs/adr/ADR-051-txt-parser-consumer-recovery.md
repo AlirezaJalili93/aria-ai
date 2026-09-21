@@ -55,10 +55,14 @@ authoritative identifiers before mutation.
 
 ## Deferred
 
+ADR-057 supersedes the first three deferrals below only for `context_added.v1`: it freezes the
+claim/lease loop, Parser task mapping/registration and a local `relay` process mode. Hosted
+activation remains deferred until the ADR-057 recovery gate passes.
+
 - Continuous Outbox relay scheduler, cadence, batch size, ordering, claim/lease, concurrent relay
   policy, crash recovery and deployment topology.
 - Queue producer mapping and Celery Parser task name/registration.
-- Hosted automatic processing and Staging feature activation.
+- Hosted automatic processing and Staging feature activation remain deferred.
 - Manual Retry API, backoff, automatic retry, dead-letter and exhausted-message policy.
 - Source list/archive/retry APIs and Context Inbox UI.
 - PDF, DOCX and any non-TXT file parser.

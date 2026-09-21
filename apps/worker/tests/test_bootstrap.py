@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.core.config import WorkerSettings
-from app.main import bootstrap_worker, run_worker
+from app.main import bootstrap_worker, main, run_worker
 
 FULL_COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567"
 STALE_COMMIT_SHA = "89abcdef0123456789abcdef0123456789abcdef"
@@ -106,6 +106,20 @@ def test_worker_runtime_stays_alive_after_successful_bootstrap(
     assert event["service"] == "aria-worker"
     assert event["queue_adapter_configured"] is True
     assert event["status"] == "started"
+
+
+def test_process_mode_dispatches_only_worker_or_relay(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr("app.main.run_worker", lambda: calls.append("worker"))
+    monkeypatch.setattr("app.main.run_relay", lambda: calls.append("relay"))
+
+    main([])
+    main(["worker"])
+    main(["relay"])
+
+    assert calls == ["worker", "worker", "relay"]
+    with pytest.raises(SystemExit, match=r"worker\|relay"):
+        main(["unknown"])
 
 
 @pytest.mark.parametrize(

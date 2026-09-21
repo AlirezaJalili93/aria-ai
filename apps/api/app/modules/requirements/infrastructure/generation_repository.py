@@ -219,6 +219,7 @@ class SqlAlchemyRequirementGenerationRepository:
                     aggregate_type="project",
                     aggregate_id=event.project_id,
                     event_type="requirement.conflict_detected",
+                    delivery_channel="domain_event",
                     payload={
                         "project_id": str(event.project_id),
                         "context_version": event.context_version,

@@ -10,7 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
-from app.application.ports import ExecutionAcquisition
+from app.application.ports import (
+    ExecutionAcquisition,
+    JobExecutionGuardPersistenceError,
+    JobExecutionGuardValidationError,
+)
 from app.application.txt_parser_consumer import (
     PARSER_JOB_TYPE,
     ParserJobInput,
@@ -47,16 +51,16 @@ class PostgresJobExecutionGuard:
             )
             if status is None:
                 await self._unlock(connection, job_id)
-                raise ParserMessageValidationError("Parser Job is not available")
+                raise JobExecutionGuardValidationError("Job is not available")
             if status in {"succeeded", "failed", "cancelled"}:
                 await self._unlock(connection, job_id)
                 return "already_completed"
             if status not in {"queued", "running"}:
                 await self._unlock(connection, job_id)
-                raise ParserMessageValidationError("Parser Job state is invalid")
+                raise JobExecutionGuardValidationError("Job state is invalid")
             self._held[job_id] = connection
             return "acquired"
-        except ParserMessageValidationError:
+        except JobExecutionGuardValidationError:
             if not connection.closed:
                 with suppress(SQLAlchemyError):
                     await connection.close()
@@ -65,7 +69,7 @@ class PostgresJobExecutionGuard:
             if not connection.closed:
                 with suppress(SQLAlchemyError):
                     await connection.close()
-            raise ParserRuntimePersistenceError from None
+            raise JobExecutionGuardPersistenceError from None
 
     async def complete(self, job_id: UUID) -> None:
         await self._release(job_id)
@@ -132,7 +136,8 @@ class SqlAlchemyTxtParserJobStore:
                 event = (
                     await connection.execute(
                         text(
-                            "SELECT account_id, aggregate_id, event_type, payload "
+                            "SELECT account_id, aggregate_id, event_type, "
+                            "delivery_channel, payload "
                             "FROM public.outbox_events WHERE id=:event_id"
                         ),
                         {"event_id": message.outbox_event_id},
@@ -143,6 +148,7 @@ class SqlAlchemyTxtParserJobStore:
                     or event["account_id"] != job["account_id"]
                     or event["aggregate_id"] != source_id
                     or event["event_type"] != "context_added.v1"
+                    or event["delivery_channel"] != "job_queue"
                     or not isinstance(event["payload"], dict)
                     or event["payload"].get("jobId") != str(message.job_id)
                 ):

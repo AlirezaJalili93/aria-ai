@@ -66,6 +66,11 @@ provider-neutral release identity, and the native value takes precedence over a 
 
 ## Hosted verification gate
 
+The 0070 Relay capability is present in the existing Worker artifact as `python -m app.main relay`,
+but no hosted Relay service/process is activated by repository configuration. Activation is a
+separate decision after the complete local recovery gate in ADR-057 passes. The current hosted
+Worker command and service topology therefore remain unchanged.
+
 1. Bind both services to the same GitHub branch and verify the deployed SHA.
 2. Keep the Worker private and generate a public Railway domain only for the API.
 3. Confirm `/health/live` returns `200` without dependency calls.

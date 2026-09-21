@@ -66,6 +66,15 @@ class JobModel(Base):
                 "job_type = 'context_source_parse' AND status IN ('queued','running')"
             ),
         ),
+        Index(
+            "uq_jobs_active_context_structuring_project",
+            "account_id",
+            "project_id",
+            unique=True,
+            postgresql_where=text(
+                "job_type = 'context_structuring' AND status IN ('queued','running')"
+            ),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
@@ -94,9 +103,34 @@ class JobModel(Base):
 class OutboxEventModel(Base):
     __tablename__ = "outbox_events"
     __table_args__ = (
-        CheckConstraint("status IN ('pending','published','failed')", name="outbox_status"),
+        CheckConstraint(
+            "status IN ('pending','published','failed','blocked_unknown_event')",
+            name="outbox_status",
+        ),
         CheckConstraint("attempt_count >= 0", name="outbox_attempt_count"),
+        CheckConstraint(
+            "delivery_channel IN ('job_queue','domain_event')",
+            name="outbox_delivery_channel",
+        ),
+        CheckConstraint(
+            "((claim_id IS NULL AND claimed_at IS NULL AND lease_until IS NULL) OR "
+            "(status = 'pending' AND claim_id IS NOT NULL AND claimed_at IS NOT NULL "
+            "AND lease_until IS NOT NULL AND lease_until > claimed_at))",
+            name="outbox_claim_coherence",
+        ),
+        CheckConstraint(
+            "((status = 'published' AND published_at IS NOT NULL) OR "
+            "(status <> 'published' AND published_at IS NULL))",
+            name="outbox_publish_coherence",
+        ),
         Index("ix_outbox_events_status_available_at", "status", "available_at"),
+        Index(
+            "ix_outbox_delivery_eligibility",
+            "delivery_channel",
+            "status",
+            "available_at",
+            "lease_until",
+        ),
         Index(
             "ix_outbox_events_account_created_at",
             "account_id",
@@ -111,6 +145,7 @@ class OutboxEventModel(Base):
     aggregate_type: Mapped[str] = mapped_column(Text, nullable=False)
     aggregate_id: Mapped[UUID] = mapped_column(nullable=False)
     event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    delivery_channel: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -119,3 +154,6 @@ class OutboxEventModel(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claim_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

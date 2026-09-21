@@ -30,6 +30,8 @@ def test_celery_app_uses_approved_transport_configuration() -> None:
     assert celery_app.conf.worker_prefetch_multiplier == 1
     assert celery_app.conf.result_backend is None
     assert celery_app.conf.task_ignore_result is True
+    assert celery_app.conf.task_publish_retry is False
+    assert celery_app.conf.broker_connection_retry_on_startup is True
     assert celery_app.conf.broker_transport_options == {"visibility_timeout": 60}
     assert celery_app.conf.task_soft_time_limit is None
     assert celery_app.conf.task_time_limit is None

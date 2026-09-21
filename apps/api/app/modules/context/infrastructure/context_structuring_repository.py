@@ -19,6 +19,7 @@ from app.modules.context.infrastructure.models import (
     ContextSourceModel,
     ContextSourceVersionModel,
 )
+from app.modules.jobs.infrastructure.models import JobModel
 from app.modules.projects.infrastructure.models import ProjectModel
 
 
@@ -158,6 +159,33 @@ class SqlAlchemyContextStructuringRepository:
         )
         if updated_project_id is None:
             raise ContextStructuringRepositoryError("context_version_conflict")
+
+    async def complete_job_success(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        job_id: UUID,
+    ) -> None:
+        completed_job_id = await self._session.scalar(
+            update(JobModel)
+            .where(
+                JobModel.id == job_id,
+                JobModel.account_id == account_id,
+                JobModel.project_id == project_id,
+                JobModel.job_type == "context_structuring",
+                JobModel.status == "running",
+            )
+            .values(
+                status="succeeded",
+                finished_at=func.now(),
+                error_code=None,
+                error_detail=None,
+            )
+            .returning(JobModel.id)
+        )
+        if completed_job_id is None:
+            raise ContextStructuringRepositoryError("job_not_running")
 
 
 class SqlAlchemyContextStructuringUnitOfWork:

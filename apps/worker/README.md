@@ -35,3 +35,17 @@ no retry, so a complete execution can never exceed three Provider invocations. S
 disabled. Every actual invocation receives a unique `provider_attempt_id`; persistence replay is
 idempotent, and timeout Usage that the Provider did not return is recorded as unavailable with NULL
 token/cost fields rather than fabricated zeroes. Runtime Primary/Fallback wiring remains absent.
+
+S1-E03/0070 adds the explicit `relay` process mode to this existing Worker artifact. It claims only
+due `job_queue` Outbox rows in short PostgreSQL transactions, publishes `context_added.v1` as
+`aria.context.parse.v1`, and acknowledges in a separate transaction. Claims use a 30-second lease,
+batch size 20 and a two-second poll interval. Publish failure uses deterministic bounded backoff;
+unknown queue events are blocked without deletion or hot-looping. Hosted Relay activation remains
+disabled until the recovery gate in ADR-057 passes.
+
+S1-E03/0071 adds the synthetic-only AI-01 runtime foundation. The approved Outbox event maps to
+`aria.context.structure.v1` with an identifier-only Queue envelope, and the controlled Consumer
+resolves its Tenant/Project state from PostgreSQL. Context Items, Project Context Version and Job
+success commit atomically. `SyntheticContextStructuringAI` is not composed into `app.main`, the
+task is not registered in the Hosted Worker, and no public scheduling endpoint exists. Paid
+Providers, customer content and automatic Queue retry remain prohibited.

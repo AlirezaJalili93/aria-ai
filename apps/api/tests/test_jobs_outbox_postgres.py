@@ -147,18 +147,23 @@ def test_m008_schema_uses_current_dictionary_fields_indexes_rls_and_fks() -> Non
         "aggregate_type",
         "aggregate_id",
         "event_type",
+        "delivery_channel",
         "payload",
         "status",
         "attempt_count",
         "available_at",
         "created_at",
         "published_at",
+        "claim_id",
+        "claimed_at",
+        "lease_until",
     }
     assert {
         "ix_jobs_status_available_at",
         "ix_jobs_account_project_created_at",
         "ix_outbox_events_status_available_at",
         "ix_outbox_events_account_created_at",
+        "ix_outbox_delivery_eligibility",
     }.issubset(indexes)
     assert {
         "fk_jobs_account_id_accounts",
@@ -327,9 +332,10 @@ def test_job_and_outbox_commit_atomically_and_outbox_payload_is_immutable() -> N
                 await connection.execute(
                     text(
                         "INSERT INTO outbox_events "
-                        "(id, account_id, aggregate_type, aggregate_id, event_type, payload) "
+                        "(id, account_id, aggregate_type, aggregate_id, event_type, "
+                        "delivery_channel, payload) "
                         "VALUES (:id, :account_id, 'context_source', :aggregate_id, "
-                        "'context_added.v1', CAST(:payload AS jsonb))"
+                        "'context_added.v1', 'job_queue', CAST(:payload AS jsonb))"
                     ),
                     {
                         "id": outbox_id,
@@ -383,9 +389,10 @@ def test_job_and_outbox_commit_atomically_and_outbox_payload_is_immutable() -> N
                 await connection.execute(
                     text(
                         "INSERT INTO outbox_events "
-                        "(account_id, aggregate_type, aggregate_id, event_type, payload, status) "
+                        "(account_id, aggregate_type, aggregate_id, event_type, "
+                        "delivery_channel, payload, status) "
                         "VALUES (:account_id, 'context_source', :aggregate_id, "
-                        "'context_added.v1', '{}'::jsonb, 'invalid')"
+                        "'context_added.v1', 'job_queue', '{}'::jsonb, 'invalid')"
                     ),
                     {"account_id": account_id, "aggregate_id": aggregate_id},
                 )

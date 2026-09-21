@@ -374,6 +374,7 @@ class CreateFileContextUseCase:
                     aggregate_type="context_source",
                     aggregate_id=allocation.source_id,
                     event_type="context_added.v1",
+                    delivery_channel="job_queue",
                     payload={
                         "jobId": str(allocation.job_id),
                         "taskType": FILE_CONTEXT_JOB_TYPE,

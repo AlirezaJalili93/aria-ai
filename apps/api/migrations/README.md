@@ -10,7 +10,11 @@ is never stored in this directory.
 → 0008_context_items → 0009_usage_repair_number → 0010_context_item_review
 → 0011_requirements → 0012_requirement_generation → 0013_requirement_crud
 → 0014_gaps → 0015_gap_detection → 0016_clarifications → 0017_scope_drafts
-→ 0018_scope_versions
+→ 0018_scope_versions → 0019_operational_dashboard_views
+→ 0020_file_upload_allocations → 0021_txt_parser_worker_access
+→ 0022_context_source_management → 0023_provider_price_versions
+→ 0024_ai_failure_accounting → 0025_outbox_delivery_runtime
+→ 0026_context_structuring_runtime
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -98,3 +102,16 @@ identity referenced by new Usage records. The Usage FK and cached-token subset c
 `NOT VALID` so they protect every new write while preserving historical rows without fabricated
 price backfills. The catalog is intentionally empty until G02/G03 approve a real Provider. See
 ADR-054.
+
+`0025_outbox_delivery_runtime` persists the explicit `job_queue | domain_event` delivery channel
+and crash-safe claim metadata. It extends the Outbox status vocabulary with
+`blocked_unknown_event`, adds the relay eligibility index and grants `aria_worker` only column-level
+UPDATE authority for delivery state and claim metadata. Existing known events are backfilled
+exactly; the migration fails closed if an event cannot be classified. See ADR-057.
+
+`0026_context_structuring_runtime` adds a partial unique index that permits at most one
+`queued|running` Context Structuring Job per Project. The Worker may select Projects, update only
+`projects.current_context_version`, and insert AI-created Context Items under RLS; it receives no
+general Project UPDATE authority. These writes support one atomic Context Items + Project Version
++ Job success transaction. Public scheduling and Hosted task activation remain disabled. See
+ADR-058.

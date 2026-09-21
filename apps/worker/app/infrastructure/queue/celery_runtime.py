@@ -23,6 +23,8 @@ def create_celery_app(configuration: QueueRuntimeConfiguration) -> Celery:
         worker_prefetch_multiplier=1,
         result_backend=None,
         task_ignore_result=True,
+        task_publish_retry=False,
+        broker_connection_retry_on_startup=True,
         broker_transport_options={
             "visibility_timeout": configuration.visibility_timeout_seconds,
         },

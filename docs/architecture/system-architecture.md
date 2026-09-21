@@ -82,7 +82,13 @@ Cross-module write فقط از Application Service انجام می‌شود. Sid
 queued → running → succeeded | failed | cancelled
 ```
 
-Critical parsing، AI، validation، generation، revision و export فقط در Worker اجرا می‌شوند. Job Status API منبع حقیقت Client است؛ SSE صرفاً enhancement است و Polling fallback الزامی می‌ماند. Delivery حداقل یک‌بار فرض می‌شود و duplicate نباید Artifact، Approval، Usage یا State تکراری ایجاد کند.
+Critical parsing، AI، validation، generation، revision و export فقط در Worker اجرا می‌شوند. Job Status API منبع حقیقت Client است؛ SSE صرفاً enhancement است و Polling fallback الزامی می‌ماند. Delivery حداقل یک‌بار فرض می‌شود و duplicate نباید Artifact، Approval، Usage یا State تکراری ایجاد کند. مطابق ADR-057، Outbox Relay فقط channel صریح `job_queue` را با claim کوتاه `FOR UPDATE SKIP LOCKED` و lease پایدار تحویل می‌دهد؛ `domain_event` delivery و Hosted activation همچنان Deferred هستند.
+
+مطابق ADR-058، AI-01 در 0071 فقط یک Runtime Foundation مصنوعی و explicit است. Scheduler داخلی
+Job/Outbox را idempotent می‌سازد، Queue فقط شناسه‌های نسخه‌دار را حمل می‌کند و Worker تمام Context
+را از PostgreSQL resolve می‌کند. درج Context Itemها، افزایش `current_context_version` و موفقیت Job
+یک Transaction واحد هستند. Public Endpoint، Parser chaining، Hosted task registration، Provider
+واقعی، Customer Content و post-provider paid recovery در این Increment فعال نیستند.
 
 منطق Application مشترک بین API و Worker در `packages/backend-application` نگهداری می‌شود. Worker
 فقط wrapper/runtime است و Domain یا قواعد Context را دوباره تعریف نمی‌کند. مطابق ADR-026، H02

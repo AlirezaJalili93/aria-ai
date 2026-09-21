@@ -185,6 +185,7 @@ class RetryJobUseCase:
                         aggregate_type="context_source",
                         aggregate_id=source_id,
                         event_type="context_added.v1",
+                        delivery_channel="job_queue",
                         payload={
                             "jobId": str(child_id),
                             "taskType": TEXT_CONTEXT_JOB_TYPE,

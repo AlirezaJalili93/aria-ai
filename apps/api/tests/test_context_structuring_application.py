@@ -119,6 +119,7 @@ class FakeRepository:
         self.fail_on_add = fail_on_add
         self.pending: tuple[ContextVersionWrite, ...] = ()
         self.persisted: tuple[ContextVersionWrite, ...] = ()
+        self.completed_job_ids: list[UUID] = []
 
     async def allocate_next_version(self, *, account_id: UUID, project_id: UUID) -> int:
         del account_id, project_id
@@ -134,6 +135,12 @@ class FakeRepository:
     ) -> None:
         del account_id, project_id
         self.current_version = context_version
+
+    async def complete_job_success(
+        self, *, account_id: UUID, project_id: UUID, job_id: UUID
+    ) -> None:
+        del account_id, project_id
+        self.completed_job_ids.append(job_id)
 
 
 class FakeUnitOfWork:

@@ -6,6 +6,18 @@ from uuid import UUID
 ExecutionAcquisition = Literal["acquired", "already_in_progress", "already_completed"]
 
 
+class JobExecutionGuardError(RuntimeError):
+    """Provider-neutral execution-guard failure."""
+
+
+class JobExecutionGuardValidationError(JobExecutionGuardError):
+    """The requested Job cannot enter the guarded execution boundary."""
+
+
+class JobExecutionGuardPersistenceError(JobExecutionGuardError):
+    """The durable execution guard could not be evaluated."""
+
+
 class JobExecutionGuard(Protocol):
     """Atomic PostgreSQL-backed boundary selected by a future storage adapter."""
 

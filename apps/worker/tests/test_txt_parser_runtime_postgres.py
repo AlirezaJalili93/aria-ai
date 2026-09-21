@@ -166,9 +166,10 @@ async def _seed(engine: AsyncEngine) -> _Fixture:
         await connection.execute(
             text(
                 "INSERT INTO outbox_events "
-                "(id, account_id, aggregate_type, aggregate_id, event_type, payload) "
+                "(id, account_id, aggregate_type, aggregate_id, event_type, "
+                "delivery_channel, payload) "
                 "VALUES (:event_id, :account_id, 'context_source', :source_id, "
-                "'context_added.v1', CAST(:payload AS jsonb))"
+                "'context_added.v1', 'job_queue', CAST(:payload AS jsonb))"
             ),
             {
                 "event_id": fixture.outbox_event_id,
@@ -249,6 +250,7 @@ def test_processing_recovery_and_atomic_success_reuse_the_same_rows() -> None:
             # Release the recovery probe lock before the normal consumer entry.
             await recovery_guard.release(fixture.job_id)
             assert (await consumer.execute(message)).status == "succeeded"
+            assert (await consumer.execute(message)).status == "already_completed"
             assert metrics.queue_wait_count == 0
 
             async with engine.connect() as connection:
@@ -287,7 +289,7 @@ def test_processing_recovery_and_atomic_success_reuse_the_same_rows() -> None:
     asyncio.run(scenario())
 
 
-def test_worker_role_has_only_the_parser_table_commands() -> None:
+def test_worker_role_has_only_parser_and_relay_table_commands() -> None:
     async def scenario() -> None:
         engine = _engine()
         try:
@@ -312,9 +314,12 @@ def test_worker_role_has_only_the_parser_table_commands() -> None:
                               has_table_privilege(
                                 'aria_worker','public.outbox_events','SELECT'
                               ) AS outbox_select,
-                              has_table_privilege(
-                                'aria_worker','public.outbox_events','UPDATE'
-                              ) AS outbox_update
+                              has_column_privilege(
+                                'aria_worker','public.outbox_events','claim_id','UPDATE'
+                              ) AS outbox_claim_update,
+                              has_column_privilege(
+                                'aria_worker','public.outbox_events','payload','UPDATE'
+                              ) AS outbox_payload_update
                             """
                         )
                     )
@@ -336,7 +341,8 @@ def test_worker_role_has_only_the_parser_table_commands() -> None:
                 "jobs_insert": False,
                 "jobs_delete": False,
                 "outbox_select": True,
-                "outbox_update": False,
+                "outbox_claim_update": True,
+                "outbox_payload_update": False,
             }
             assert {
                 "jobs_parser_worker_select",
@@ -346,6 +352,7 @@ def test_worker_role_has_only_the_parser_table_commands() -> None:
                 "context_source_versions_parser_worker_select",
                 "context_source_versions_parser_worker_update",
                 "outbox_events_parser_worker_select",
+                "outbox_events_relay_worker_update",
             }.issubset(policies)
         finally:
             await engine.dispose()

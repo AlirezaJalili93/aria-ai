@@ -59,3 +59,5 @@ docs/development/NNNN-kebab-case/
 - [0061 — Cross-Tenant Security Suite](./0061-cross-tenant-security-suite/development.md)
 - [0062 — TXT Upload Foundation](./0062-txt-upload-foundation/development.md)
 - [0063 — Upload Security Suite](./0063-upload-security-suite/development.md)
+- [0070 — Durable Outbox Delivery Runtime](./0070-durable-outbox-delivery-runtime/development.md)
+- [0071 — Context Structuring Job Runtime Foundation](./0071-context-structuring-job-runtime-foundation/development.md)

@@ -9,7 +9,13 @@ from uuid import UUID, uuid4
 from aria_observability import StructuredEventLogger, enrich_trace_context
 
 from app.modules.jobs.application.ports import JobsRepositoryError, JobsUnitOfWorkFactory
-from app.modules.jobs.domain.job import Job, NewJob, NewOutboxEvent, OutboxEvent
+from app.modules.jobs.domain.job import (
+    Job,
+    NewJob,
+    NewOutboxEvent,
+    OutboxDeliveryChannel,
+    OutboxEvent,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +27,7 @@ class ScheduleJobCommand:
     idempotency_key: str | None
     correlation_id: UUID
     event_type: str
+    delivery_channel: OutboxDeliveryChannel
     aggregate_type: str
     aggregate_id: UUID
     event_payload: dict[str, object]
@@ -81,6 +88,7 @@ class ScheduleJobUseCase:
                         aggregate_type=command.aggregate_type,
                         aggregate_id=command.aggregate_id,
                         event_type=command.event_type,
+                        delivery_channel=command.delivery_channel,
                         payload=command.event_payload,
                         status="pending",
                         attempt_count=0,

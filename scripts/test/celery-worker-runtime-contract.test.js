@@ -67,8 +67,13 @@ test("Celery imports stay in Infrastructure and the composition root reports tru
   const celeryImports = contents.filter(([, body]) => /^from celery\b|^import celery\b/m.test(body));
   const main = await read("apps/worker/app/main.py");
 
-  assert.equal(celeryImports.length, 1);
-  assert.match(celeryImports[0][0].replaceAll("\\", "/"), /\/infrastructure\/queue\/celery_runtime\.py$/);
+  assert.ok(celeryImports.length >= 3);
+  for (const [file] of celeryImports) {
+    assert.match(file.replaceAll("\\", "/"), /\/infrastructure\/queue\//);
+  }
+  assert.ok(celeryImports.some(([file]) => file.endsWith("celery_runtime.py")));
+  assert.ok(celeryImports.some(([file]) => file.endsWith("outbox_publisher.py")));
+  assert.ok(celeryImports.some(([file]) => file.endsWith("parser_task.py")));
   assert.match(main, /WorkerBootstrap\([\s\S]*queue_adapter_configured=True/);
   assert.match(main, /queue_runtime\.run\(\)/);
   assert.doesNotMatch(main, /wait_forever/);

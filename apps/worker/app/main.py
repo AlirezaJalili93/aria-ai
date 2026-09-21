@@ -1,3 +1,5 @@
+import asyncio
+import sys
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -11,6 +13,9 @@ from aria_observability import (
 
 from app.core.config import WorkerSettings, load_worker_settings
 from app.infrastructure.queue.celery_runtime import create_celery_queue_runtime
+from app.infrastructure.queue.parser_task import register_txt_parser_task
+from app.runtime.outbox_relay import run_outbox_relay
+from app.runtime.txt_parser import build_txt_parser_consumer
 
 
 class QueueRuntime(Protocol):
@@ -43,10 +48,6 @@ def run_worker(
 ) -> None:
     resolved_settings = settings or load_worker_settings()
     worker = bootstrap_worker(resolved_settings)
-    resolved_queue_runtime = queue_runtime or create_celery_queue_runtime(
-        resolved_settings.require_queue_runtime_configuration(),
-        log_level=resolved_settings.log_level,
-    )
     metrics_configuration = _metrics_configuration(resolved_settings)
     resolved_operational_metrics = operational_metrics or create_otlp_operational_metrics(
         service=worker.service_name,
@@ -61,6 +62,18 @@ def run_worker(
         release_commit_sha=resolved_settings.release_commit_sha,
         level=resolved_settings.log_level,
     )
+    resolved_queue_runtime: QueueRuntime
+    if queue_runtime is None:
+        resolved_queue_runtime = create_celery_queue_runtime(
+            resolved_settings.require_queue_runtime_configuration(),
+            log_level=resolved_settings.log_level,
+        )
+        register_txt_parser_task(
+            resolved_queue_runtime.celery_app,
+            build_txt_parser_consumer(resolved_settings, resolved_event_logger),
+        )
+    else:
+        resolved_queue_runtime = queue_runtime
     resolved_event_logger.emit(
         "worker.runtime_started",
         status="started",
@@ -72,6 +85,44 @@ def run_worker(
         resolved_operational_metrics.shutdown(
             metrics_configuration.export_timeout_seconds if metrics_configuration else 0
         )
+
+
+def run_relay(settings: WorkerSettings | None = None) -> None:
+    resolved_settings = settings or load_worker_settings()
+    worker = bootstrap_worker(resolved_settings)
+    if resolved_settings.database_url is None:
+        raise ValueError("Missing Outbox Relay configuration: database_url")
+    metrics_configuration = _metrics_configuration(resolved_settings)
+    operational_metrics = create_otlp_operational_metrics(
+        service=worker.service_name,
+        environment=worker.environment,
+        app_version=worker.app_version,
+        configuration=metrics_configuration,
+    )
+    event_logger = create_event_logger(
+        service=worker.service_name,
+        environment=worker.environment,
+        app_version=worker.app_version,
+        release_commit_sha=resolved_settings.release_commit_sha,
+        level=resolved_settings.log_level,
+    )
+    try:
+        asyncio.run(run_outbox_relay(resolved_settings, event_logger))
+    finally:
+        operational_metrics.shutdown(
+            metrics_configuration.export_timeout_seconds if metrics_configuration else 0
+        )
+
+
+def main(arguments: list[str] | None = None) -> None:
+    values = list(sys.argv[1:] if arguments is None else arguments)
+    if not values or values == ["worker"]:
+        run_worker()
+        return
+    if values == ["relay"]:
+        run_relay()
+        return
+    raise SystemExit("Usage: python -m app.main [worker|relay]")
 
 
 def _metrics_configuration(settings: WorkerSettings) -> OtlpMetricsConfiguration | None:
@@ -97,4 +148,4 @@ def _metrics_configuration(settings: WorkerSettings) -> OtlpMetricsConfiguration
 
 
 if __name__ == "__main__":
-    run_worker()
+    main()
