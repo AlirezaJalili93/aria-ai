@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+from contextlib import suppress
+
+from aria_observability import NoOpOperationalMetrics, OperationalMetrics
+from sqlalchemy import (
+    CHAR,
+    BigInteger,
+    Column,
+    DateTime,
+    Integer,
+    MetaData,
+    Numeric,
+    SmallInteger,
+    Table,
+    Text,
+    text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from app.application.usage_ledger import UsageLedgerError, UsageRecord
+
+usage_records = Table(
+    "usage_records",
+    MetaData(),
+    Column(
+        "id",
+        PostgreSQLUUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    ),
+    Column("provider_attempt_id", PostgreSQLUUID(as_uuid=True), nullable=False, unique=True),
+    Column("account_id", PostgreSQLUUID(as_uuid=True), nullable=False),
+    Column("project_id", PostgreSQLUUID(as_uuid=True), nullable=True),
+    Column("job_id", PostgreSQLUUID(as_uuid=True), nullable=True),
+    Column("task_type", Text, nullable=False),
+    Column("workflow_version", Text, nullable=False),
+    Column("prompt_version", Text, nullable=False),
+    Column("provider", Text, nullable=False),
+    Column("model", Text, nullable=False),
+    Column("provider_request_id", Text, nullable=True),
+    Column("input_tokens", BigInteger, nullable=True),
+    Column("cached_input_tokens", BigInteger, nullable=True),
+    Column("output_tokens", BigInteger, nullable=True),
+    Column("latency_ms", Numeric(14, 3), nullable=False),
+    Column("status", Text, nullable=False),
+    Column("error_code", Text, nullable=True),
+    Column("retry_no", Integer, nullable=False),
+    Column("repair_no", SmallInteger, nullable=False, server_default="0"),
+    Column("estimated_cost", Numeric(14, 8), nullable=True),
+    Column("accounting_status", Text, nullable=False),
+    Column("currency", CHAR(3), nullable=False, server_default="USD"),
+    Column("pricing_version", Text, nullable=False),
+    Column("correlation_id", PostgreSQLUUID(as_uuid=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=text("now()")),
+    implicit_returning=False,
+)
+
+
+class SqlAlchemyUsageLedger:
+    """Least-privilege Worker adapter that can only append a Usage record."""
+
+    def __init__(
+        self, engine: AsyncEngine, operational_metrics: OperationalMetrics | None = None
+    ) -> None:
+        self._engine = engine
+        self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
+
+    async def append(self, record: UsageRecord) -> None:
+        statement = insert(usage_records).values(
+            provider_attempt_id=record.provider_attempt_id,
+            account_id=record.account_id,
+            project_id=record.project_id,
+            job_id=record.job_id,
+            task_type=record.task_type,
+            workflow_version=record.workflow_version,
+            prompt_version=record.prompt_version,
+            provider=record.provider,
+            model=record.model,
+            provider_request_id=record.provider_request_id,
+            input_tokens=record.input_tokens,
+            cached_input_tokens=record.cached_input_tokens,
+            output_tokens=record.output_tokens,
+            latency_ms=record.latency_ms,
+            status=record.status,
+            error_code=record.error_code,
+            retry_no=record.retry_no,
+            repair_no=record.repair_no,
+            estimated_cost=record.estimated_cost,
+            accounting_status=record.accounting_status,
+            currency=record.currency,
+            pricing_version=record.pricing_version,
+            correlation_id=record.correlation_id,
+        ).on_conflict_do_nothing(index_elements=["provider_attempt_id"])
+        try:
+            async with self._engine.begin() as connection:
+                result = await connection.execute(statement)
+        except SQLAlchemyError:
+            raise UsageLedgerError from None
+        if result.rowcount == 0:
+            return
+        if record.accounting_status != "complete":
+            return
+        assert record.input_tokens is not None
+        assert record.output_tokens is not None
+        assert record.estimated_cost is not None
+        with suppress(Exception):
+            self._operational_metrics.record_ai_usage(
+                workflow=record.task_type,
+                provider=record.provider,
+                model=record.model,
+                status=record.status,
+                latency_ms=float(record.latency_ms),
+                task_type=record.task_type,
+                estimated_cost=float(record.estimated_cost),
+                currency=record.currency,
+            )

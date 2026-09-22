@@ -1,0 +1,90 @@
+{
+  "fixture_id": "fa_req_005",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_005_ctx_1",
+        "item_type": "fact",
+        "content": "پروژه برای یک سامانه آموزش آنلاین است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_005_src_a",
+            "source_version_id": "fa_req_005_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_005_ctx_2",
+        "item_type": "decision",
+        "content": "دوره‌ها و مدرس‌ها نمایش داده شوند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_005_src_a",
+            "source_version_id": "fa_req_005_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_005_ctx_3",
+        "item_type": "unknown",
+        "content": "مخاطب اصلی و اقدام اصلی مشخص نشده است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_005_src_a",
+            "source_version_id": "fa_req_005_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_005_req_1",
+        "title": "نمایش دوره‌ها و مدرس‌ها",
+        "description": "سایت باید فهرست دوره‌ها و مدرس‌های مرتبط را نمایش دهد.",
+        "category": "content",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_005_src_a",
+            "source_version_id": "fa_req_005_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_005_cand_1",
+        "gold_requirement_id": "fa_req_005_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_005_cand_1"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "incomplete",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "incomplete",
+      "known_function"
+    ],
+    "fixture_version": "1"
+  }
+}

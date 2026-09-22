@@ -32,3 +32,10 @@ external subject, or Profile data. ADR-009 adds the narrow authenticated
 
 S1-B03 adds internal multi-account Membership validation with persisted Role and Status. Current
 Account transport, Tenant Context, product routes and async jobs remain separate documented stories.
+
+S1-E03/0072 exposes the explicit `POST /api/v1/projects/{project_id}/context-structuring`
+command with an exactly empty body, mandatory tenant context and `Idempotency-Key`. The server-side
+feature flag defaults false and is rejected in Staging/Production. Enabling the flag is not data
+authorization: normal composition installs a second deny-all synthetic-fixture boundary, while
+controlled tests inject an explicit Account/Project allowlist. Real Providers, customer content,
+Hosted activation and Parser chaining remain prohibited.

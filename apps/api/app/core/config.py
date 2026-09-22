@@ -4,6 +4,8 @@ from urllib.parse import urlsplit
 from pydantic import (
     AfterValidator,
     AnyHttpUrl,
+    PositiveFloat,
+    PositiveInt,
     PostgresDsn,
     RedisDsn,
     SecretStr,
@@ -54,6 +56,7 @@ STAGING_REQUIRED_SETTINGS = (
     "database_url",
     "queue_broker_url",
     "storage_endpoint",
+    "storage_region",
     "storage_bucket",
     "storage_access_key",
     "storage_secret_key",
@@ -73,14 +76,23 @@ class ApiSettings(BaseSettings):
     database_url: PostgresSecret | None = None
     queue_broker_url: RedisSecret | None = None
     storage_endpoint: AnyHttpUrl | None = None
+    storage_region: NonEmptyString | None = None
     storage_bucket: NonEmptyString | None = None
     storage_access_key: SecretStr | None = None
     storage_secret_key: SecretStr | None = None
+    txt_upload_enabled: bool = False
+    context_structuring_enabled: bool = False
     auth_provider_url: AnyHttpUrl | None = None
     auth_jwks_url: AnyHttpUrl | None = None
     auth_audience: NonEmptyString | None = None
     release_commit_sha: CommitSha | None = None
     railway_git_commit_sha: CommitSha | None = None
+    otel_exporter_otlp_endpoint: AnyHttpUrl | None = None
+    otel_exporter_otlp_headers: SecretStr | None = None
+    otel_metric_export_timeout_seconds: PositiveFloat | None = None
+    otel_metric_export_interval_seconds: PositiveFloat | None = None
+    otel_metric_queue_capacity: PositiveInt | None = None
+    otel_metric_allowed_models: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -98,6 +110,9 @@ class ApiSettings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_hosted_environment(self) -> Self:
+        self._validate_operational_metrics_configuration()
+        self._validate_txt_upload_configuration()
+        self._validate_context_structuring_configuration()
         if self.app_env not in {"staging", "production"}:
             return self
 
@@ -109,6 +124,63 @@ class ApiSettings(BaseSettings):
                 "Missing required hosted runtime configuration: " + ", ".join(sorted(missing))
             )
         return self
+
+    def _validate_context_structuring_configuration(self) -> None:
+        if self.context_structuring_enabled and self.app_env in {"staging", "production"}:
+            raise ValueError(
+                "Controlled synthetic Context Structuring cannot be enabled in a hosted environment"
+            )
+
+    def _validate_txt_upload_configuration(self) -> None:
+        if not self.txt_upload_enabled:
+            return
+        missing = [
+            name
+            for name in (
+                "storage_endpoint",
+                "storage_region",
+                "storage_bucket",
+                "storage_access_key",
+                "storage_secret_key",
+            )
+            if getattr(self, name) is None
+        ]
+        if missing:
+            raise ValueError(
+                "Missing required TXT upload configuration: " + ", ".join(missing)
+            )
+
+    def _validate_operational_metrics_configuration(self) -> None:
+        configured = (
+            self.otel_exporter_otlp_endpoint,
+            self.otel_exporter_otlp_headers,
+            self.otel_metric_export_timeout_seconds,
+            self.otel_metric_export_interval_seconds,
+            self.otel_metric_queue_capacity,
+        )
+        if not any(value is not None for value in configured):
+            return
+        if self.app_env == "production":
+            raise ValueError("Direct OTLP export is staging-only in S1-L02")
+        missing = [
+            name
+            for name, value in zip(
+                (
+                    "otel_exporter_otlp_endpoint",
+                    "otel_exporter_otlp_headers",
+                    "otel_metric_export_timeout_seconds",
+                    "otel_metric_export_interval_seconds",
+                    "otel_metric_queue_capacity",
+                ),
+                configured,
+                strict=True,
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "Incomplete OTLP metrics configuration: " + ", ".join(missing)
+            )
 
 
 def load_api_settings() -> ApiSettings:

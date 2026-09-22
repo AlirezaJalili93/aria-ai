@@ -46,6 +46,9 @@ Infrastructure Adapters ─implements→ Domain/Application Ports
 - Application transaction، authorization، repository coordination، domain policy و outbox scheduling را کنترل می‌کند.
 - Domain فقط Entity، Value Object، Invariant، Policy و Port دارد و FastAPI، Pydantic، SQLAlchemy، Redis، Supabase و AI SDK را import نمی‌کند.
 - Provider SDK فقط در Infrastructure Adapter مجاز است.
+- مطابق ADR-055، دو Adapter زیرساختی فقط برای Evaluation مصنوعی تعریف شده‌اند؛ هیچ Primary/Fallback
+  runtime وجود ندارد، Price پیش از paid call resolve می‌شود و accounting پشتیبانی‌نشده fail-closed
+  است.
 
 ## Domain Boundaries
 
@@ -79,7 +82,54 @@ Cross-module write فقط از Application Service انجام می‌شود. Sid
 queued → running → succeeded | failed | cancelled
 ```
 
-Critical parsing، AI، validation، generation، revision و export فقط در Worker اجرا می‌شوند. Job Status API منبع حقیقت Client است؛ SSE صرفاً enhancement است و Polling fallback الزامی می‌ماند. Delivery حداقل یک‌بار فرض می‌شود و duplicate نباید Artifact، Approval، Usage یا State تکراری ایجاد کند.
+Critical parsing، AI، validation، generation، revision و export فقط در Worker اجرا می‌شوند. Job Status API منبع حقیقت Client است؛ SSE صرفاً enhancement است و Polling fallback الزامی می‌ماند. Delivery حداقل یک‌بار فرض می‌شود و duplicate نباید Artifact، Approval، Usage یا State تکراری ایجاد کند. مطابق ADR-057، Outbox Relay فقط channel صریح `job_queue` را با claim کوتاه `FOR UPDATE SKIP LOCKED` و lease پایدار تحویل می‌دهد؛ `domain_event` delivery و Hosted activation همچنان Deferred هستند.
+
+مطابق ADR-058، AI-01 در 0071 فقط یک Runtime Foundation مصنوعی و explicit است. Scheduler داخلی
+Job/Outbox را idempotent می‌سازد، Queue فقط شناسه‌های نسخه‌دار را حمل می‌کند و Worker تمام Context
+را از PostgreSQL resolve می‌کند. درج Context Itemها، افزایش `current_context_version` و موفقیت Job
+یک Transaction واحد هستند. Public Endpoint، Parser chaining، Hosted task registration، Provider
+واقعی، Customer Content و post-provider paid recovery در این Increment فعال نیستند.
+
+منطق Application مشترک بین API و Worker در `packages/backend-application` نگهداری می‌شود. Worker
+فقط wrapper/runtime است و Domain یا قواعد Context را دوباره تعریف نمی‌کند. مطابق ADR-026، H02
+Source snapshot را یک‌بار resolve می‌کند، تمام Candidateها را پیش از Write اعتبارسنجی می‌کند و
+Batch معتبر را همراه با پیشروی اتمیک Context Version در یک Transaction ثبت می‌کند.
+مطابق ADR-027، H03 فقط defectهای deterministic خروجی مدل را با Policy صریح و حداکثر یک Repair از
+همان AI Execution/Routing boundary اصلاح می‌کند؛ Repair و Provider retry شماره و metering مستقل
+دارند و هیچ مسیر Repair نمی‌تواند Validation کامل H02 را دور بزند.
+مطابق ADR-056، Technical Retry در Application به اجرای اولیه و حداکثر یک Retry محدود است؛
+Fallback تنها پس از exhaustion و با مجوز مستقل Quality/Budget یک بار اجرا می‌شود. هر invocation
+شناسهٔ حسابداری یکتا دارد و زنجیرهٔ کامل حداکثر سه فراخوانی Provider می‌سازد؛ هیچ Provider واقعی
+به‌عنوان Primary/Fallback در Composition Root فعال نشده است.
+مطابق ADR-030، Requirement Domain نسخهٔ عددی Context و provenance آمادهٔ همان Tenant را حفظ می‌کند؛
+پایداری تک Requirement از Application Port عبور می‌کند و I01 هیچ API، Generation یا merge policy
+معرفی نمی‌کند.
+مطابق ADR-031، I02 در Worker و از Application مشترک، Snapshot دقیق Context را با بردار
+`(context_item_id, updated_at)` قفل می‌کند، خروجی provider-neutral را validate/repair می‌کند و
+Requirementها و signal تعارض Outbox را اتمیک می‌نویسد. Replay با `generation_job_id` از AI و Usage
+تکراری جلوگیری می‌کند، اما فقط پس از resolve شدن Job همان Tenant با status نهایی
+`succeeded|failed`. Snapshot تاریخی payload و جدول result مستقل در I02 وجود ندارد؛ Provider واقعی،
+Queue wiring، Gap و API همچنان خارج این Story هستند.
+مطابق ADR-032، I03 یک Router نازک روی Application Service و Repository tenant-scoped اضافه می‌کند؛
+manual create از Idempotency store موجود استفاده می‌کند، PATCH با CAS انجام می‌شود و DELETE فقط
+soft deactivation است. API به metadata داخلی Generation یا دادهٔ Tenant authority دسترسی نمی‌دهد.
+
+مطابق ADR-046، Product Analytics یک envelope نسخه‌دار و provider-neutral دارد؛ outcomeهای سروری
+پس از commit کسب‌وکار و interactionهای کاربر با نام‌های جداگانه ثبت می‌شوند. شناسهٔ پایدار event
+کلید idempotency ingestion است و متن/محتوای دامنه، provenance، prompt و پاسخ Provider هرگز در
+event یا log قرار نمی‌گیرد. این baseline هیچ Provider، جدول یا deployable جدیدی اضافه نمی‌کند.
+
+مطابق ADR-047، Operational Metrics در Staging از adapter زیرساختی OpenTelemetry و OTLP/HTTP مستقیم
+به Grafana Cloud ارسال می‌شود؛ این مسیر fail-open، bounded و staging-only است و topology مبتنی بر
+Collector/Alloy برای Production تصمیمی Deferred باقی می‌ماند. PostgreSQL منبع حقیقت Queue/Outbox
+است و `aria_observer` فقط Viewهای صریح schema خصوصی `observability` را می‌خواند؛ Metricها هرگز
+شناسه Tenant/Resource یا محتوای مشتری را label نمی‌کنند و cost-by-project فقط query-driven است.
+
+مطابق ADR-048، Tenant Isolation با Fixtureهای هم‌زمان Tenant A/B در سه مرز HTTP، Repository و
+Database/RLS اثبات می‌شود. Resource ناموجود و foreign یک پاسخ یکسان `RESOURCE_NOT_FOUND` دارند و
+audit عمومی `resource.access_denied` فقط از context مجاز همان request ساخته می‌شود؛ هیچ lookup
+خارج از Tenant برای تشخیص existence انجام نمی‌شود. Scope عمومی با `project_id + version_no` و UUID
+داخلی Scope فقط در Repository/Database/RLS آزموده می‌شود.
 
 ## AI و Generation Guardrails
 

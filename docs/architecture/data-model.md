@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-01
+- تاریخ همگام‌سازی: 2026-09-20
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -27,10 +27,10 @@ M000 extensions
 → M003 context_sources / context_source_versions
 → M004 context_items
 → M005 requirements
-→ M006 gaps / clarifications
+→ M006 gaps (J01) / clarifications (J03 deferred)
 → M007 scope_drafts / scope_versions
 → M008 jobs / outbox_events
-→ M009 provider_price_versions / usage_records
+→ M009 usage_records (S1-G05) / provider_price_versions deferred to S1-G06
 → M010 RLS baseline
 ```
 
@@ -52,26 +52,29 @@ M000 extensions
 | projects | id, account_id, owner_id, title, project_type, status, current_context_version=`0`, created_at, updated_at, deleted_at | `owner_id` به Profile وصل است؛ type فقط landing/corporate/portfolio؛ status فقط draft/active/awaiting_approval/approved/generating/delivered/archived؛ version نامنفی؛ حذف نرم |
 | context_sources | id, account_id, project_id, source_type, status, original_name, mime_type, storage_ref, raw_text, checksum, created_by, created_at, updated_at | type در DB برابر text/file/message/url_reference و در S1-D01 Application فقط text؛ status برابر uploaded/parsing/ready/failed/deleted؛ query عادی deleted را حذف می‌کند |
 | context_source_versions | id, account_id, project_id, source_id, version_no, content_hash, canonical_text/storage_ref, metadata, parse_status, created_at | parse status برابر pending/parsing/ready/failed؛ `version_no>=1` و `UNIQUE(source_id,version_no)`؛ ready immutable و دارای canonical text/ref؛ history حفظ می‌شود |
-| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status | item_type: fact/assumption/decision/constraint/reference/unknown |
+| context_items | id, account_id, project_id, context_version, item_type, content, source_refs, confidence, status, created_by_type, created_by, created_at, updated_at | version >=1؛ item type برابر fact/assumption/decision/constraint/reference/unknown؛ status برابر proposed/confirmed/rejected/superseded؛ Fact تأییدشده حداقل یک provenance معتبر دارد؛ user-created دارای created_by است؛ updated_at را PostgreSQL مدیریت می‌کند |
 
 ## Requirement، Gap و Scope
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| requirements | id, account_id, project_id, context_version, category, content, status, source_refs | حذف traceable با deactivate/supersede |
-| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, accepted_assumption | accepted assumption فقط با action صریح |
-| clarifications | id, account_id, project_id, gap_id, question, answer, resolution metadata | history پاسخ حفظ می‌شود |
-| scope_drafts | id, account_id, project_id, context_version, content, updated_by | Draft mutable است |
-| scope_versions | id, account_id, project_id, version_no, context_version, snapshot_data, snapshot_hash | `UNIQUE(project_id,version_no)` و Snapshot immutable است |
+| requirements | id, account_id, project_id, context_version, category, title, description, priority, status, source_refs, confidence, is_unsupported, duplicate_group_key, generation_job_id, acceptance_note, created_by_type, created_by, created_at, updated_at | version بین 1 و current Project؛ category شش‌حالته؛ priority اجباری بدون default؛ status برابر draft/confirmed/superseded/removed؛ AI batch با Job non-unique قابل replay است؛ acceptance note nullable است؛ provenance و creator tenant-safe |
+| gaps | id, account_id, project_id, context_version, gap_type, severity, status, source_refs, explanation, suggested_resolution_type, generation_job_id, created_at, updated_at, resolved_at | type برابر missing_information/ambiguity/conflict/decision_required/unsupported_assumption/scope_risk؛ generated rows دارای explanation، resolution enum و Job association هستند؛ Critical فقط پس از validated AI-assisted Rule Signal و Rule Pack نسخه‌دار authoritative است و Critical مدل بدون Rule Match به High تبدیل می‌شود؛ status برابر open/resolved/dismissed؛ `resolved_at` فقط در status resolved و برای open/dismissed تهی؛ حذف فیزیکی ممنوع |
+| gap_requirement_links | account_id, project_id, gap_id, requirement_id, created_at | affected Requirements رابطه‌ای و tenant/snapshot-consistent هستند؛ JSONB و semantic merge ممنوع |
+| clarifications | id, account_id, project_id, gap_id, question_text, status, created_by_type, created_by, created_at, updated_at | status برابر open/answered/ignored؛ سؤال user-created دارای created_by است؛ فقط سؤال open قابل ویرایش است و متن normalized سؤال باز در هر Gap یکتا است |
+| clarification_resolutions | id, account_id, project_id, gap_id, clarification_id, resolution_type, answer_text, author_type, author_id, actor_id, created_at | هر Clarification حداکثر یک Resolution terminal دارد؛ actor داخلی احرازشده اجباری است؛ author فقط user/client و client بدون Profile مجاز است؛ تاریخچه با RESTRICT حفظ می‌شود |
+| scope_drafts | id, account_id, project_id, context_version, content, updated_by_type, updated_by, created_at, updated_at | strict `scope_content_schema_v1` JSONB؛ دوازده Section از نظر ساختاری اجباری ولی empty مجاز؛ `UNIQUE(project_id,context_version)`؛ Draft قدیمی پس از پیشروی Context تاریخی/read-only؛ readiness و revision persisted در K01 superseded/deferred و updated_at CAS canonical؛ K02 readiness به‌صورت computed policy و بدون ستون persistence؛ K03 فقط Draft جدید می‌سازد و Draft موجود را overwrite نمی‌کند |
+| scope_versions | id, account_id, project_id, version_no, context_version, status, snapshot_data, snapshot_hash, created_by, created_at | `UNIQUE(project_id,version_no)`؛ `scope_snapshot_canonicalization_v1` + SHA-256؛ payload/hash/lineage immutable و status فقط lifecycle projection کنترل‌شده است |
 
 ## Async و Metering
 
 | Table | کلیدهای اصلی | Invariant |
 |---|---|---|
-| jobs | id, account_id, project_id, task_type, status, idempotency_key, attempts, payload/result refs | at-least-once و duplicate-safe |
-| outbox_events | id, event_type, aggregate, account_id, payload, status, available/published time | همراه تغییر Business در یک Transaction |
-| provider_price_versions | id, provider, model, unit prices, currency, validity | Historical price version تغییر نمی‌کند |
-| usage_records | id, account_id, project_id, job_id, provider/model/task/workflow/prompt/pricing versions, tokens, latency, cost, status | append-only و traceable |
+| jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد؛ AI-01 در هر Project حداکثر یک Job فعال `queued|running` دارد |
+| outbox_events | id, account_id, aggregate_type/id, event_type, delivery_channel, payload, status, attempt_count, available/created/published time, claim_id/claimed_at/lease_until | همراه تغییر Business در یک Transaction؛ payload immutable؛ channel صریح؛ claim کوتاه و crash-safe مطابق ADR-057 |
+| idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
+| provider_price_versions | id, provider, model, pricing_version, currency, input/cached-input/output rate per 1M, effective_from, created_at | global Platform catalog؛ identity و effective time برای هر Provider/Model یکتا؛ append-only؛ Worker فقط read |
+| usage_records | id؛ provider_attempt_id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ accounting_status؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ attempt یکتا و persistence idempotent؛ Usage کامل یا unknown با NULL، نه صفر جعلی؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
 
 ## Index و RLS Baseline
 
@@ -87,6 +90,79 @@ M000 extensions
   فیزیکی Source دارای Version با `RESTRICT` متوقف می‌شود.
 - Create Project فقط با Membership فعال همان Account مجاز است و `owner_id` از subject احرازشده
   می‌آید.
+- `jobs` و `outbox_events` با `(status, available_at)` و tenant-created-at index می‌شوند؛ Project Job
+  باید Account همان Project را حمل کند. نام‌های قدیمی `task_type/attempt_no/input_ref/output_ref` طبق
+  [ADR-013](../adr/ADR-013-jobs-outbox-persistence.md) superseded هستند.
+- Usage Ledger با `(account_id, created_at desc)` و FKهای Project/Job index می‌شود. واژهٔ
+  `retry_no` برای Usage canonical است و `attempt_no` قدیمی را supersede می‌کند. Provider و Model
+  دادهٔ ثبت‌شده‌اند، نه enum یا branching در Domain/Application. طبق
+  [ADR-056](../adr/ADR-056-ai-failure-policy.md)، `provider_attempt_id` مرز یکتای هر فراخوانی واقعی
+  است و `accounting_status=unavailable` فقط با token/costهای NULL و `status=failed` معتبر است.
+- Provider Price Catalog طبق [ADR-054](../adr/ADR-054-provider-price-versioning.md) global و
+  append-only است. Resolution برابر آخرین `effective_from` غیرآینده و بدون tie است؛ نرخ‌ها per-1M
+  و محاسبه با Decimal بدون گردکردن میانی انجام می‌شود. Catalog اولیه هیچ Provider/Price واقعی
+  ندارد و Runtime فقط از مسیر read-only Worker به آن دسترسی دارد.
+- `repair_no` اجرای معنایی AI را از Provider retry جدا می‌کند: اجرای اصلی `0` و Repair نخست `1`
+  است. سقف Sprint 1 در Policy نسخه‌دار Application است و DB فقط `repair_no >= 0` را enforce می‌کند؛
+  جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md) ثبت شده است.
+- Context Item با `(account_id, project_id, context_version)` index می‌شود. `context_version`
+  عدد صحیح canonical است و `context_version_id` قدیمی را supersede می‌کند. هر عنصر `source_refs`
+  به Source و Source Version آماده در همان Tenant اشاره می‌کند و offset اختیاری آن نیم‌بازهٔ
+  صفرمبنا روی `canonical_text` است. `source_ref` مفرد و `state=active` قدیمی supersede شده‌اند؛
+  جزئیات در [ADR-025](../adr/ADR-025-context-item-provenance-contract.md) ثبت شده است.
+- H04 روی همان Context Itemها `updated_at` را برای CAS مدیریت می‌کند؛ فهرست فعلی با
+  `(account_id, project_id, context_version, created_at desc, id desc)` و فیلتر provenance با GIN
+  ایندکس می‌شود. جزئیات در [ADR-028](../adr/ADR-028-context-review-contract.md) ثبت شده است.
+- H02 آخرین Version آمادهٔ هر Source حذف‌نشده را یک‌بار snapshot می‌کند. Batch فقط پس از اعتبارسنجی
+  کامل persist می‌شود؛ Project با row lock نسخهٔ بعدی را تخصیص می‌دهد و درج همهٔ Context Itemها و
+  پیشروی `current_context_version` در یک Transaction انجام می‌شود. جزئیات در
+  [ADR-026](../adr/ADR-026-context-structuring-workflow.md) ثبت شده است.
+- 0071 مسیر Job مصنوعی AI-01 را بدون Public Endpoint فعال می‌کند. Context Itemهای جدید، افزایش
+  `projects.current_context_version` و `jobs.status=succeeded` در یک Transaction Worker ثبت
+  می‌شوند. Partial unique index ایجاد دو Job فعال Context Structuring برای یک Project را در DB
+  متوقف می‌کند؛ جزئیات و activation exclusions در
+  [ADR-058](../adr/ADR-058-context-structuring-job-runtime-foundation.md) ثبت شده است.
+- H03 فقط defectهای deterministic خروجی مدل را حداکثر یک‌بار با همان Workflow/Routing و Prompt
+  نسخه‌دار Repair می‌کند. هر خروجی دوباره کل validation را طی می‌کند و exhaustion هیچ Context
+  write یا Version increment ندارد؛ جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md)
+  ثبت شده است.
+- Requirement با `context_version INTEGER` به Context موجود Project متصل می‌شود و نسخهٔ آینده یا
+  Project بدون Context را نمی‌پذیرد. `title+description` جای `content` و `created_by_type` جای
+  `source_type` را گرفته‌اند. `source_refs` قرارداد provenance مصوب H01 را حفظ می‌کند؛ جزئیات در
+  [ADR-030](../adr/ADR-030-requirement-domain-contract.md) ثبت شده است.
+- I02 از مجموعهٔ دقیق Context Itemهای `proposed|confirmed` برای نسخهٔ درخواست‌شده Snapshot
+  می‌گیرد. Requirement پشتیبانی‌شده حداقل یک Source Reference معتبر از همان Snapshot دارد؛
+  unsupported می‌تواند بدون reference باشد. Duplicateهای دقیق فقط provenance را stable-union
+  می‌کنند، دادهٔ موجود کاربر بازنویسی نمی‌شود و تعارض‌ها به‌صورت ردیف‌های مستقل همراه Outbox signal
+  اتمیک ثبت می‌شوند. `generation_job_id` unique نیست و index
+  `(account_id, project_id, generation_job_id)` همراه status نهایی Job همان Tenant replay را
+  پشتیبانی می‌کند. جدول result یا Snapshot تاریخی Generation در I02 ایجاد نمی‌شود؛ جزئیات در
+  [ADR-031](../adr/ADR-031-requirement-generation-contract.md) ثبت شده است.
+- I03 افزودن دستی را به Context Version فعلی و Idempotency ۲۴ساعته متصل می‌کند؛ ویرایش با
+  `expected_updated_at` انجام می‌شود و ویرایش Requirement تأییدشده آن را به draft برمی‌گرداند.
+  حذف عمومی فقط draft را به removed تبدیل می‌کند؛ `acceptance_note` nullable است و Snapshot/restore
+  همچنان خارج Scope است. جزئیات در [ADR-032](../adr/ADR-032-requirement-crud-contract.md) ثبت شده است.
+- J01 از `context_version INTEGER` و provenance مصوب H01 استفاده می‌کند. `missing_info`،
+  `context_version_id` و accepted-assumption Boolean قدیمی supersede شده‌اند. Account/Project
+  deletion با RESTRICT متوقف می‌شود؛ detection/linkage در J02 و Clarification/resolution behavior
+  در J03 می‌مانند. جزئیات در [ADR-035](../adr/ADR-035-gap-domain-contract.md) ثبت شده است.
+- J03-A مدل سادهٔ قدیمی Clarification را با دو موجودیت سؤال و Resolution ممیزی‌پذیر supersede
+  می‌کند. `provided_information/internal_decision/accepted_assumption` سؤال را answered و `ignored`
+  آن را ignored می‌کند؛ Gap فقط وقتی resolved می‌شود که هیچ سؤال open باقی نمانده باشد. Ignore سؤال
+  هرگز Gap را dismissed نمی‌کند و dismiss تنها command صریح مستقل است. همهٔ FKها RESTRICT و linkage
+  Account/Project/Gap/Clarification با composite FK محافظت می‌شود. Data API roleهای عمومی دسترسی
+  مستقیم ندارند و RLS فعال است؛ جزئیات در
+  [ADR-038](../adr/ADR-038-clarification-domain-api.md) ثبت شده است.
+- J04 فهرست عملیاتی Gap را فقط به `projects.current_context_version` محدود می‌کند، اما تاریخچهٔ
+  Clarification یک Gap قدیمی و tenant-scoped را حفظ می‌کند. پذیرش فرض فقط با تطابق همزمان
+  `unsupported_assumption` و `validate_assumption` مجاز است و dismiss طبق
+  [ADR-039](../adr/ADR-039-gap-inbox-review-contract.md) یک فرمان مستقل و idempotent است.
+- K05 فقط Draft جاری با K02 readiness مثبت و CAS معتبر را Freeze می‌کند. Snapshot کامل
+  `scope_content_schema_v1` با canonicalization نسخه‌دار و SHA-256 hash می‌شود؛ hash برابر آخرین
+  Version با key جدید رد و idempotency replay پیش از این مقایسه اجرا می‌شود. Project row lock
+  تخصیص version را اتمیک می‌کند. payload/hash/lineage و حذف در DB ممنوع‌اند؛ status فقط برای
+  lifecycle آینده قابل تغییر است. جزئیات در
+  [ADR-045](../adr/ADR-045-scope-version-snapshot.md) ثبت شده است.
 
 ## Migration Guardrails
 
@@ -95,3 +171,5 @@ M000 extensions
 - تغییر destructive از Expand/Contract و recovery plan استفاده می‌کند.
 - Seed فقط Local/Staging و شامل Tenant A/B است.
 - Schema دستی در Staging/Production ممنوع است.
+- `aria_worker` تنها نقش Runtime دارای `INSERT` مستقیم روی Usage Ledger است؛ `aria_api`، `anon` و
+  `authenticated` هیچ دسترسی مستقیم ندارند و Worker نباید با super/service bypass اجرا شود.

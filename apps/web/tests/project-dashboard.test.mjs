@@ -85,7 +85,7 @@ test("Product Analytics is versioned and excludes project content", async () => 
     assert.match(analytics, new RegExp(property));
   }
   assert.doesNotMatch(analytics, /title|token|payload|content/i);
-  assert.match(apiService, /project_created[\s\S]*event_category="product_analytics"/);
+  assert.match(apiService, /emit_product_analytics[\s\S]*event_name="project_created"/);
 });
 
 test("Dashboard UI stays RTL-tokenized, semantic and minimum-target compliant", async () => {
