@@ -58,23 +58,35 @@ test("Context, Project version and Job success share one transaction boundary", 
   assert.match(repository, /await self\._transaction\.rollback\(\)/);
 });
 
-test("0071 remains synthetic-only and is not activated publicly or in hosted runtime", async () => {
+test("0072 exposes the command while keeping synthetic and hosted boundaries fail-closed", async () => {
   const apiMain = await read("apps/api/app/main.py");
+  const router = await read("apps/api/app/api/routers/context_structuring.py");
+  const config = await read("apps/api/app/core/config.py");
   const workerMain = await read("apps/worker/app/main.py");
   const fake = await read(
     "apps/worker/app/infrastructure/ai/synthetic_context_structuring.py",
   );
   const adr = await read(
-    "docs/adr/ADR-058-context-structuring-job-runtime-foundation.md",
+    "docs/adr/ADR-059-context-structuring-command-synthetic-e2e.md",
   );
+  const env = await read(".env.example");
+  const railway = await read("infra/railway/README.md");
 
-  assert.doesNotMatch(apiMain, /create_context_structuring_router|ScheduleContextStructuringUseCase/);
+  assert.match(apiMain, /create_context_structuring_router/);
+  assert.match(apiMain, /DenyAllSyntheticContextStructuring/);
+  assert.match(router, /await request\.body\(\) != b""/);
+  assert.match(config, /context_structuring_enabled: bool = False/);
+  assert.match(config, /app_env in \{"staging", "production"\}/);
   assert.doesNotMatch(workerMain, /SyntheticContextStructuringAI|aria\.context\.structure\.v1/);
   assert.match(fake, /provider = "synthetic"/);
   assert.match(fake, /input_tokens=0/);
-  assert.match(adr, /Public Endpoint.*Disabled/is);
-  assert.match(adr, /Hosted activation.*disabled/is);
-  assert.match(adr, /Customer content.*prohibited/is);
+  assert.match(env, /^CONTEXT_STRUCTURING_ENABLED=false$/m);
+  assert.match(railway, /CONTEXT_STRUCTURING_ENABLED=false/);
+  assert.match(adr, /customer\s+content.*disabled/is);
+  assert.match(adr, /Normal runtime composition installs deny-all/is);
+  for (const value of [apiMain, router]) {
+    assert.doesNotMatch(value, /OpenAI|Gemini|OPENAI_API_KEY|GEMINI_API_KEY/);
+  }
 });
 
 test("Worker authority is limited to the required Project column and AI Context inserts", async () => {
@@ -87,4 +99,24 @@ test("Worker authority is limited to the required Project column and AI Context 
   assert.doesNotMatch(migration, /GRANT SELECT, UPDATE ON TABLE public\.projects/);
   assert.match(migration, /GRANT INSERT ON TABLE public\.context_items TO aria_worker/);
   assert.match(migration, /created_by_type = 'ai' AND created_by IS NULL/);
+});
+
+test("controlled E2E crosses HTTP, durable Relay, Celery mapping and synthetic Worker only", async () => {
+  const prepare = await read("tests/e2e/prepare_context_structuring_command.py");
+  const complete = await read("tests/e2e/complete_context_structuring_command.py");
+  const runner = await read("tests/e2e/run-context-structuring-controlled.ps1");
+
+  assert.match(prepare, /client\.post\(path, headers=headers\)/);
+  assert.match(prepare, /ExplicitSyntheticContextStructuringProjects/);
+  assert.match(complete, /DurableOutboxRelay/);
+  assert.match(complete, /CeleryOutboxPublisher/);
+  assert.match(complete, /ContextStructuringConsumer/);
+  assert.match(complete, /SyntheticContextStructuringAI/);
+  assert.match(complete, /current_context_version.*items/s);
+  assert.match(runner, /TEST_DATABASE_URL/);
+  assert.match(prepare, /aria_0072_test/);
+  assert.match(complete, /aria_0072_test/);
+  for (const value of [prepare, complete, runner]) {
+    assert.doesNotMatch(value, /OPENAI_API_KEY|GEMINI_API_KEY|customer_content/);
+  }
 });

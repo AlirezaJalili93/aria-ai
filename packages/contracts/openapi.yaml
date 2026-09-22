@@ -118,6 +118,47 @@ paths:
         "204": { description: Project soft-deleted; response is empty. }
         "403": { description: Active Membership role is not owner or admin. }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/context-structuring:
+    post:
+      operationId: scheduleContextStructuring
+      summary: Schedule the controlled synthetic Context Structuring command
+      description: >-
+        Accepts an exactly empty HTTP body. The server resolves Project and ready Context state;
+        client-supplied Context parameters are prohibited. The endpoint is fail-closed behind a
+        server-side local/test-only feature flag and an independent explicit synthetic-fixture
+        authorization boundary. Hosted activation, customer content and real Providers are not
+        authorized by this contract.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      responses:
+        "202":
+          description: Job accepted or the exact idempotent result replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextStructuringAccepted" }
+        "403":
+          description: Existing Membership denial or FEATURE_NOT_ENABLED fail-closed boundary.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT or CONTEXT_STRUCTURING_IN_PROGRESS.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: VALIDATION_FAILED or CONTEXT_READY_SOURCE_REQUIRED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /projects/{project_id}/scope/draft:
     get:
       operationId: getCurrentScopeDraft
@@ -991,6 +1032,15 @@ components:
           required: [request_id]
           properties:
             request_id: { type: string, format: uuid }
+    ContextStructuringAccepted:
+      type: object
+      additionalProperties: false
+      required: [job_id, status_url]
+      properties:
+        job_id: { type: string, format: uuid }
+        status_url:
+          type: string
+          pattern: ^/api/v1/jobs/[0-9a-fA-F-]{36}$
     Project:
       type: object
       additionalProperties: false

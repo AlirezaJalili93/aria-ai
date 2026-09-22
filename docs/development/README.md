@@ -61,3 +61,4 @@ docs/development/NNNN-kebab-case/
 - [0063 — Upload Security Suite](./0063-upload-security-suite/development.md)
 - [0070 — Durable Outbox Delivery Runtime](./0070-durable-outbox-delivery-runtime/development.md)
 - [0071 — Context Structuring Job Runtime Foundation](./0071-context-structuring-job-runtime-foundation/development.md)
+- [0072 — Context Structuring Command API & Controlled Synthetic E2E](./0072-context-structuring-command-synthetic-e2e/development.md)

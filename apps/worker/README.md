@@ -46,6 +46,7 @@ disabled until the recovery gate in ADR-057 passes.
 S1-E03/0071 adds the synthetic-only AI-01 runtime foundation. The approved Outbox event maps to
 `aria.context.structure.v1` with an identifier-only Queue envelope, and the controlled Consumer
 resolves its Tenant/Project state from PostgreSQL. Context Items, Project Context Version and Job
-success commit atomically. `SyntheticContextStructuringAI` is not composed into `app.main`, the
-task is not registered in the Hosted Worker, and no public scheduling endpoint exists. Paid
-Providers, customer content and automatic Queue retry remain prohibited.
+success commit atomically. `SyntheticContextStructuringAI` is not composed into `app.main` and the
+task is not registered in the Hosted Worker. Increment 0072 adds the HTTP command and a controlled
+two-process synthetic E2E harness, but does not change Worker runtime composition. Paid Providers,
+customer content, Hosted task activation and automatic Queue retry remain prohibited.

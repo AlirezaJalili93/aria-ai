@@ -102,6 +102,14 @@ class ContextSourceBusyError(Exception):
     """API signal for a Source with an active parser Job."""
 
 
+class ContextStructuringInProgressError(Exception):
+    """API signal for a second active Context Structuring command."""
+
+
+class ContextReadySourceRequiredError(Exception):
+    """API signal for a Project without a ready Context Source Version."""
+
+
 class JobNotRetryableError(Exception):
     """API signal for an explicit parser retry rejected by contract."""
 
@@ -490,6 +498,34 @@ async def context_source_busy_handler(request: Request, error: Exception) -> JSO
         status_code=409,
         code="CONTEXT_SOURCE_BUSY",
         message="The Context Source is currently being processed.",
+        retryable=False,
+    )
+
+
+async def context_structuring_in_progress_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ContextStructuringInProgressError):
+        raise TypeError("Unexpected exception type for Context Structuring progress handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="CONTEXT_STRUCTURING_IN_PROGRESS",
+        message="Context Structuring is already in progress for this Project.",
+        retryable=False,
+    )
+
+
+async def context_ready_source_required_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ContextReadySourceRequiredError):
+        raise TypeError("Unexpected exception type for ready Context Source handler")
+    del request, error
+    return _error_response(
+        status_code=422,
+        code="CONTEXT_READY_SOURCE_REQUIRED",
+        message="A ready Context Source is required.",
         retryable=False,
     )
 

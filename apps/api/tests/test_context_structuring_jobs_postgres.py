@@ -18,6 +18,8 @@ from app.modules.context.application.context_structuring_job_ports import (
     ContextStructuringActiveJobConflict,
 )
 from app.modules.context.application.context_structuring_jobs import (
+    ContextStructuringProjectNotFound,
+    ExplicitSyntheticContextStructuringProjects,
     ScheduleContextStructuringCommand,
     ScheduleContextStructuringUseCase,
 )
@@ -116,7 +118,10 @@ async def _seed() -> tuple[TenantContext, UUID]:
     )
 
 
-async def _service() -> tuple[ScheduleContextStructuringUseCase, DatabaseRuntime]:
+async def _service(
+    context: TenantContext,
+    project_id: UUID,
+) -> tuple[ScheduleContextStructuringUseCase, DatabaseRuntime]:
     assert TEST_DATABASE_URL is not None
     runtime = DatabaseRuntime(TEST_DATABASE_URL)
     return (
@@ -129,6 +134,9 @@ async def _service() -> tuple[ScheduleContextStructuringUseCase, DatabaseRuntime
                 release_commit_sha=None,
                 level="INFO",
             ),
+            ExplicitSyntheticContextStructuringProjects(
+                frozenset({(context.account_id, project_id)})
+            ),
         ),
         runtime,
     )
@@ -138,7 +146,7 @@ def test_exact_replay_returns_one_job_and_one_outbox_row() -> None:
     context, project_id = asyncio.run(_seed())
 
     async def scenario() -> tuple[UUID, UUID]:
-        service, runtime = await _service()
+        service, runtime = await _service(context, project_id)
         try:
             command_value = ScheduleContextStructuringCommand(
                 project_id=project_id,
@@ -176,7 +184,7 @@ def test_database_prevents_two_concurrent_active_jobs_for_project() -> None:
     context, project_id = asyncio.run(_seed())
 
     async def schedule(key: str) -> object:
-        service, runtime = await _service()
+        service, runtime = await _service(context, project_id)
         try:
             return await service.execute(
                 context,
@@ -203,6 +211,61 @@ def test_database_prevents_two_concurrent_active_jobs_for_project() -> None:
             {"project_id": project_id},
         )
     ) == 1
+
+
+def test_cross_tenant_project_stops_before_idempotency_persistence() -> None:
+    _, project_id = asyncio.run(_seed())
+    foreign_user_id, foreign_account_id, foreign_membership_id = uuid4(), uuid4(), uuid4()
+    asyncio.run(
+        _execute(
+            "INSERT INTO profiles (user_id) VALUES (:user_id)",
+            {"user_id": foreign_user_id},
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO accounts (id) VALUES (:account_id)",
+            {"account_id": foreign_account_id},
+        )
+    )
+    asyncio.run(
+        _execute(
+            "INSERT INTO account_memberships (id, account_id, user_id, role, status) "
+            "VALUES (:membership_id, :account_id, :user_id, 'member', 'active')",
+            {
+                "user_id": foreign_user_id,
+                "account_id": foreign_account_id,
+                "membership_id": foreign_membership_id,
+            },
+        )
+    )
+    foreign_context = TenantContext(
+        subject_id=foreign_user_id,
+        account_id=foreign_account_id,
+        membership_id=foreign_membership_id,
+        role="member",
+        membership_status="active",
+    )
+
+    async def scenario() -> None:
+        service, runtime = await _service(foreign_context, project_id)
+        try:
+            with pytest.raises(ContextStructuringProjectNotFound):
+                await service.execute(
+                    foreign_context,
+                    ScheduleContextStructuringCommand(project_id, "foreign", uuid4()),
+                )
+        finally:
+            await runtime.close()
+
+    with bind_trace_context(TraceContext(correlation_id=str(uuid4()))):
+        asyncio.run(scenario())
+    assert asyncio.run(
+        _scalar(
+            "SELECT count(*) FROM idempotency_records WHERE account_id=:account_id",
+            {"account_id": foreign_account_id},
+        )
+    ) == 0
 
 
 def test_worker_role_has_only_required_project_and_context_item_authority() -> None:

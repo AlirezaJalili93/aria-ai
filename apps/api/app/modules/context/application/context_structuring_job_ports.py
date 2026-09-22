@@ -21,6 +21,12 @@ class ContextStructuringReadinessRepository(Protocol):
     async def has_ready_source(self, *, account_id: UUID, project_id: UUID) -> bool: ...
 
 
+class SyntheticContextStructuringAuthorizer(Protocol):
+    """Fail-closed boundary for the controlled synthetic-only runtime."""
+
+    def allows(self, *, account_id: UUID, project_id: UUID) -> bool: ...
+
+
 class ContextStructuringJobUnitOfWork(Protocol):
     @property
     def projects(self) -> ProjectRepository: ...

@@ -17,7 +17,9 @@ from app.api.errors import (
     AccountContextRequiredError,
     AuthenticationProviderUnavailableError,
     AuthenticationRequiredError,
+    ContextReadySourceRequiredError,
     ContextSourceBusyError,
+    ContextStructuringInProgressError,
     ContextVersionRequiredError,
     CriticalGapsOpenError,
     DuplicateClarificationError,
@@ -41,7 +43,9 @@ from app.api.errors import (
     account_context_required_handler,
     authentication_provider_unavailable_handler,
     authentication_required_handler,
+    context_ready_source_required_handler,
     context_source_busy_handler,
+    context_structuring_in_progress_handler,
     context_version_required_handler,
     critical_gaps_open_handler,
     duplicate_clarification_handler,
@@ -69,6 +73,7 @@ from app.api.routers.auth import create_auth_router
 from app.api.routers.clarifications import create_clarifications_router
 from app.api.routers.context_items import create_context_items_router
 from app.api.routers.context_sources import create_context_sources_router
+from app.api.routers.context_structuring import create_context_structuring_router
 from app.api.routers.health import create_health_router
 from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
@@ -87,10 +92,17 @@ from app.modules.context.application.context_item_service import ContextItemRevi
 from app.modules.context.application.context_source_management import (
     ContextSourceManagementService,
 )
+from app.modules.context.application.context_structuring_jobs import (
+    DenyAllSyntheticContextStructuring,
+    ScheduleContextStructuringUseCase,
+)
 from app.modules.context.application.file_context_ingestion import CreateFileContextUseCase
 from app.modules.context.application.text_context_ingestion import CreateTextContextUseCase
 from app.modules.context.infrastructure.context_item_repository import (
     SqlAlchemyContextItemUnitOfWorkFactory,
+)
+from app.modules.context.infrastructure.context_structuring_jobs import (
+    SqlAlchemyContextStructuringJobUnitOfWorkFactory,
 )
 from app.modules.context.infrastructure.management_repository import (
     SqlAlchemyContextSourceManagementUnitOfWorkFactory,
@@ -176,6 +188,7 @@ def create_app(
     job_retry_use_case: RetryJobUseCase | None = None,
     context_source_management_service: ContextSourceManagementService | None = None,
     context_item_review_service: ContextItemReviewService | None = None,
+    context_structuring_use_case: ScheduleContextStructuringUseCase | None = None,
     requirement_crud_service: RequirementCrudService | None = None,
     clarification_service: ClarificationService | None = None,
     scope_draft_service: ScopeDraftService | None = None,
@@ -258,6 +271,14 @@ def create_app(
     app.add_exception_handler(InvalidClarificationStateError, invalid_clarification_state_handler)
     app.add_exception_handler(ContextVersionRequiredError, context_version_required_handler)
     app.add_exception_handler(ContextSourceBusyError, context_source_busy_handler)
+    app.add_exception_handler(
+        ContextStructuringInProgressError,
+        context_structuring_in_progress_handler,
+    )
+    app.add_exception_handler(
+        ContextReadySourceRequiredError,
+        context_ready_source_required_handler,
+    )
     app.add_exception_handler(JobNotRetryableError, job_not_retryable_handler)
     app.add_exception_handler(ForbiddenError, forbidden_handler)
     app.add_exception_handler(ValidationFailedError, validation_failed_handler)
@@ -340,6 +361,15 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.context_structuring_use_case = context_structuring_use_case or (
+        ScheduleContextStructuringUseCase(
+            SqlAlchemyContextStructuringJobUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+            DenyAllSyntheticContextStructuring(),
+        )
+        if database_runtime is not None
+        else None
+    )
     app.state.requirement_crud_service = requirement_crud_service or (
         RequirementCrudService(
             SqlAlchemyRequirementCrudUnitOfWorkFactory(database_runtime.session_factory),
@@ -383,6 +413,12 @@ def create_app(
         prefix="/api/v1",
     )
     app.include_router(create_context_items_router(), prefix="/api/v1")
+    app.include_router(
+        create_context_structuring_router(
+            enabled=resolved_settings.context_structuring_enabled,
+        ),
+        prefix="/api/v1",
+    )
     app.include_router(create_requirements_router(), prefix="/api/v1")
     app.include_router(create_clarifications_router(), prefix="/api/v1")
     app.include_router(create_scope_drafts_router(), prefix="/api/v1")

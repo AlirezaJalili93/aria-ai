@@ -13,6 +13,7 @@ from aria_observability import StructuredEventLogger, enrich_trace_context
 from app.modules.context.application.context_structuring_job_ports import (
     ContextStructuringJobRepositoryError,
     ContextStructuringJobUnitOfWorkFactory,
+    SyntheticContextStructuringAuthorizer,
 )
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.jobs.domain.job import NewJob, NewOutboxEvent
@@ -42,6 +43,24 @@ class ContextStructuringPermissionDenied(Exception):
     """Only an active Membership may schedule the future command."""
 
 
+class ContextStructuringSyntheticFixtureRequired(Exception):
+    """The controlled runtime rejects Projects not explicitly approved as synthetic fixtures."""
+
+
+class DenyAllSyntheticContextStructuring:
+    def allows(self, *, account_id: UUID, project_id: UUID) -> bool:
+        del account_id, project_id
+        return False
+
+
+class ExplicitSyntheticContextStructuringProjects:
+    def __init__(self, approved: frozenset[tuple[UUID, UUID]]) -> None:
+        self._approved = approved
+
+    def allows(self, *, account_id: UUID, project_id: UUID) -> bool:
+        return (account_id, project_id) in self._approved
+
+
 @dataclass(frozen=True, slots=True)
 class ScheduleContextStructuringCommand:
     project_id: UUID
@@ -56,18 +75,20 @@ class ContextStructuringAccepted:
 
 
 class ScheduleContextStructuringUseCase:
-    """Internal AI-01 scheduler; no public route composes it in Increment 0071."""
+    """Schedule AI-01 only for an explicitly authorized synthetic Project."""
 
     def __init__(
         self,
         unit_of_work_factory: ContextStructuringJobUnitOfWorkFactory,
         event_logger: StructuredEventLogger,
+        synthetic_authorizer: SyntheticContextStructuringAuthorizer,
         *,
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
+        self._synthetic_authorizer = synthetic_authorizer
         self._id_factory = id_factory
         self._clock = clock
 
@@ -93,6 +114,18 @@ class ScheduleContextStructuringUseCase:
         )
         try:
             async with self._unit_of_work_factory() as unit_of_work:
+                project = await unit_of_work.projects.get(
+                    account_id=context.account_id,
+                    project_id=command.project_id,
+                )
+                if project is None:
+                    raise ContextStructuringProjectNotFound
+                if not self._synthetic_authorizer.allows(
+                    account_id=context.account_id,
+                    project_id=command.project_id,
+                ):
+                    raise ContextStructuringSyntheticFixtureRequired
+
                 reservation = await unit_of_work.idempotency.reserve(
                     record_id=idempotency_id,
                     account_id=context.account_id,
@@ -108,12 +141,6 @@ class ScheduleContextStructuringUseCase:
                         raise ContextStructuringIdempotencyConflict
                     return self._replay(reservation.response_status, reservation.response_ref)
 
-                project = await unit_of_work.projects.get(
-                    account_id=context.account_id,
-                    project_id=command.project_id,
-                )
-                if project is None:
-                    raise ContextStructuringProjectNotFound
                 if not await unit_of_work.readiness.has_ready_source(
                     account_id=context.account_id,
                     project_id=command.project_id,

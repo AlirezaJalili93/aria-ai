@@ -36,6 +36,7 @@ screenshots, or development records.
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`
 - `TXT_UPLOAD_ENABLED=false` until the S1-L04 Upload Security Suite passes
+- `CONTEXT_STRUCTURING_ENABLED=false`; 0072 explicitly prohibits Hosted AI activation
 - `AUTH_PROVIDER_URL`
 - `AUTH_JWKS_URL`
 - `AUTH_AUDIENCE=authenticated`
