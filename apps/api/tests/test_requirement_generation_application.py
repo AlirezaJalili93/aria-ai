@@ -178,6 +178,7 @@ class FakeRepository:
         self.persisted_updates = []
         self.persisted_events = ()
         self.fail_outbox = False
+        self.completed_jobs: list[UUID] = []
 
     async def resolve_generation_replay(self, **_: object):
         if self.terminal_status is None:
@@ -204,6 +205,9 @@ class FakeRepository:
         if self.fail_outbox:
             raise RuntimeError("outbox failure")
         self.pending_events = events
+
+    async def complete_job_success(self, *, generation_job_id, **_):
+        self.completed_jobs.append(generation_job_id)
 
     def rollback(self) -> None:
         self.pending_writes = ()

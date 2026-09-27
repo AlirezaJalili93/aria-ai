@@ -21,6 +21,15 @@ PARSER_TASK_NAME = "aria.context.parse.v1"
 CONTEXT_STRUCTURING_EVENT_TYPE = "context.structuring_requested.v1"
 CONTEXT_STRUCTURING_JOB_TYPE = "context_structuring"
 CONTEXT_STRUCTURING_TASK_NAME = "aria.context.structure.v1"
+REQUIREMENT_GENERATION_EVENT_TYPE = "requirement.generation_requested.v1"
+REQUIREMENT_GENERATION_JOB_TYPE = "requirement_generation"
+REQUIREMENT_GENERATION_TASK_NAME = "aria.requirements.generate.v1"
+GAP_DETECTION_EVENT_TYPE = "gap.detection_requested.v1"
+GAP_DETECTION_JOB_TYPE = "gap_detection"
+GAP_DETECTION_TASK_NAME = "aria.gaps.detect.v1"
+SCOPE_GENERATION_EVENT_TYPE = "scope.generation_requested.v1"
+SCOPE_GENERATION_JOB_TYPE = "scope_generation"
+SCOPE_GENERATION_TASK_NAME = "aria.scope.generate.v1"
 
 
 class CeleryOutboxPublisher:
@@ -37,6 +46,15 @@ class CeleryOutboxPublisher:
         elif event.event_type == CONTEXT_STRUCTURING_EVENT_TYPE:
             task_name = CONTEXT_STRUCTURING_TASK_NAME
             message = _job_message(event, expected_job_type=CONTEXT_STRUCTURING_JOB_TYPE)
+        elif event.event_type == REQUIREMENT_GENERATION_EVENT_TYPE:
+            task_name = REQUIREMENT_GENERATION_TASK_NAME
+            message = _job_message(event, expected_job_type=REQUIREMENT_GENERATION_JOB_TYPE)
+        elif event.event_type == GAP_DETECTION_EVENT_TYPE:
+            task_name = GAP_DETECTION_TASK_NAME
+            message = _job_message(event, expected_job_type=GAP_DETECTION_JOB_TYPE)
+        elif event.event_type == SCOPE_GENERATION_EVENT_TYPE:
+            task_name = SCOPE_GENERATION_TASK_NAME
+            message = _job_message(event, expected_job_type=SCOPE_GENERATION_JOB_TYPE)
         else:
             raise UnknownOutboxEventError
         try:
@@ -65,11 +83,11 @@ def _job_message(
         "projectId",
         "correlationId",
     }
-    structuring_payload_fields = {"jobId", "taskType", "payloadVersion"}
+    identifier_only_payload_fields = {"jobId", "taskType", "payloadVersion"}
     expected_fields = (
         parser_payload_fields
         if expected_job_type == PARSER_JOB_TYPE
-        else structuring_payload_fields
+        else identifier_only_payload_fields
     )
     if set(payload) != expected_fields:
         raise UnknownOutboxEventError

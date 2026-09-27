@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from time import monotonic
 from typing import Literal, Protocol
@@ -21,6 +22,16 @@ SCOPE_CONTENT_SCHEMA_VERSION = "scope_content_schema_v1"
 ScopeRequirementStatus = Literal["draft", "confirmed"]
 
 
+@dataclass(frozen=True, slots=True)
+class ScopeInputRevision:
+    id: UUID
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.updated_at.tzinfo is None:
+            raise ValueError("Input revision timestamp must be timezone-aware")
+
+
 class ScopeGenerationError(RuntimeError):
     """Safe, provider-neutral Scope Generation failure."""
 
@@ -33,6 +44,20 @@ class ScopeGenerationError(RuntimeError):
 
 class ScopeGenerationInsufficientContextError(ScopeGenerationError):
     """The exact Context Version is not ready or has no usable input."""
+
+
+class ScopeGenerationRequirementsRequiredError(ScopeGenerationError):
+    """AI-05 requires an eligible Requirement before invoking any Provider."""
+
+    def __init__(self) -> None:
+        super().__init__("SCOPE_REQUIREMENTS_REQUIRED")
+
+
+class ScopeGenerationInputChangedError(ScopeGenerationError):
+    """Pinned input no longer matches the eligible persisted snapshot."""
+
+    def __init__(self) -> None:
+        super().__init__("SCOPE_GENERATION_INPUT_CHANGED")
 
 
 class ScopeGenerationBlockedError(ScopeGenerationError):
@@ -131,6 +156,9 @@ class ScopeGenerationCommand:
     routing_policy: Mapping[str, object]
     cost_budget: Mapping[str, object]
     timeout_policy: Mapping[str, object]
+    context_item_revisions: tuple[ScopeInputRevision, ...] = ()
+    requirement_revisions: tuple[ScopeInputRevision, ...] = ()
+    gap_revisions: tuple[ScopeInputRevision, ...] = ()
 
     def __post_init__(self) -> None:
         if isinstance(self.context_version, bool) or self.context_version < 1:
@@ -159,7 +187,15 @@ class ScopeGenerationResult:
 
 class ScopeGenerationSnapshotReader(Protocol):
     async def resolve_exact(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        context_version: int,
+        job_id: UUID,
+        context_item_revisions: tuple[ScopeInputRevision, ...],
+        requirement_revisions: tuple[ScopeInputRevision, ...],
+        gap_revisions: tuple[ScopeInputRevision, ...],
     ) -> ScopeGenerationSnapshot | None: ...
 
 
@@ -167,18 +203,13 @@ class ScopeContentValidator(Protocol):
     def validate(self, content: object) -> Mapping[str, object]: ...
 
 
-class ScopeDraftWriter(Protocol):
+class ScopeGenerationFinalizer(Protocol):
     async def exists(
         self, *, account_id: UUID, project_id: UUID, context_version: int
     ) -> bool: ...
 
-    async def create_ai_draft(
-        self,
-        *,
-        account_id: UUID,
-        project_id: UUID,
-        context_version: int,
-        content: Mapping[str, object],
+    async def finalize(
+        self, *, command: ScopeGenerationCommand, content: Mapping[str, object]
     ) -> UUID: ...
 
 
@@ -202,7 +233,7 @@ class ScopeGenerationUseCase:
         ai_execution: AIExecutionPort,
         usage_ledger: UsageLedger,
         content_validator: ScopeContentValidator,
-        draft_writer: ScopeDraftWriter,
+        finalizer: ScopeGenerationFinalizer,
         event_logger: ScopeGenerationEventLogger,
         operational_metrics: OperationalMetrics | None = None,
         clock: Callable[[], float] = monotonic,
@@ -211,7 +242,7 @@ class ScopeGenerationUseCase:
         self._ai_execution = ai_execution
         self._usage_ledger = usage_ledger
         self._content_validator = content_validator
-        self._draft_writer = draft_writer
+        self._finalizer = finalizer
         self._event_logger = event_logger
         self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
         self._clock = clock
@@ -233,6 +264,10 @@ class ScopeGenerationUseCase:
                 account_id=command.account_id,
                 project_id=command.project_id,
                 context_version=command.context_version,
+                job_id=command.job_id,
+                context_item_revisions=command.context_item_revisions,
+                requirement_revisions=command.requirement_revisions,
+                gap_revisions=command.gap_revisions,
             )
             if snapshot is None or snapshot.context_version != command.context_version:
                 raise ScopeGenerationInsufficientContextError(
@@ -245,9 +280,15 @@ class ScopeGenerationUseCase:
                 raise ScopeGenerationInsufficientContextError(
                     "scope_snapshot_tenant_mismatch"
                 )
+            if not snapshot.context_items:
+                raise ScopeGenerationInsufficientContextError(
+                    "scope_context_unavailable"
+                )
+            if not snapshot.requirements:
+                raise ScopeGenerationRequirementsRequiredError
             if not snapshot.ready_for_share:
                 raise ScopeGenerationBlockedError
-            if await self._draft_writer.exists(
+            if await self._finalizer.exists(
                 account_id=command.account_id,
                 project_id=command.project_id,
                 context_version=command.context_version,
@@ -258,13 +299,10 @@ class ScopeGenerationUseCase:
                 command=command, snapshot=snapshot
             )
             try:
-                draft_id = await self._draft_writer.create_ai_draft(
-                    account_id=command.account_id,
-                    project_id=command.project_id,
-                    context_version=command.context_version,
-                    content=response,
+                draft_id = await self._finalizer.finalize(
+                    command=command, content=response
                 )
-            except ScopeDraftAlreadyExistsError:
+            except ScopeGenerationError:
                 raise
             except Exception as error:
                 raise ScopeGenerationRepositoryError(

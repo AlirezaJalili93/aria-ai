@@ -115,3 +115,21 @@ exactly; the migration fails closed if an event cannot be classified. See ADR-05
 general Project UPDATE authority. These writes support one atomic Context Items + Project Version
 + Job success transaction. Public scheduling and Hosted task activation remain disabled. See
 ADR-058.
+
+`0027_requirement_generation_runtime` pins one active Requirement Generation Job per
+Account/Project/Context Version and grants the Worker only the Context/Requirement reads and named
+Requirement/Domain-Event writes required for atomic AI-02 finalization. Public scheduling and
+Hosted task activation remain disabled. See ADR-060.
+
+`0028_gap_detection_runtime` pins one active Gap Detection Job per Account/Project/Context Version
+and grants the Worker insert-only Gap/Requirement-link authority under RLS. Requirement vectors may
+be empty; Context vectors may not. Gap rows, links, deterministic Rule Pack result metadata and Job
+success share one transaction. Public scheduling and Hosted task activation remain disabled. See
+ADR-061.
+
+`0029_scope_generation_runtime` adds the partial unique active-Job index for AI-05's exact
+Account/Project/Context Version. It grants `aria_worker` only SELECT and named INSERT columns on
+Scope Drafts under RLS; UPDATE/DELETE remain unavailable. A narrowly scoped, SECURITY DEFINER
+function locks the three input tables for the short finalization transaction without granting the
+Worker broad UPDATE authority. The Draft insert and Job success share one commit. Public/Hosted
+activation remains disabled. See ADR-062.

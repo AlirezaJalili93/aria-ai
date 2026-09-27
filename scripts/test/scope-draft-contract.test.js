@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const migration = "apps/api/migrations/versions/0017_scope_drafts.py";
-const domain = "apps/api/app/modules/scope/domain/scope_draft.py";
+const domain = "packages/backend-application/src/aria_backend_application/scope_content.py";
 const model = "apps/api/app/modules/scope/infrastructure/models.py";
 const adr = "docs/adr/ADR-041-scope-draft-model.md";
 
@@ -12,6 +12,8 @@ test("K01 has strict versioned content and all canonical sections", async () => 
   assert.match(source, /scope_content_schema_v1/);
   for (const section of ["summary", "goals", "pages_sections", "requirements", "content", "visual_direction", "constraints", "assumptions", "resolved_gaps", "remaining_non_blocking_gaps", "out_of_scope", "acceptance_notes"]) assert.match(source, new RegExp(`"${section}"`));
   assert.match(source, /Unknown schema version|Unknown Scope content schema version/);
+  const apiDomain = await readFile("apps/api/app/modules/scope/domain/scope_draft.py", "utf8");
+  assert.match(apiDomain, /from aria_backend_application\.scope_content import/);
 });
 
 test("K01 persistence is tenant-scoped and concurrency-ready", async () => {

@@ -62,3 +62,7 @@ docs/development/NNNN-kebab-case/
 - [0070 — Durable Outbox Delivery Runtime](./0070-durable-outbox-delivery-runtime/development.md)
 - [0071 — Context Structuring Job Runtime Foundation](./0071-context-structuring-job-runtime-foundation/development.md)
 - [0072 — Context Structuring Command API & Controlled Synthetic E2E](./0072-context-structuring-command-synthetic-e2e/development.md)
+- [0073 — Requirement Generation Runtime Foundation](./0073-requirement-generation-runtime-foundation/development.md)
+- [0074 — Gap Detection Runtime Foundation](./0074-gap-detection-runtime-foundation/development.md)
+- [0075 — Scope Generation Runtime Foundation](./0075-scope-generation-runtime-foundation/development.md)
+- [0076 — Synthetic Runtime Tenant Isolation](./0076-synthetic-runtime-tenant-isolation/development.md)

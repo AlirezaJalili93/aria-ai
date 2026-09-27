@@ -122,6 +122,17 @@ M000 extensions
   می‌شوند. Partial unique index ایجاد دو Job فعال Context Structuring برای یک Project را در DB
   متوقف می‌کند؛ جزئیات و activation exclusions در
   [ADR-058](../adr/ADR-058-context-structuring-job-runtime-foundation.md) ثبت شده است.
+- 0073 برای AI-02، `jobs.payload_ref` را به `context_version` و revision vector دقیق
+  `(context_item_id, updated_at)` متصل می‌کند. Outbox فقط شناسه‌های Job را حمل می‌کند و یک partial
+  unique index دو Job فعال برای همان `(account_id, project_id, context_version)` را رد می‌کند.
+  Requirementها، Domain Eventهای conflict و انتقال Job به `succeeded` در یک Transaction نهایی
+  می‌شوند؛ جزئیات در [ADR-060](../adr/ADR-060-requirement-generation-runtime-foundation.md) است.
+- 0074 برای AI-03 همان Job را به revision vector دقیق Context Itemها و Requirementها و نیز
+  `completion_checklist_v1` و `critical_gap_rule_pack_v1` متصل می‌کند. Requirement vector خالی
+  معتبر است، اما Context قابل‌استفاده الزامی می‌ماند. Gapها، linkهای Requirement، metadata قواعد
+  Critical و موفقیت Job در یک Transaction ثبت می‌شوند؛ partial unique index نیز دو Job فعال همان
+  `(account_id, project_id, context_version)` را رد می‌کند. جزئیات در
+  [ADR-061](../adr/ADR-061-gap-detection-runtime-foundation.md) ثبت شده است.
 - H03 فقط defectهای deterministic خروجی مدل را حداکثر یک‌بار با همان Workflow/Routing و Prompt
   نسخه‌دار Repair می‌کند. هر خروجی دوباره کل validation را طی می‌کند و exhaustion هیچ Context
   write یا Version increment ندارد؛ جزئیات در [ADR-027](../adr/ADR-027-context-validation-repair.md)
@@ -163,6 +174,12 @@ M000 extensions
   تخصیص version را اتمیک می‌کند. payload/hash/lineage و حذف در DB ممنوع‌اند؛ status فقط برای
   lifecycle آینده قابل تغییر است. جزئیات در
   [ADR-045](../adr/ADR-045-scope-version-snapshot.md) ثبت شده است.
+- AI-05/0075 یک Job از نوع `scope_generation` را به نسخهٔ دقیق Context و شناسه/زمان بازنگری
+  مرتب‌شدهٔ Context Item، Requirement و Gap متصل می‌کند. برای هر Account/Project/Context Version
+  حداکثر یک Job در وضعیت `queued|running` با partial unique index مجاز است. `scope_drafts` و
+  `jobs` همان منابع حقیقت موجود می‌مانند؛ Draft جدید و موفقیت Job در یک تراکنش ثبت می‌شوند.
+  هیچ جدول Scope یا مسیر Hosted/Public جدیدی ایجاد نشده است. جزئیات در
+  [ADR-062](../adr/ADR-062-scope-generation-runtime-foundation.md) آمده است.
 
 ## Migration Guardrails
 

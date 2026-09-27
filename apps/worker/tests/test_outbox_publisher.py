@@ -10,7 +10,10 @@ import pytest
 from app.application.outbox_delivery import ClaimedOutboxEvent, UnknownOutboxEventError
 from app.infrastructure.queue.outbox_publisher import (
     CONTEXT_STRUCTURING_TASK_NAME,
+    GAP_DETECTION_TASK_NAME,
     PARSER_TASK_NAME,
+    REQUIREMENT_GENERATION_TASK_NAME,
+    SCOPE_GENERATION_TASK_NAME,
     CeleryOutboxPublisher,
 )
 
@@ -87,6 +90,102 @@ def test_publisher_maps_context_structuring_to_minimal_identifier_only_envelope(
                 "message_version": "1",
                 "outbox_event_id": str(structuring_event.id),
                 "job_id": structuring_event.payload["jobId"],
+            }
+        ],
+        queue="aria-test-jobs",
+        retry=False,
+    )
+
+
+def test_publisher_maps_requirement_generation_to_identifier_only_envelope() -> None:
+    celery_app = Mock()
+    event = _event()
+    values = {field: getattr(event, field) for field in event.__dataclass_fields__}
+    values.update(
+        event_type="requirement.generation_requested.v1",
+        aggregate_type="project",
+        payload={
+            "jobId": str(uuid4()),
+            "taskType": "requirement_generation",
+            "payloadVersion": "1",
+        },
+    )
+    requirement_event = ClaimedOutboxEvent(**values)  # type: ignore[arg-type]
+    publisher = CeleryOutboxPublisher(celery_app, queue_name="aria-test-jobs")
+
+    asyncio.run(publisher.publish(requirement_event))
+
+    celery_app.send_task.assert_called_once_with(
+        REQUIREMENT_GENERATION_TASK_NAME,
+        args=[
+            {
+                "message_version": "1",
+                "outbox_event_id": str(requirement_event.id),
+                "job_id": requirement_event.payload["jobId"],
+            }
+        ],
+        queue="aria-test-jobs",
+        retry=False,
+    )
+
+
+def test_publisher_maps_gap_detection_to_identifier_only_envelope() -> None:
+    celery_app = Mock()
+    event = _event()
+    values = {field: getattr(event, field) for field in event.__dataclass_fields__}
+    values.update(
+        event_type="gap.detection_requested.v1",
+        aggregate_type="project",
+        payload={
+            "jobId": str(uuid4()),
+            "taskType": "gap_detection",
+            "payloadVersion": "1",
+        },
+    )
+    gap_event = ClaimedOutboxEvent(**values)  # type: ignore[arg-type]
+    publisher = CeleryOutboxPublisher(celery_app, queue_name="aria-test-jobs")
+
+    asyncio.run(publisher.publish(gap_event))
+
+    celery_app.send_task.assert_called_once_with(
+        GAP_DETECTION_TASK_NAME,
+        args=[
+            {
+                "message_version": "1",
+                "outbox_event_id": str(gap_event.id),
+                "job_id": gap_event.payload["jobId"],
+            }
+        ],
+        queue="aria-test-jobs",
+        retry=False,
+    )
+
+
+def test_publisher_maps_scope_generation_to_identifier_only_envelope() -> None:
+    celery_app = Mock()
+    event = _event()
+    values = {field: getattr(event, field) for field in event.__dataclass_fields__}
+    values.update(
+        event_type="scope.generation_requested.v1",
+        aggregate_type="project",
+        payload={
+            "jobId": str(uuid4()),
+            "taskType": "scope_generation",
+            "payloadVersion": "1",
+        },
+    )
+    scope_event = ClaimedOutboxEvent(**values)  # type: ignore[arg-type]
+    publisher = CeleryOutboxPublisher(celery_app, queue_name="aria-test-jobs")
+
+    asyncio.run(publisher.publish(scope_event))
+
+    celery_app.send_task.assert_called_once_with(
+        SCOPE_GENERATION_TASK_NAME,
+        args=[
+            {
+                "message_version": "1",
+                "outbox_event_id": str(scope_event.id),
+                "job_id": scope_event.payload["jobId"],
             }
         ],
         queue="aria-test-jobs",

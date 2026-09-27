@@ -11,7 +11,9 @@ from aria_backend_application.scope_generation import (
     ScopeDraftAlreadyExistsError,
     ScopeGenerationBlockedError,
     ScopeGenerationCommand,
+    ScopeGenerationInsufficientContextError,
     ScopeGenerationRequirement,
+    ScopeGenerationRequirementsRequiredError,
     ScopeGenerationSnapshot,
     ScopeGenerationUseCase,
     ScopeRepairPolicy,
@@ -50,14 +52,18 @@ def _command(*, repair_no: int = 0) -> ScopeGenerationCommand:
     )
 
 
-def _snapshot(*, ready: bool = True) -> ScopeGenerationSnapshot:
+def _snapshot(
+    *, ready: bool = True, empty_context: bool = False, empty_requirements: bool = False
+) -> ScopeGenerationSnapshot:
     return ScopeGenerationSnapshot(
         account_id=ACCOUNT_ID,
         project_id=PROJECT_ID,
         context_version=1,
         project_type="landing",
-        context_items=({"id": str(uuid4()), "content": "متن"},),
-        requirements=(
+        context_items=() if empty_context else ({"id": str(uuid4()), "content": "متن"},),
+        requirements=()
+        if empty_requirements
+        else (
             ScopeGenerationRequirement(
                 id=uuid4(), context_version=1, status="draft", payload={"title": "نیاز"}
             ),
@@ -118,7 +124,7 @@ class FakeWriter:
     async def exists(self, **_: object) -> bool:
         return self.existing
 
-    async def create_ai_draft(self, **kwargs: object) -> UUID:
+    async def finalize(self, **kwargs: object) -> UUID:
         self.created.append(kwargs)
         return uuid4()
 
@@ -163,7 +169,7 @@ def _use_case(
         ai_execution=ai,
         usage_ledger=ledger,
         content_validator=validator,
-        draft_writer=writer,
+        finalizer=writer,
         event_logger=logger,
     )
 
@@ -189,6 +195,9 @@ def test_scope_generation_accepts_draft_and_confirmed_and_maps_usage() -> None:
         "scope.generation_completed",
         "scope_generated",
     ]
+    logged = repr(logger.events)
+    for sensitive in ("متن", "نیاز قطعی", "source_refs", "input_context"):
+        assert sensitive not in logged
 
 
 def test_existing_draft_conflicts_before_ai_and_persistence() -> None:
@@ -226,6 +235,39 @@ def test_blocked_readiness_never_calls_ai() -> None:
         )
     assert ai.calls == []
     assert ledger.records == []
+
+
+@pytest.mark.parametrize(
+    ("snapshot", "expected_error", "reason_code"),
+    [
+        (
+            _snapshot(empty_requirements=True),
+            ScopeGenerationRequirementsRequiredError,
+            "SCOPE_REQUIREMENTS_REQUIRED",
+        ),
+        (
+            _snapshot(empty_context=True),
+            ScopeGenerationInsufficientContextError,
+            "scope_context_unavailable",
+        ),
+    ],
+)
+def test_required_inputs_fail_before_ai_usage_and_finalization(
+    snapshot: ScopeGenerationSnapshot, expected_error: type[Exception], reason_code: str
+) -> None:
+    ai = FakeAI([_response(_content())])
+    ledger = FakeUsageLedger()
+    writer = FakeWriter()
+    with pytest.raises(expected_error) as error:
+        asyncio.run(
+            _use_case(
+                ai, FakeReader(snapshot), FakeValidator(), writer, ledger, FakeLogger([])
+            ).execute(_command())
+        )
+    assert error.value.reason_code == reason_code
+    assert ai.calls == []
+    assert ledger.records == []
+    assert writer.created == []
 
 
 def test_invalid_candidate_gets_one_repair_and_both_calls_are_metered() -> None:

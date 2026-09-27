@@ -22,3 +22,18 @@ registration from the Worker runtime and does not compose its Fake Provider. Its
 envelope contains `message_version`, `outbox_event_id` and `job_id`; all Context is resolved from
 PostgreSQL. Hosted registration and real Provider execution require later contracts.
 
+ADR-060 defines `aria.requirements.generate.v1` for controlled synthetic AI-02 tests. Its exact
+Queue envelope also contains only `message_version`, `outbox_event_id` and `job_id`; the Worker
+loads the frozen Context revision from PostgreSQL. The registration function exists for controlled
+tests but is deliberately not called from hosted Worker composition.
+
+ADR-061 defines `aria.gaps.detect.v1` for controlled synthetic AI-03 tests. Its exact Queue
+envelope contains only `message_version`, `outbox_event_id` and `job_id`; the Worker loads the
+pinned Context/Requirement revision vectors and policy versions from PostgreSQL. Empty Requirements
+are valid. The registration function and Fake Provider exist only for controlled tests and are not
+composed into the hosted Worker.
+
+ADR-062 defines `aria.scope.generate.v1` for controlled synthetic AI-05 tests. Its envelope has
+only `message_version`, `outbox_event_id` and `job_id`; exact inputs and tenant identity remain in
+PostgreSQL. Task registration and the Fake Provider remain absent from hosted Worker composition.
+

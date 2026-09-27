@@ -409,6 +409,10 @@ class RequirementGenerationRepository(Protocol):
         self, events: tuple[RequirementConflictEvent, ...]
     ) -> None: ...
 
+    async def complete_job_success(
+        self, *, account_id: UUID, project_id: UUID, generation_job_id: UUID
+    ) -> None: ...
+
 
 class RequirementGenerationUnitOfWork(Protocol):
     @property
@@ -796,6 +800,11 @@ class GenerateRequirementsUseCase:
                 for ids in conflict_groups
             )
             await repository.add_conflict_events(events)
+            await repository.complete_job_success(
+                account_id=command.account_id,
+                project_id=command.project_id,
+                generation_job_id=command.job_id,
+            )
             await unit_of_work.commit()
 
         unsupported_count = sum(item.unsupported for item in batch.items)

@@ -40,7 +40,7 @@ test("K03 refuses an existing Draft before AI, never overwrites, and meters ever
   const source = await readFile(application, "utf8");
   const adrSource = await readFile(adr, "utf8");
   assert.match(source, /SCOPE_DRAFT_ALREADY_EXISTS/);
-  assert.match(source, /draft_writer\.exists/);
+  assert.match(source, /finalizer\.exists/);
   assert.match(source, /_execute_with_repair/);
   assert.match(source, /usage_ledger\.append/);
   assert.match(adrSource, /no implicit overwrite|never silently overwrites/i);

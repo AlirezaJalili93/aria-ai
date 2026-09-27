@@ -237,6 +237,28 @@ class SqlAlchemyRequirementGenerationRepository:
         )
         await self._session.flush()
 
+    async def complete_job_success(
+        self, *, account_id: UUID, project_id: UUID, generation_job_id: UUID
+    ) -> None:
+        updated_id = await self._session.scalar(
+            update(JobModel)
+            .where(
+                JobModel.id == generation_job_id,
+                JobModel.account_id == account_id,
+                JobModel.project_id == project_id,
+                JobModel.status == "running",
+            )
+            .values(
+                status="succeeded",
+                finished_at=text("CURRENT_TIMESTAMP"),
+                error_code=None,
+                error_detail=None,
+            )
+            .returning(JobModel.id)
+        )
+        if updated_id is None:
+            raise RequirementGenerationRepositoryError("generation_job_not_running")
+
 
 class SqlAlchemyRequirementGenerationUnitOfWork:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
