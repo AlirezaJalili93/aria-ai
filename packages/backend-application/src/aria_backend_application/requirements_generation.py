@@ -387,7 +387,7 @@ class RequirementGenerationRepository(Protocol):
     ) -> RequirementGenerationReplay | None: ...
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> tuple[ContextItemRevision, ...] | None: ...
 
     async def list_existing_for_merge(
@@ -758,6 +758,7 @@ class GenerateRequirementsUseCase:
                 )
                 return result
             current_revisions = await repository.lock_snapshot_and_resolve_revisions(
+                job_id=command.job_id,
                 account_id=command.account_id,
                 project_id=command.project_id,
                 context_version=command.context_version,

@@ -193,7 +193,7 @@ class SqlAlchemyGapDetectionRepository:
         )
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> GapSnapshotRevisions | None:
         project = await self._session.scalar(
             select(ProjectModel)

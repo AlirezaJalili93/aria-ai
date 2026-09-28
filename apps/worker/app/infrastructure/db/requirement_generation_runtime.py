@@ -129,7 +129,7 @@ class SqlRequirementGenerationRepository:
         )
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> tuple[ContextItemRevision, ...] | None:
         project = await self._connection.scalar(
             text(
@@ -144,7 +144,18 @@ class SqlRequirementGenerationRepository:
         )
         if project is None:
             return None
-        await self._connection.execute(text("LOCK TABLE public.context_items IN SHARE MODE"))
+        await self._connection.execute(
+            text(
+                "SELECT aria_internal.lock_requirement_generation_inputs("
+                ":job_id, :account_id, :project_id, :context_version)"
+            ),
+            {
+                "job_id": job_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "context_version": context_version,
+            },
+        )
         rows = (
             await self._connection.execute(
                 text(

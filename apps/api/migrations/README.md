@@ -15,6 +15,8 @@ is never stored in this directory.
 → 0022_context_source_management → 0023_provider_price_versions
 → 0024_ai_failure_accounting → 0025_outbox_delivery_runtime
 → 0026_context_structuring_runtime
+→ 0027_requirement_generation_runtime → 0028_gap_detection_runtime
+→ 0029_scope_generation_runtime → 0030_generation_input_row_locks
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -133,3 +135,9 @@ Scope Drafts under RLS; UPDATE/DELETE remain unavailable. A narrowly scoped, SEC
 function locks the three input tables for the short finalization transaction without granting the
 Worker broad UPDATE authority. The Draft insert and Job success share one commit. Public/Hosted
 activation remains disabled. See ADR-062.
+
+`0030_generation_input_row_locks` replaces AI-02/AI-03 Worker table-wide SHARE
+locks with typed, Job-bound and tenant/version-scoped row locks. A dedicated
+NOLOGIN, NOBYPASSRLS owner role holds only the column privileges needed by two
+fixed helpers in non-exposed `aria_internal`; only `aria_worker` may execute them.
+No broad table write grant is given to the Worker. See ADR-064.

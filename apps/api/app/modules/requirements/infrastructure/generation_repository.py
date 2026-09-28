@@ -106,7 +106,7 @@ class SqlAlchemyRequirementGenerationRepository:
         )
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> tuple[ContextItemRevision, ...] | None:
         project = await self._session.scalar(
             select(ProjectModel)

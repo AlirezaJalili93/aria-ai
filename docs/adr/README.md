@@ -61,5 +61,7 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-060 — Requirement Generation Runtime Foundation](ADR-060-requirement-generation-runtime-foundation.md)
 - [ADR-061 — Gap Detection Runtime Foundation](ADR-061-gap-detection-runtime-foundation.md)
 - [ADR-062 — Scope Generation Runtime Foundation](ADR-062-scope-generation-runtime-foundation.md)
+- [ADR-063 — Controlled Synthetic Context-to-Scope Integration Gate](ADR-063-controlled-synthetic-context-to-scope-integration.md)
+- [ADR-064 — Scoped AI-02/AI-03 Generation Input Locks](ADR-064-generation-input-row-lock-privileges.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

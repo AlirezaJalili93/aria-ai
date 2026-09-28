@@ -201,7 +201,7 @@ class SqlGapDetectionRepository:
         )
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> GapSnapshotRevisions | None:
         project_type = await self._connection.scalar(
             text(
@@ -217,8 +217,18 @@ class SqlGapDetectionRepository:
         )
         if project_type is None:
             return None
-        await self._connection.execute(text("LOCK TABLE public.context_items IN SHARE MODE"))
-        await self._connection.execute(text("LOCK TABLE public.requirements IN SHARE MODE"))
+        await self._connection.execute(
+            text(
+                "SELECT aria_internal.lock_gap_detection_inputs("
+                ":job_id, :account_id, :project_id, :context_version)"
+            ),
+            {
+                "job_id": job_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "context_version": context_version,
+            },
+        )
         context_rows = (
             await self._connection.execute(
                 text(

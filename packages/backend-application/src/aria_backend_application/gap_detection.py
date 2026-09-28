@@ -808,7 +808,7 @@ class GapDetectionRepository(Protocol):
     ) -> GapDetectionReplay | None: ...
 
     async def lock_snapshot_and_resolve_revisions(
-        self, *, account_id: UUID, project_id: UUID, context_version: int
+        self, *, job_id: UUID, account_id: UUID, project_id: UUID, context_version: int
     ) -> GapSnapshotRevisions | None: ...
 
     async def add_batch(self, gaps: tuple[GapWrite, ...]) -> None: ...
@@ -1177,6 +1177,7 @@ class DetectGapsUseCase:
                 self._emit_replay(command, result, started_at)
                 return result
             actual = await repository.lock_snapshot_and_resolve_revisions(
+                job_id=command.job_id,
                 account_id=command.account_id,
                 project_id=command.project_id,
                 context_version=command.context_version,

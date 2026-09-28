@@ -40,6 +40,8 @@
     "test:web": "npm test --workspace @aria/web",
     "test:api": "node scripts/run-uv.mjs --project apps/api run pytest -q apps/api/tests",
     "test:worker": "node scripts/run-uv.mjs --project apps/worker run pytest -q apps/worker/tests",
+    "test:context-to-scope-e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-context-to-scope-controlled.ps1",
+    "test:requirement-edit-to-scope-e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File tests/e2e/run-requirement-edit-to-scope-controlled.ps1",
     "scan:dependencies": "node scripts/scan-dependencies.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
     "validate": "node scripts/validate-architecture.mjs",
