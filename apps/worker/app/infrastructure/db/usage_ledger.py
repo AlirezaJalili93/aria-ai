@@ -70,6 +70,8 @@ class SqlAlchemyUsageLedger:
         self._operational_metrics = operational_metrics or NoOpOperationalMetrics()
 
     async def append(self, record: UsageRecord) -> None:
+        # Targetless DO NOTHING keeps duplicate attempt IDs idempotent without
+        # requiring SELECT on the conflict target from the INSERT-only Worker.
         statement = insert(usage_records).values(
             provider_attempt_id=record.provider_attempt_id,
             account_id=record.account_id,
@@ -94,7 +96,7 @@ class SqlAlchemyUsageLedger:
             currency=record.currency,
             pricing_version=record.pricing_version,
             correlation_id=record.correlation_id,
-        ).on_conflict_do_nothing(index_elements=["provider_attempt_id"])
+        ).on_conflict_do_nothing()
         try:
             async with self._engine.begin() as connection:
                 result = await connection.execute(statement)

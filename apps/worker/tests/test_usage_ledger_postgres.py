@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
@@ -116,6 +117,29 @@ def test_same_provider_attempt_persistence_is_idempotent() -> None:
                 ).scalar_one()
             assert count == 1
             assert metrics.ai_usage_calls == 1
+
+            worker_engine = create_async_engine(
+                TEST_DATABASE_URL,
+                connect_args={"server_settings": {"role": "aria_worker"}},
+            )
+            try:
+                worker_record = replace(record, provider_attempt_id=uuid4())
+                worker_metrics = CountingMetrics()
+                worker_ledger = SqlAlchemyUsageLedger(worker_engine, worker_metrics)
+                await worker_ledger.append(worker_record)
+                await worker_ledger.append(worker_record)
+                async with engine.connect() as connection:
+                    worker_count = await connection.scalar(
+                        text(
+                            "SELECT count(*) FROM usage_records "
+                            "WHERE provider_attempt_id=:attempt_id"
+                        ),
+                        {"attempt_id": worker_record.provider_attempt_id},
+                    )
+                assert worker_count == 1
+                assert worker_metrics.ai_usage_calls == 1
+            finally:
+                await worker_engine.dispose()
         finally:
             await engine.dispose()
 

@@ -282,7 +282,8 @@ class ContextStructuringUseCase:
         *,
         snapshot_reader: ContextSnapshotReader,
         ai_execution: AIExecutionPort,
-        usage_ledger: UsageLedger,
+        usage_ledger: UsageLedger | None,
+        coordinator_managed: bool = False,
         unsupported_claim_validator: UnsupportedClaimValidator,
         unit_of_work_factory: ContextStructuringUnitOfWorkFactory,
         event_logger: ContextStructuringEventLogger,
@@ -290,6 +291,13 @@ class ContextStructuringUseCase:
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], float] = monotonic,
     ) -> None:
+        if coordinator_managed:
+            if usage_ledger is not None:
+                raise ValueError("single usage owner required for coordinator-managed execution")
+            if getattr(ai_execution, "usage_owner", None) != "coordinator":
+                raise ValueError("coordinator-managed execution requires coordinator usage owner")
+        elif usage_ledger is None:
+            raise ValueError("usage_ledger is required for workflow-managed execution")
         self._snapshot_reader = snapshot_reader
         self._ai_execution = ai_execution
         self._usage_ledger = usage_ledger
@@ -513,31 +521,32 @@ class ContextStructuringUseCase:
                 "correlation_id": str(command.correlation_id),
             },
         )
-        await self._usage_ledger.append(
-            UsageRecord(
-                account_id=command.account_id,
-                provider_attempt_id=response.provider_attempt_id,
-                project_id=command.project_id,
-                job_id=command.job_id,
-                task_type=command.task_type,
-                workflow_version=response.workflow_version,
-                prompt_version=response.prompt_version,
-                provider=response.provider,
-                model=response.model,
-                provider_request_id=response.provider_request_id,
-                input_tokens=response.input_tokens,
-                cached_input_tokens=response.cached_input_tokens,
-                output_tokens=response.output_tokens,
-                latency_ms=Decimal(str(response.latency_ms)),
-                status=response.status,
-                error_code=None,
-                retry_no=response.retry_no,
-                repair_no=repair_no,
-                estimated_cost=Decimal(str(response.estimated_cost)),
-                pricing_version=command.pricing_version,
-                correlation_id=command.correlation_id,
+        if self._usage_ledger is not None:
+            await self._usage_ledger.append(
+                UsageRecord(
+                    account_id=command.account_id,
+                    provider_attempt_id=response.provider_attempt_id,
+                    project_id=command.project_id,
+                    job_id=command.job_id,
+                    task_type=command.task_type,
+                    workflow_version=response.workflow_version,
+                    prompt_version=response.prompt_version,
+                    provider=response.provider,
+                    model=response.model,
+                    provider_request_id=response.provider_request_id,
+                    input_tokens=response.input_tokens,
+                    cached_input_tokens=response.cached_input_tokens,
+                    output_tokens=response.output_tokens,
+                    latency_ms=Decimal(str(response.latency_ms)),
+                    status=response.status,
+                    error_code=None,
+                    retry_no=response.retry_no,
+                    repair_no=repair_no,
+                    estimated_cost=Decimal(str(response.estimated_cost)),
+                    pricing_version=command.pricing_version,
+                    correlation_id=command.correlation_id,
+                )
             )
-        )
         return response
 
     async def _validate_response(

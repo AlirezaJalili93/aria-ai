@@ -10,8 +10,42 @@ depends_on: str | None = None
 
 def upgrade() -> None:
     op.execute(
-        "CREATE ROLE aria_generation_lock_owner NOLOGIN NOINHERIT NOSUPERUSER "
-        "NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
+        """
+        DO $aria$
+        DECLARE
+            v_role record;
+        BEGIN
+            SELECT
+                rolcanlogin,
+                rolinherit,
+                rolsuper,
+                rolcreatedb,
+                rolcreaterole,
+                rolreplication,
+                rolbypassrls
+            INTO v_role
+            FROM pg_catalog.pg_roles
+            WHERE rolname='aria_generation_lock_owner';
+
+            IF NOT FOUND THEN
+                EXECUTE
+                    'CREATE ROLE aria_generation_lock_owner '
+                    'NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB '
+                    'NOCREATEROLE NOREPLICATION NOBYPASSRLS';
+            ELSIF v_role.rolcanlogin
+               OR v_role.rolinherit
+               OR v_role.rolsuper
+               OR v_role.rolcreatedb
+               OR v_role.rolcreaterole
+               OR v_role.rolreplication
+               OR v_role.rolbypassrls THEN
+                RAISE EXCEPTION
+                    'generation lock owner role attributes rejected'
+                    USING ERRCODE = '42501';
+            END IF;
+        END
+        $aria$
+        """
     )
     op.execute("CREATE SCHEMA aria_internal")
     op.execute("REVOKE ALL ON SCHEMA aria_internal FROM PUBLIC")
@@ -187,4 +221,37 @@ def downgrade() -> None:
         "REVOKE USAGE, CREATE ON SCHEMA aria_internal FROM aria_generation_lock_owner"
     )
     op.execute("DROP SCHEMA aria_internal")
-    op.execute("DROP ROLE aria_generation_lock_owner")
+    op.execute(
+        """
+        DO $aria$
+        DECLARE
+            v_role_oid oid;
+            v_current_database_oid oid;
+        BEGIN
+            SELECT oid INTO v_role_oid
+            FROM pg_catalog.pg_roles
+            WHERE rolname='aria_generation_lock_owner';
+            IF NOT FOUND THEN
+                RETURN;
+            END IF;
+
+            SELECT oid INTO STRICT v_current_database_oid
+            FROM pg_catalog.pg_database
+            WHERE datname=pg_catalog.current_database();
+
+            IF EXISTS (
+                SELECT 1
+                FROM pg_catalog.pg_shdepend
+                WHERE refclassid='pg_catalog.pg_authid'::pg_catalog.regclass
+                  AND refobjid=v_role_oid
+                  AND dbid <> v_current_database_oid
+            ) THEN
+                RAISE NOTICE
+                    'preserving aria_generation_lock_owner: used outside current database';
+            ELSE
+                EXECUTE 'DROP ROLE aria_generation_lock_owner';
+            END IF;
+        END
+        $aria$
+        """
+    )

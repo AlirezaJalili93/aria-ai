@@ -8,8 +8,11 @@ import json
 import os
 import re
 import sys
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -32,6 +35,12 @@ from app.application.gap_detection_consumer import (
 )
 from app.application.gap_detection_runtime import SyntheticGapDetectionCommandFactory
 from app.application.outbox_delivery import DurableOutboxRelay
+from app.application.provider_adapter import ProviderAdapterError, ProviderResult
+from app.application.provider_execution import ProviderCandidate
+from app.application.provider_failure_policy import (
+    ProviderExecutionMetadata,
+    ProviderFailureCoordinator,
+)
 from app.application.requirement_generation_consumer import (
     RequirementGenerationConsumer,
     RequirementGenerationJobMessage,
@@ -66,6 +75,7 @@ from app.infrastructure.db.gap_detection_runtime import (
     SqlAlchemyGapDetectionJobStore,
 )
 from app.infrastructure.db.outbox_delivery import PostgresOutboxDeliveryRepository
+from app.infrastructure.db.provider_pricing import PostgresProviderPriceCatalog
 from app.infrastructure.db.requirement_generation_runtime import (
     PostgresRequirementContextSnapshotReader,
     PostgresRequirementGenerationUnitOfWorkFactory,
@@ -77,7 +87,9 @@ from app.infrastructure.db.scope_generation_runtime import (
     SqlAlchemyScopeGenerationJobStore,
 )
 from app.infrastructure.db.txt_parser_runtime import PostgresJobExecutionGuard
+from app.infrastructure.db.usage_ledger import SqlAlchemyUsageLedger
 from app.infrastructure.queue.outbox_publisher import CeleryOutboxPublisher
+from aria_backend_application.ai_execution import StructuredAIResponse
 from aria_backend_application.context_structuring import (
     ContextRepairPolicy,
     ContextStructuringCommand,
@@ -169,6 +181,129 @@ class UsageLedger:
         self.records.append(record)
 
 
+class NoWallClockSleep:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def sleep(self, delay_seconds: float) -> None:
+        if delay_seconds != 0:
+            raise AssertionError("Synthetic retry must not sleep in real time")
+        self.calls += 1
+
+
+class ZeroJitter:
+    def random(self) -> float:
+        return 0.0
+
+
+class TimeoutThenSyntheticContextAdapter:
+    def __init__(self) -> None:
+        self.calls = 0
+        self._synthetic = SyntheticContextStructuringAI()
+
+    async def execute(self, request: Mapping[str, object]) -> ProviderResult:
+        self.calls += 1
+        if self.calls == 1:
+            raise ProviderAdapterError("timeout", retryable=True)
+        if self.calls != 2:
+            raise AssertionError("Provider invocation budget exceeded")
+        response = await self._synthetic.execute_structured(
+            task_type=cast(str, request["task_type"]),
+            workflow_version=cast(str, request["workflow_version"]),
+            prompt_version=cast(str, request["prompt_version"]),
+            output_schema=cast(Mapping[str, object], request["output_schema"]),
+            input_context=cast(Mapping[str, object], request["input_context"]),
+            routing_policy=cast(Mapping[str, object], request["routing_policy"]),
+            cost_budget=cast(Mapping[str, object], request["cost_budget"]),
+            timeout_policy=cast(Mapping[str, object], request["timeout_policy"]),
+            metadata=cast(Mapping[str, object], request["metadata"]),
+        )
+        return ProviderResult(
+            data=response.data,
+            provider=response.provider,
+            model=response.model,
+            provider_request_id=response.provider_request_id,
+            input_tokens=response.input_tokens,
+            cached_input_tokens=response.cached_input_tokens,
+            output_tokens=response.output_tokens,
+            latency_ms=response.latency_ms,
+            status=response.status,
+        )
+
+
+class CoordinatorManagedSyntheticContextAI:
+    usage_owner = "coordinator"
+
+    def __init__(self, *, engine: object, logger: object) -> None:
+        self.adapter = TimeoutThenSyntheticContextAdapter()
+        self.sleeper = NoWallClockSleep()
+        self._coordinator = ProviderFailureCoordinator(
+            catalog=PostgresProviderPriceCatalog(engine),  # type: ignore[arg-type]
+            usage_ledger=SqlAlchemyUsageLedger(engine),  # type: ignore[arg-type]
+            sleeper=self.sleeper,
+            random_source=ZeroJitter(),
+            utc_clock=lambda: datetime.now(UTC),
+            event_logger=logger,  # type: ignore[arg-type]
+        )
+
+    async def execute_structured(
+        self,
+        task_type: str,
+        workflow_version: str,
+        prompt_version: str,
+        output_schema: Mapping[str, object],
+        input_context: Mapping[str, object],
+        routing_policy: Mapping[str, object],
+        cost_budget: Mapping[str, object],
+        timeout_policy: Mapping[str, object],
+        metadata: Mapping[str, object],
+    ) -> StructuredAIResponse:
+        request = {
+            "task_type": task_type,
+            "workflow_version": workflow_version,
+            "prompt_version": prompt_version,
+            "output_schema": output_schema,
+            "input_context": input_context,
+            "routing_policy": routing_policy,
+            "cost_budget": cost_budget,
+            "timeout_policy": timeout_policy,
+            "metadata": metadata,
+        }
+        execution = await self._coordinator.execute(
+            primary=ProviderCandidate(
+                "synthetic", "context-structuring-fake-v1", self.adapter
+            ),
+            request=request,
+            metadata=ProviderExecutionMetadata(
+                account_id=UUID(str(metadata["account_id"])),
+                project_id=UUID(str(metadata["project_id"])),
+                job_id=UUID(str(metadata["job_id"])),
+                task_type=task_type,
+                workflow_version=workflow_version,
+                prompt_version=prompt_version,
+                repair_no=0,
+                correlation_id=UUID(str(metadata["correlation_id"])),
+            ),
+        )
+        result = execution.result
+        return StructuredAIResponse(
+            data=result.data,
+            provider_attempt_id=execution.provider_attempt_id,
+            provider=result.provider,
+            model=result.model,
+            provider_request_id=result.provider_request_id,
+            input_tokens=result.input_tokens,
+            cached_input_tokens=result.cached_input_tokens,
+            output_tokens=result.output_tokens,
+            latency_ms=result.latency_ms,
+            retry_no=execution.retry_no,
+            workflow_version=workflow_version,
+            prompt_version=prompt_version,
+            estimated_cost=0,
+            status=result.status,
+        )
+
+
 class SupportValidator:
     async def validate(self, *, batch: object, snapshot: object) -> None:
         del batch, snapshot
@@ -203,6 +338,8 @@ class ScopeValidator:
 
 
 async def execute(args: argparse.Namespace) -> None:
+    if args.provider_timeout_retry and args.stage != "context":
+        raise ValueError("Provider timeout scenario is AI-01 only")
     broker = redis_url()
     engine = create_async_engine(
         database_url(),
@@ -263,6 +400,11 @@ async def execute(args: argparse.Namespace) -> None:
         ledger = UsageLedger()
         guard = PostgresJobExecutionGuard(engine)
         if args.stage == "context":
+            coordinator_ai = (
+                CoordinatorManagedSyntheticContextAI(engine=engine, logger=logger)
+                if args.provider_timeout_retry
+                else None
+            )
             message = ContextStructuringJobMessage.from_payload(payload)
             consumer = ContextStructuringConsumer(
                 guard=guard,
@@ -270,8 +412,9 @@ async def execute(args: argparse.Namespace) -> None:
                 command_factory=ContextCommandFactory(),
                 use_case=ContextStructuringUseCase(
                     snapshot_reader=PostgresContextStructuringSnapshotReader(engine),
-                    ai_execution=SyntheticContextStructuringAI(),
-                    usage_ledger=ledger,  # type: ignore[arg-type]
+                    ai_execution=coordinator_ai or SyntheticContextStructuringAI(),
+                    usage_ledger=None if coordinator_ai else ledger,  # type: ignore[arg-type]
+                    coordinator_managed=coordinator_ai is not None,
                     unsupported_claim_validator=SupportValidator(),  # type: ignore[arg-type]
                     unit_of_work_factory=PostgresContextStructuringUnitOfWorkFactory(
                         engine
@@ -337,10 +480,16 @@ async def execute(args: argparse.Namespace) -> None:
         duplicate = await consumer.execute(message)
         if result.status != "succeeded" or duplicate.status != "already_completed":
             raise AssertionError("Synthetic Job or duplicate suppression failed")
-        if len(ledger.records) != 1:
-            raise AssertionError(
-                "One actual Fake invocation must have one usage record"
-            )
+        if args.provider_timeout_retry:
+            assert coordinator_ai is not None
+            if (
+                coordinator_ai.adapter.calls != 2
+                or coordinator_ai.sleeper.calls != 1
+                or ledger.records
+            ):
+                raise AssertionError("Coordinator retry or single Usage owner failed")
+        elif len(ledger.records) != 1:
+            raise AssertionError("One actual Fake invocation must have one usage record")
         async with engine.connect() as connection:
             state = (
                 (
@@ -384,6 +533,7 @@ if __name__ == "__main__":
     parser.add_argument("job_id", type=UUID)
     parser.add_argument("event_id", type=UUID)
     parser.add_argument("--context-version", type=int)
+    parser.add_argument("--provider-timeout-retry", action="store_true")
     try:
         asyncio.run(execute(parser.parse_args()))
     except Exception as error:  # noqa: BLE001 - diagnostic boundary must redact all failures

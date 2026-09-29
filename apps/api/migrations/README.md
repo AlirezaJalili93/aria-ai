@@ -140,4 +140,6 @@ activation remains disabled. See ADR-062.
 locks with typed, Job-bound and tenant/version-scoped row locks. A dedicated
 NOLOGIN, NOBYPASSRLS owner role holds only the column privileges needed by two
 fixed helpers in non-exposed `aria_internal`; only `aria_worker` may execute them.
-No broad table write grant is given to the Worker. See ADR-064.
+No broad table write grant is given to the Worker. Its cluster-global owner Role is conditionally
+created, must match every approved least-privilege attribute, and is retained by downgrade while
+another database still depends on it. See ADR-064 and ADR-067.

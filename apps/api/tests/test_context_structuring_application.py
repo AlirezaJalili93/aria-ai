@@ -649,6 +649,44 @@ def test_provider_failure_does_not_trigger_repair() -> None:
     assert repository.persisted == ()
 
 
+def test_coordinator_managed_execution_does_not_write_workflow_usage() -> None:
+    repository = FakeRepository()
+    ai = FakeAIExecution(CandidateContextBatch(items=(_candidate(),)))
+    ai.usage_owner = "coordinator"
+    service = ContextStructuringUseCase(
+        snapshot_reader=FakeSnapshotReader(_snapshot()),
+        ai_execution=ai,
+        usage_ledger=None,
+        coordinator_managed=True,
+        unsupported_claim_validator=FakeUnsupportedClaimValidator(),
+        unit_of_work_factory=FakeUnitOfWorkFactory(repository),
+        event_logger=RecordingLogger(),
+    )
+
+    result = asyncio.run(service.execute(_command()))
+
+    assert result.item_count == 1
+    assert len(repository.persisted) == 1
+
+
+def test_coordinator_managed_execution_requires_explicit_single_writer_boundary() -> None:
+    common = dict(
+        snapshot_reader=FakeSnapshotReader(_snapshot()),
+        ai_execution=FakeAIExecution(CandidateContextBatch(items=(_candidate(),))),
+        unsupported_claim_validator=FakeUnsupportedClaimValidator(),
+        unit_of_work_factory=FakeUnitOfWorkFactory(FakeRepository()),
+        event_logger=RecordingLogger(),
+    )
+    with pytest.raises(ValueError, match="coordinator"):
+        ContextStructuringUseCase(**common, usage_ledger=None, coordinator_managed=True)
+    with pytest.raises(ValueError, match="usage_ledger"):
+        ContextStructuringUseCase(**common, usage_ledger=None)
+    with pytest.raises(ValueError, match="single usage owner"):
+        ContextStructuringUseCase(
+            **common, usage_ledger=FakeUsageLedger(), coordinator_managed=True
+        )
+
+
 def test_missing_ready_source_does_not_invoke_ai_or_repair() -> None:
     service, _, ai, ledger, repository, _ = _repair_service(
         outcomes=[], snapshot=()

@@ -5,7 +5,7 @@ from types import TracebackType
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import exists, or_, select, update
+from sqlalchemy import exists, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -200,7 +200,10 @@ class SqlAlchemyClarificationRepository:
             )
             .on_conflict_do_nothing(
                 index_elements=["account_id", "project_id", "gap_id", "question_text"],
-                index_where=ClarificationModel.status == "open",
+                # Keep the partial-index inference predicate literal. A bound value works
+                # with asyncpg custom plans but fails once PostgreSQL promotes the repeated
+                # statement to a generic plan (normally after five executions).
+                index_where=text("status = 'open'"),
             )
             .returning(ClarificationModel)
         )

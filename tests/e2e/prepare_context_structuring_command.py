@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -41,11 +42,17 @@ from sqlalchemy import text
 
 SYNTHETIC_MARKER = "SYNTHETIC_0072_FIXTURE_ONLY"
 DEDICATED_DATABASE_PATTERN = re.compile(r"aria_0072_test(?:_[A-Za-z0-9]+)*")
+WORKER_RESTART_DATABASE_PATTERN = re.compile(r"aria_0077_test(?:_[A-Za-z0-9]+)*")
 
 
-def _assert_dedicated_test_database(database_url: str) -> None:
+def _assert_dedicated_test_database(
+    database_url: str, *, allow_worker_restart_database: bool = False
+) -> None:
     database_name = urlsplit(database_url).path.removeprefix("/")
-    if DEDICATED_DATABASE_PATTERN.fullmatch(database_name) is None:
+    accepted = DEDICATED_DATABASE_PATTERN.fullmatch(database_name) is not None
+    if allow_worker_restart_database:
+        accepted = accepted or WORKER_RESTART_DATABASE_PATTERN.fullmatch(database_name) is not None
+    if not accepted:
         raise RuntimeError(
             "Controlled 0072 E2E requires a dedicated aria_0072_test... database"
         )
@@ -76,7 +83,9 @@ class _TenantResolver:
         return self._context
 
 
-async def _seed(database_url: str) -> tuple[TenantContext, UUID]:
+async def _seed(
+    database_url: str, *, persisted_synthetic_usage: bool = False
+) -> tuple[TenantContext, UUID]:
     runtime = DatabaseRuntime(database_url)
     user_id, account_id, membership_id, project_id = (uuid4() for _ in range(4))
     source_id, source_version_id = uuid4(), uuid4()
@@ -116,6 +125,33 @@ async def _seed(database_url: str) -> tuple[TenantContext, UUID]:
                     "created_by": user_id,
                 },
             )
+            if persisted_synthetic_usage:
+                await connection.execute(
+                    text(
+                        "INSERT INTO provider_price_versions "
+                        "(provider, model, pricing_version, currency, input_rate_per_1m, "
+                        "cached_input_rate_per_1m, output_rate_per_1m, effective_from) "
+                        "VALUES ('synthetic', 'context-structuring-fake-v1', "
+                        "'synthetic-zero-v1', 'USD', 0, 0, 0, "
+                        "'2026-01-01T00:00:00Z') "
+                        "ON CONFLICT (provider, model, pricing_version) DO NOTHING"
+                    )
+                )
+                matching_price = await connection.scalar(
+                    text(
+                        "SELECT count(*) FROM provider_price_versions "
+                        "WHERE provider='synthetic' "
+                        "AND model='context-structuring-fake-v1' "
+                        "AND pricing_version='synthetic-zero-v1' AND currency='USD' "
+                        "AND input_rate_per_1m=0 AND cached_input_rate_per_1m=0 "
+                        "AND output_rate_per_1m=0 "
+                        "AND effective_from='2026-01-01T00:00:00Z'"
+                    )
+                )
+                if matching_price != 1:
+                    raise AssertionError(
+                        "Synthetic price fixture does not match its frozen identity"
+                    )
             await connection.execute(
                 text(
                     "INSERT INTO context_source_versions "
@@ -160,14 +196,19 @@ async def _outbox_id(runtime: DatabaseRuntime, job_id: UUID) -> UUID:
     return value
 
 
-def main() -> None:
+def main(*, persisted_synthetic_usage: bool = False) -> None:
     database_url = os.environ.get("TEST_DATABASE_URL")
     if not database_url:
         raise RuntimeError("TEST_DATABASE_URL is required")
-    _assert_dedicated_test_database(database_url)
+    _assert_dedicated_test_database(
+        database_url,
+        allow_worker_restart_database=persisted_synthetic_usage,
+    )
     os.environ["DATABASE_URL"] = database_url
     command.upgrade(Config(str(API_ROOT / "alembic.ini")), "head")
-    context, project_id = asyncio.run(_seed(database_url))
+    context, project_id = asyncio.run(
+        _seed(database_url, persisted_synthetic_usage=persisted_synthetic_usage)
+    )
     runtime = DatabaseRuntime(database_url)
     token = "controlled-synthetic-e2e-token"
     event_logger = create_event_logger(
@@ -233,4 +274,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--persisted-synthetic-usage", action="store_true")
+    arguments = parser.parse_args()
+    main(persisted_synthetic_usage=arguments.persisted_synthetic_usage)

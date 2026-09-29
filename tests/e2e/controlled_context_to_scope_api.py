@@ -34,13 +34,20 @@ from app.modules.context.infrastructure.context_structuring_jobs import (
     SqlAlchemyContextStructuringJobUnitOfWorkFactory,
 )
 from app.modules.gaps.application.clarification_service import (
+    ClarificationNotFound,
     ClarificationService,
+    CreateClarificationQuestionCommand,
     DismissGapCommand,
+    ResolveClarificationCommand,
 )
 from app.modules.gaps.application.detection_jobs import (
     ExplicitSyntheticGapDetectionProjects,
     ScheduleGapDetectionCommand,
     ScheduleGapDetectionUseCase,
+)
+from app.modules.gaps.domain.clarification import (
+    Clarification,
+    ClarificationValidationError,
 )
 from app.modules.gaps.infrastructure.clarification_repository import (
     SqlAlchemyClarificationUnitOfWorkFactory,
@@ -110,14 +117,23 @@ if (
 ):
     raise RuntimeError("0078 fixture identity or edited title is invalid")
 MARKER = FIXTURE["source_text"]
+CLARIFICATION_QUESTION_1 = "برای رفع ابهام مصنوعی، مخاطب اصلی چیست؟"
+CLARIFICATION_QUESTION_2 = "برای رفع ابهام مصنوعی، اقدام اصلی چیست؟"
+CLARIFICATION_ANSWER_1 = "مخاطب مصنوعی، تیم‌های کوچک خدماتی هستند."
+CLARIFICATION_ANSWER_2 = "اقدام مصنوعی اصلی، ثبت درخواست مشاوره است."
 SENSITIVE_SYNTHETIC_TEXT = (
     MARKER,
     "مرجع ساختاریافتهٔ مصنوعی",
     "نیازمندی مصنوعی کنترل‌شده",
     "این خروجی فقط برای آزمون",
     EDIT_FIXTURE["edited_requirement_title"],
+    CLARIFICATION_QUESTION_1,
+    CLARIFICATION_QUESTION_2,
+    CLARIFICATION_ANSWER_1,
+    CLARIFICATION_ANSWER_2,
 )
 DEDICATED_NAME = re.compile(r"aria_0077_test(?:_[A-Za-z0-9]+)*")
+SAFE_STAGE = "startup"
 
 
 class DedicatedTestDatabaseRequired(RuntimeError):
@@ -134,7 +150,9 @@ def database_url() -> str:
     return value
 
 
-async def seed(runtime: DatabaseRuntime) -> tuple[TenantContext, UUID]:
+async def seed(
+    runtime: DatabaseRuntime, *, provider_timeout_retry: bool = False
+) -> tuple[TenantContext, UUID]:
     user_id, account_id, membership_id, project_id = (uuid4() for _ in range(4))
     source_id, source_version_id = uuid4(), uuid4()
     async with runtime.engine.begin() as connection:
@@ -192,6 +210,29 @@ async def seed(runtime: DatabaseRuntime) -> tuple[TenantContext, UUID]:
                 "body": MARKER,
             },
         )
+        if provider_timeout_retry:
+            await connection.execute(
+                text(
+                    "INSERT INTO provider_price_versions "
+                    "(provider, model, pricing_version, currency, input_rate_per_1m, "
+                    "cached_input_rate_per_1m, output_rate_per_1m, effective_from) "
+                    "VALUES ('synthetic', 'context-structuring-fake-v1', "
+                    "'synthetic-zero-v1', 'USD', 0, 0, 0, '2026-01-01T00:00:00Z') "
+                    "ON CONFLICT (provider, model, pricing_version) DO NOTHING"
+                )
+            )
+            matching_price = await connection.scalar(
+                text(
+                    "SELECT count(*) FROM provider_price_versions "
+                    "WHERE provider='synthetic' AND model='context-structuring-fake-v1' "
+                    "AND pricing_version='synthetic-zero-v1' AND currency='USD' "
+                    "AND input_rate_per_1m=0 AND cached_input_rate_per_1m=0 "
+                    "AND output_rate_per_1m=0 "
+                    "AND effective_from='2026-01-01T00:00:00Z'"
+                )
+            )
+            if matching_price != 1:
+                raise AssertionError("Synthetic price fixture does not match its frozen identity")
     return TenantContext(
         subject_id=user_id,
         account_id=account_id,
@@ -199,6 +240,139 @@ async def seed(runtime: DatabaseRuntime) -> tuple[TenantContext, UUID]:
         role="owner",
         membership_status="active",
     ), project_id
+
+
+async def seed_other_tenant(runtime: DatabaseRuntime) -> TenantContext:
+    user_id, account_id, membership_id = (uuid4() for _ in range(3))
+    async with runtime.engine.begin() as connection:
+        await connection.execute(
+            text("INSERT INTO profiles (user_id) VALUES (:id)"), {"id": user_id}
+        )
+        await connection.execute(
+            text("INSERT INTO accounts (id) VALUES (:id)"), {"id": account_id}
+        )
+        await connection.execute(
+            text(
+                "INSERT INTO account_memberships (id, account_id, user_id, role, status) "
+                "VALUES (:id, :account_id, :user_id, 'owner', 'active')"
+            ),
+            {"id": membership_id, "account_id": account_id, "user_id": user_id},
+        )
+    return TenantContext(
+        subject_id=user_id,
+        account_id=account_id,
+        membership_id=membership_id,
+        role="owner",
+        membership_status="active",
+    )
+
+
+async def scope_effect_counts(
+    runtime: DatabaseRuntime, *, account_id: UUID, project_id: UUID
+) -> tuple[int, int, int, int]:
+    async with runtime.engine.connect() as connection:
+        row = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT "
+                        "(SELECT count(*) FROM jobs WHERE account_id=:account "
+                        "AND project_id=:project AND job_type='scope_generation') AS jobs, "
+                        "(SELECT count(*) FROM outbox_events WHERE account_id=:account "
+                        "AND event_type='scope.generation_requested.v1' "
+                        "AND payload->>'projectId'=:project_text) AS events, "
+                        "(SELECT count(*) FROM usage_records u JOIN jobs j ON j.id=u.job_id "
+                        "WHERE j.account_id=:account AND j.project_id=:project "
+                        "AND j.job_type='scope_generation') AS usage, "
+                        "(SELECT count(*) FROM scope_drafts WHERE account_id=:account "
+                        "AND project_id=:project) AS drafts"
+                    ),
+                    {
+                        "account": account_id,
+                        "project": project_id,
+                        "project_text": str(project_id),
+                    },
+                )
+            )
+            .mappings()
+            .one()
+        )
+    return tuple(int(row[key]) for key in ("jobs", "events", "usage", "drafts"))
+
+
+async def semantic_state_snapshot(
+    runtime: DatabaseRuntime,
+    *,
+    account_id: UUID,
+    project_id: UUID,
+    context_version: int,
+) -> tuple[object, ...]:
+    async with runtime.engine.connect() as connection:
+        project_version = await connection.scalar(
+            text(
+                "SELECT current_context_version FROM projects "
+                "WHERE id=:project AND account_id=:account"
+            ),
+            {"account": account_id, "project": project_id},
+        )
+        context_rows = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT id, status, updated_at FROM context_items "
+                        "WHERE account_id=:account AND project_id=:project "
+                        "AND context_version=:version ORDER BY id"
+                    ),
+                    {
+                        "account": account_id,
+                        "project": project_id,
+                        "version": context_version,
+                    },
+                )
+            )
+            .tuples()
+            .all()
+        )
+        requirement_rows = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT id, status, updated_at FROM requirements "
+                        "WHERE account_id=:account AND project_id=:project "
+                        "AND context_version=:version ORDER BY id"
+                    ),
+                    {
+                        "account": account_id,
+                        "project": project_id,
+                        "version": context_version,
+                    },
+                )
+            )
+            .tuples()
+            .all()
+        )
+        source_counts = (
+            (
+                await connection.execute(
+                    text(
+                        "SELECT "
+                        "(SELECT count(*) FROM context_sources WHERE account_id=:account "
+                        "AND project_id=:project) AS sources, "
+                        "(SELECT count(*) FROM context_source_versions WHERE account_id=:account "
+                        "AND project_id=:project) AS versions"
+                    ),
+                    {"account": account_id, "project": project_id},
+                )
+            )
+            .tuples()
+            .one()
+        )
+    return (
+        project_version,
+        tuple(context_rows),
+        tuple(requirement_rows),
+        tuple(source_counts),
+    )
 
 
 async def run_worker(
@@ -209,6 +383,7 @@ async def run_worker(
     job_id: UUID,
     event_id: UUID,
     context_version: int | None = None,
+    provider_timeout_retry: bool = False,
 ) -> None:
     worker = ROOT / "apps" / "worker" / ".venv" / "Scripts" / "python.exe"
     script = Path(__file__).with_name("controlled_context_to_scope_worker.py")
@@ -223,6 +398,10 @@ async def run_worker(
     ]
     if context_version is not None:
         arguments.extend(("--context-version", str(context_version)))
+    if provider_timeout_retry:
+        if stage != "context":
+            raise ValueError("Provider timeout scenario is AI-01 only")
+        arguments.append("--provider-timeout-retry")
     process = await asyncio.create_subprocess_exec(
         *arguments,
         stdout=asyncio.subprocess.PIPE,
@@ -261,7 +440,15 @@ async def job_count(
         )
 
 
-async def main_async(*, requirement_edit: bool = False) -> None:
+async def main_async(
+    *,
+    requirement_edit: bool = False,
+    provider_timeout_retry: bool = False,
+    clarification_resolution: bool = False,
+) -> None:
+    global SAFE_STAGE
+    if sum((requirement_edit, provider_timeout_retry, clarification_resolution)) > 1:
+        raise ValueError("Controlled scenarios must run independently")
     url = database_url()  # Must precede migration or any database mutation.
     runtime = DatabaseRuntime(url)
     stream = StringIO()
@@ -278,7 +465,12 @@ async def main_async(*, requirement_edit: bool = False) -> None:
     )
     trace_scope.__enter__()
     try:
-        context, project_id = await seed(runtime)
+        context, project_id = await seed(
+            runtime, provider_timeout_retry=provider_timeout_retry
+        )
+        other_context = (
+            await seed_other_tenant(runtime) if clarification_resolution else None
+        )
         approved = frozenset({(context.account_id, project_id)})
         context_scheduler = ScheduleContextStructuringUseCase(
             SqlAlchemyContextStructuringJobUnitOfWorkFactory(runtime.session_factory),
@@ -309,7 +501,49 @@ async def main_async(*, requirement_edit: bool = False) -> None:
             project_id=project_id,
             job_id=first.job_id,
             event_id=first_event_id,
+            provider_timeout_retry=provider_timeout_retry,
         )
+        if provider_timeout_retry:
+            async with runtime.engine.connect() as connection:
+                attempts = (
+                    (
+                        await connection.execute(
+                            text(
+                                "SELECT provider_attempt_id, status, accounting_status, "
+                                "input_tokens, cached_input_tokens, output_tokens, "
+                                "estimated_cost, retry_no, account_id, project_id, job_id "
+                                "FROM usage_records WHERE account_id=:account "
+                                "AND project_id=:project AND job_id=:job ORDER BY retry_no"
+                            ),
+                            {
+                                "account": context.account_id,
+                                "project": project_id,
+                                "job": first.job_id,
+                            },
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+            if len(attempts) != 2 or len({row["provider_attempt_id"] for row in attempts}) != 2:
+                raise AssertionError("Two invocations must persist exactly two UsageRecords")
+            failed, succeeded = attempts
+            if (
+                failed["retry_no"] != 0
+                or failed["status"] != "failed"
+                or failed["accounting_status"] != "unavailable"
+                or any(
+                    failed[field] is not None
+                    for field in (
+                        "input_tokens", "cached_input_tokens", "output_tokens", "estimated_cost"
+                    )
+                )
+                or succeeded["retry_no"] != 1
+                or succeeded["status"] != "success"
+                or succeeded["accounting_status"] != "complete"
+                or any(row["job_id"] != first.job_id for row in attempts)
+            ):
+                raise AssertionError("Synthetic timeout Usage or Job lineage is invalid")
         async with runtime.engine.connect() as connection:
             version = await connection.scalar(
                 text("SELECT current_context_version FROM projects WHERE id=:id"),
@@ -448,23 +682,22 @@ async def main_async(*, requirement_edit: bool = False) -> None:
             synthetic_authorizer=ExplicitSyntheticScopeProjects(approved),
             event_logger=logger,
         )
-        scope_command = ScheduleScopeGenerationCommand(
+        blocked_scope_command = ScheduleScopeGenerationCommand(
             context.account_id, project_id, version, uuid4()
         )
-        before = await job_count(
-            runtime, project_id=project_id, job_type="scope_generation"
+        before = await scope_effect_counts(
+            runtime, account_id=context.account_id, project_id=project_id
         )
         try:
-            await scope_scheduler.execute(scope_command)
+            await scope_scheduler.execute(blocked_scope_command)
         except ScopeGenerationBlocked:
             pass
         else:
             raise AssertionError("Open Critical Gap did not block AI-05")
-        if (
-            await job_count(runtime, project_id=project_id, job_type="scope_generation")
-            != before
-        ):
-            raise AssertionError("Blocked AI-05 created a Job")
+        if await scope_effect_counts(
+            runtime, account_id=context.account_id, project_id=project_id
+        ) != before:
+            raise AssertionError("Blocked AI-05 created a side effect")
 
         async with runtime.engine.connect() as connection:
             gaps = (
@@ -490,15 +723,209 @@ async def main_async(*, requirement_edit: bool = False) -> None:
             SqlAlchemyClarificationUnitOfWorkFactory(runtime.session_factory),
             logger,
         )
-        for gap_id in gaps:
-            await clarification.dismiss_gap(
-                context,
+        if clarification_resolution:
+            if other_context is None:
+                raise AssertionError("Cross-tenant fixture is missing")
+            questions: dict[UUID, tuple[Clarification, Clarification]] = {}
+            for gap_index, gap_id in enumerate(gaps, start=1):
+                SAFE_STAGE = f"create_question_1_gap_{gap_index}"
+                first_question = await clarification.create_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    command=CreateClarificationQuestionCommand(
+                        CLARIFICATION_QUESTION_1,
+                        f"controlled-0082-question-1-{gap_id}",
+                    ),
+                )
+                SAFE_STAGE = f"create_question_2_gap_{gap_index}"
+                second_question = await clarification.create_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    command=CreateClarificationQuestionCommand(
+                        CLARIFICATION_QUESTION_2,
+                        f"controlled-0082-question-2-{gap_id}",
+                    ),
+                )
+                questions[gap_id] = (first_question, second_question)
+
+            semantic_before_answers = await semantic_state_snapshot(
+                runtime,
+                account_id=context.account_id,
                 project_id=project_id,
-                gap_id=gap_id,
-                command=DismissGapCommand(f"controlled-0077-dismiss-{gap_id}"),
+                context_version=version,
             )
+            first_gap = gaps[0]
+            first_question = questions[first_gap][0]
+            try:
+                await clarification.resolve_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=first_gap,
+                    clarification_id=first_question.id,
+                    command=ResolveClarificationCommand(
+                        "provided_information", "   ", "user", "controlled-0082-empty"
+                    ),
+                )
+            except ClarificationValidationError:
+                pass
+            else:
+                raise AssertionError("Empty Clarification answer did not fail closed")
+            try:
+                await clarification.create_question(
+                    other_context,
+                    project_id=project_id,
+                    gap_id=first_gap,
+                    command=CreateClarificationQuestionCommand(
+                        "سؤال مصنوعی tenant دیگر",
+                        "controlled-0082-cross-tenant-question",
+                    ),
+                )
+            except ClarificationNotFound:
+                pass
+            else:
+                raise AssertionError("Cross-tenant Clarification create did not fail closed")
+            try:
+                await clarification.resolve_question(
+                    other_context,
+                    project_id=project_id,
+                    gap_id=first_gap,
+                    clarification_id=first_question.id,
+                    command=ResolveClarificationCommand(
+                        "provided_information",
+                        "پاسخ مصنوعی tenant دیگر",
+                        "user",
+                        "controlled-0082-cross-tenant-answer",
+                    ),
+                )
+            except ClarificationNotFound:
+                pass
+            else:
+                raise AssertionError("Cross-tenant Clarification answer did not fail closed")
+
+            for gap_id, (question_1, _) in questions.items():
+                answer_command = ResolveClarificationCommand(
+                    "provided_information",
+                    CLARIFICATION_ANSWER_1,
+                    "user",
+                    f"controlled-0082-answer-1-{gap_id}",
+                )
+                first_resolution = await clarification.resolve_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    clarification_id=question_1.id,
+                    command=answer_command,
+                )
+                replayed = await clarification.resolve_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    clarification_id=question_1.id,
+                    command=answer_command,
+                )
+                if first_resolution.id != replayed.id:
+                    raise AssertionError("Resolution replay created a second audit row")
+
+            for gap_id in gaps:
+                history = await clarification.list_clarifications(
+                    context, project_id=project_id, gap_id=gap_id
+                )
+                if (
+                    len(history) != 2
+                    or [entry.question.status for entry in history] != ["answered", "open"]
+                    or sum(entry.resolution is not None for entry in history) != 1
+                    or history[0].resolution is None
+                    or history[0].resolution.author_type != "user"
+                    or history[0].resolution.author_id != context.subject_id
+                    or history[0].resolution.actor_id != context.subject_id
+                ):
+                    raise AssertionError("First answer did not preserve the open Gap sequence")
+            async with runtime.engine.connect() as connection:
+                still_open = await connection.scalar(
+                    text(
+                        "SELECT count(*) FROM gaps WHERE account_id=:account "
+                        "AND project_id=:project AND id=ANY(:gaps) "
+                        "AND status='open' AND resolved_at IS NULL"
+                    ),
+                    {
+                        "account": context.account_id,
+                        "project": project_id,
+                        "gaps": list(gaps),
+                    },
+                )
+            if still_open != len(gaps):
+                raise AssertionError("Gap resolved before all upfront questions were answered")
+            mid_effects = await scope_effect_counts(
+                runtime, account_id=context.account_id, project_id=project_id
+            )
+            try:
+                await scope_scheduler.execute(
+                    ScheduleScopeGenerationCommand(
+                        context.account_id, project_id, version, uuid4()
+                    )
+                )
+            except ScopeGenerationBlocked:
+                pass
+            else:
+                raise AssertionError("AI-05 was not blocked after the first answer")
+            if await scope_effect_counts(
+                runtime, account_id=context.account_id, project_id=project_id
+            ) != mid_effects:
+                raise AssertionError("Mid-clarification AI-05 created a side effect")
+
+            for gap_id, (_, question_2) in questions.items():
+                await clarification.resolve_question(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    clarification_id=question_2.id,
+                    command=ResolveClarificationCommand(
+                        "provided_information",
+                        CLARIFICATION_ANSWER_2,
+                        "user",
+                        f"controlled-0082-answer-2-{gap_id}",
+                    ),
+                )
+                history = await clarification.list_clarifications(
+                    context, project_id=project_id, gap_id=gap_id
+                )
+                if (
+                    len(history) != 2
+                    or any(entry.question.status != "answered" for entry in history)
+                    or any(entry.resolution is None for entry in history)
+                    or any(
+                        entry.resolution is not None
+                        and (
+                            entry.resolution.author_type != "user"
+                            or entry.resolution.author_id != context.subject_id
+                            or entry.resolution.actor_id != context.subject_id
+                        )
+                        for entry in history
+                    )
+                ):
+                    raise AssertionError("Second answer did not complete Clarification history")
+            if await semantic_state_snapshot(
+                runtime,
+                account_id=context.account_id,
+                project_id=project_id,
+                context_version=version,
+            ) != semantic_before_answers:
+                raise AssertionError("Clarification answers mutated canonical semantic input")
+        else:
+            for gap_id in gaps:
+                await clarification.dismiss_gap(
+                    context,
+                    project_id=project_id,
+                    gap_id=gap_id,
+                    command=DismissGapCommand(f"controlled-0077-dismiss-{gap_id}"),
+                )
+        scope_command = ScheduleScopeGenerationCommand(
+            context.account_id, project_id, version, uuid4()
+        )
         scope = await scope_scheduler.execute(scope_command)
-        if requirement_edit:
+        if requirement_edit or clarification_resolution:
             async with runtime.engine.connect() as connection:
                 scope_job_payload = await connection.scalar(
                     text(
@@ -511,10 +938,17 @@ async def main_async(*, requirement_edit: bool = False) -> None:
                         "project": project_id,
                     },
                 )
-            if not isinstance(scope_job_payload, dict) or scope_job_payload.get(
-                "requirement_revisions"
-            ) != [{"id": str(edited_requirement_id), "updated_at": edited_updated_at}]:
+            if not isinstance(scope_job_payload, dict):
+                raise AssertionError("AI-05 Job payload is invalid")
+            if requirement_edit and scope_job_payload.get("requirement_revisions") != [
+                {"id": str(edited_requirement_id), "updated_at": edited_updated_at}
+            ]:
                 raise AssertionError("AI-05 did not pin the edited Requirement revision")
+            if clarification_resolution and any(
+                fragment in json.dumps(scope_job_payload, ensure_ascii=False)
+                for fragment in SENSITIVE_SYNTHETIC_TEXT[-4:]
+            ):
+                raise AssertionError("Clarification text leaked into AI-05 Job input")
         await run_worker(
             "scope",
             context=context,
@@ -523,7 +957,7 @@ async def main_async(*, requirement_edit: bool = False) -> None:
             event_id=scope.outbox_event_id,
             context_version=version,
         )
-        if requirement_edit:
+        if requirement_edit or clarification_resolution:
             async with runtime.engine.connect() as connection:
                 draft_content = await connection.scalar(
                     text(
@@ -539,6 +973,12 @@ async def main_async(*, requirement_edit: bool = False) -> None:
                 )
             if not isinstance(draft_content, dict):
                 raise AssertionError("AI-05 did not persist a Scope Draft")
+            if clarification_resolution and any(
+                fragment in json.dumps(draft_content, ensure_ascii=False)
+                for fragment in SENSITIVE_SYNTHETIC_TEXT[-4:]
+            ):
+                raise AssertionError("Clarification text leaked into the Scope Draft")
+        if requirement_edit:
             requirement_sections = [
                 section
                 for section in draft_content.get("sections", [])
@@ -574,6 +1014,9 @@ async def main_async(*, requirement_edit: bool = False) -> None:
                             "AND project_id=:project AND context_version=:version) AS requirements, "
                             "(SELECT count(*) FROM gaps WHERE account_id=:account AND project_id=:project "
                             "AND context_version=:version AND status='dismissed') AS dismissed, "
+                            "(SELECT count(*) FROM gaps WHERE account_id=:account AND project_id=:project "
+                            "AND context_version=:version AND status='resolved' "
+                            "AND resolved_at IS NOT NULL) AS resolved, "
                             "(SELECT count(*) FROM scope_drafts WHERE account_id=:account "
                             "AND project_id=:project AND context_version=:version) AS drafts, "
                             "(SELECT status FROM jobs WHERE id=:job) AS job_status"
@@ -589,17 +1032,24 @@ async def main_async(*, requirement_edit: bool = False) -> None:
                 .mappings()
                 .one()
             )
+        expected_dismissed = 0 if clarification_resolution else len(gaps)
+        expected_resolved = len(gaps) if clarification_resolution else 0
         if (
             state["requirements"] < 1
-            or state["dismissed"] != len(gaps)
+            or state["dismissed"] != expected_dismissed
+            or state["resolved"] != expected_resolved
             or state["drafts"] != 1
             or state["job_status"] != "succeeded"
         ):
-            raise AssertionError(f"0077 state assertions failed: {state!r}")
+            raise AssertionError("Controlled Context-to-Scope state assertions failed")
         if any(fragment in stream.getvalue() for fragment in SENSITIVE_SYNTHETIC_TEXT):
             raise AssertionError("Synthetic fixture content leaked into API logs")
         print(
-            "CONTROLLED_0078_E2E=PASS"
+            "CONTROLLED_0082_E2E=PASS"
+            if clarification_resolution
+            else "CONTROLLED_0079_E2E=PASS"
+            if provider_timeout_retry
+            else "CONTROLLED_0078_E2E=PASS"
             if requirement_edit
             else "CONTROLLED_0077_E2E=PASS"
         )
@@ -611,11 +1061,20 @@ async def main_async(*, requirement_edit: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--requirement-edit", action="store_true")
+    parser.add_argument("--provider-timeout-retry", action="store_true")
+    parser.add_argument("--clarification-resolution", action="store_true")
     arguments = parser.parse_args()
     try:
         os.environ["DATABASE_URL"] = database_url()
         command.upgrade(Config(str(API / "alembic.ini")), "head")
-        asyncio.run(main_async(requirement_edit=arguments.requirement_edit))
+        asyncio.run(
+            main_async(
+                requirement_edit=arguments.requirement_edit,
+                provider_timeout_retry=arguments.provider_timeout_retry,
+                clarification_resolution=arguments.clarification_resolution,
+            )
+        )
     except Exception as error:  # noqa: BLE001 - diagnostic boundary redacts data
+        print(f"SAFE_API_STAGE={SAFE_STAGE}", file=sys.stderr)
         print(f"SAFE_API_ERROR_CLASS={type(error).__name__}", file=sys.stderr)
         raise SystemExit(1) from None
