@@ -17,6 +17,7 @@ class SyntheticContextStructuringAI:
 
     provider = "synthetic"
     model = "context-structuring-fake-v1"
+    usage_owner = "checkpoint"
 
     def __init__(self, *, id_factory: Callable[[], UUID] = uuid4) -> None:
         self._id_factory = id_factory
@@ -33,7 +34,7 @@ class SyntheticContextStructuringAI:
         timeout_policy: Mapping[str, object],
         metadata: Mapping[str, object],
     ) -> StructuredAIResponse:
-        del output_schema, routing_policy, cost_budget, timeout_policy, metadata
+        del output_schema, routing_policy, cost_budget, timeout_policy
         if task_type != "context_structuring":
             raise AIExecutionError("invalid_response", retryable=False)
         sources = input_context.get("sources")
@@ -63,9 +64,22 @@ class SyntheticContextStructuringAI:
                 )
             )
 
+        raw_attempt_id = metadata.get("provider_attempt_id")
+        if raw_attempt_id is None:
+            provider_attempt_id = self._id_factory()
+        else:
+            try:
+                provider_attempt_id = UUID(str(raw_attempt_id))
+            except (TypeError, ValueError):
+                raise AIExecutionError("invalid_response", retryable=False) from None
+
+        raw_retry_no = metadata.get("retry_no", 0)
+        if isinstance(raw_retry_no, bool) or not isinstance(raw_retry_no, int):
+            raise AIExecutionError("invalid_response", retryable=False)
+
         return StructuredAIResponse(
             data=CandidateContextBatch(items=tuple(items)),
-            provider_attempt_id=self._id_factory(),
+            provider_attempt_id=provider_attempt_id,
             provider=self.provider,
             model=self.model,
             provider_request_id=None,
@@ -73,7 +87,7 @@ class SyntheticContextStructuringAI:
             cached_input_tokens=0,
             output_tokens=0,
             latency_ms=0,
-            retry_no=0,
+            retry_no=raw_retry_no,
             workflow_version=workflow_version,
             prompt_version=prompt_version,
             estimated_cost=0,

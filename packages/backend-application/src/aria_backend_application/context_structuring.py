@@ -15,7 +15,11 @@ from aria_observability import (  # type: ignore[attr-defined]
     emit_product_analytics,
 )
 
-from aria_backend_application.ai_execution import AIExecutionPort, StructuredAIResponse
+from aria_backend_application.ai_execution import (
+    AIExecutionError,
+    AIExecutionPort,
+    StructuredAIResponse,
+)
 from aria_backend_application.usage_ledger import UsageLedger, UsageRecord
 
 ContextItemType = Literal[
@@ -164,6 +168,7 @@ class SourceSnapshot:
     version_no: int
     canonical_text: str | None
     storage_ref: str | None
+    content_hash: str | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -185,6 +190,7 @@ class ContextStructuringCommand:
     task_type: str
     workflow_version: str
     prompt_version: str
+    output_schema_version: str
     repair_prompt_version: str
     repair_policy: ContextRepairPolicy
     pricing_version: str
@@ -213,6 +219,50 @@ class ContextVersionWrite:
 class ContextStructuringResult:
     context_version: int
     item_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ContextStructuringCheckpointResolution:
+    provider_attempt_id: UUID
+    batch: CandidateContextBatch | None
+    retry_no: int = 0
+
+
+class ContextStructuringCheckpointRuntime(Protocol):
+    async def recover(
+        self,
+        *,
+        command: ContextStructuringCommand,
+        snapshot: tuple[SourceSnapshot, ...],
+    ) -> ContextStructuringCheckpointResolution | None: ...
+
+    async def begin(
+        self,
+        *,
+        command: ContextStructuringCommand,
+        snapshot: tuple[SourceSnapshot, ...],
+    ) -> UUID: ...
+
+    async def checkpoint_success(
+        self,
+        *,
+        command: ContextStructuringCommand,
+        snapshot: tuple[SourceSnapshot, ...],
+        provider_attempt_id: UUID,
+        response: StructuredAIResponse,
+        batch: CandidateContextBatch,
+    ) -> None: ...
+
+    async def checkpoint_failure(
+        self,
+        *,
+        command: ContextStructuringCommand,
+        snapshot: tuple[SourceSnapshot, ...],
+        provider_attempt_id: UUID,
+        error_class: str,
+        retryable: bool,
+        latency_ms: Decimal,
+    ) -> UUID | None: ...
 
 
 class ContextSnapshotReader(Protocol):
@@ -284,6 +334,7 @@ class ContextStructuringUseCase:
         ai_execution: AIExecutionPort,
         usage_ledger: UsageLedger | None,
         coordinator_managed: bool = False,
+        checkpoint_runtime: ContextStructuringCheckpointRuntime | None = None,
         unsupported_claim_validator: UnsupportedClaimValidator,
         unit_of_work_factory: ContextStructuringUnitOfWorkFactory,
         event_logger: ContextStructuringEventLogger,
@@ -291,7 +342,14 @@ class ContextStructuringUseCase:
         id_factory: Callable[[], UUID] = uuid4,
         clock: Callable[[], float] = monotonic,
     ) -> None:
-        if coordinator_managed:
+        if coordinator_managed and checkpoint_runtime is not None:
+            raise ValueError("checkpoint and coordinator ownership are mutually exclusive")
+        if checkpoint_runtime is not None:
+            if usage_ledger is not None:
+                raise ValueError("checkpoint runtime owns successful usage persistence")
+            if getattr(ai_execution, "usage_owner", None) != "checkpoint":
+                raise ValueError("checkpoint-managed execution requires checkpoint usage owner")
+        elif coordinator_managed:
             if usage_ledger is not None:
                 raise ValueError("single usage owner required for coordinator-managed execution")
             if getattr(ai_execution, "usage_owner", None) != "coordinator":
@@ -301,6 +359,7 @@ class ContextStructuringUseCase:
         self._snapshot_reader = snapshot_reader
         self._ai_execution = ai_execution
         self._usage_ledger = usage_ledger
+        self._checkpoint_runtime = checkpoint_runtime
         self._unsupported_claim_validator = unsupported_claim_validator
         self._unit_of_work_factory = unit_of_work_factory
         self._event_logger = event_logger
@@ -332,7 +391,81 @@ class ContextStructuringUseCase:
             if not snapshot:
                 raise ContextStructuringSourceError("ready_source_required")
 
-            batch = await self._execute_with_repair(command=command, snapshot=snapshot)
+            checkpoint_attempt_id: UUID | None = None
+            if self._checkpoint_runtime is None:
+                batch = await self._execute_with_repair(command=command, snapshot=snapshot)
+            else:
+                if command.repair_policy.max_repairs != 0:
+                    raise ContextStructuringValidationError(
+                        "checkpoint_multi_attempt_not_supported"
+                    )
+                recovered = await self._checkpoint_runtime.recover(
+                    command=command,
+                    snapshot=snapshot,
+                )
+                if recovered is not None and recovered.batch is not None:
+                    checkpoint_attempt_id = recovered.provider_attempt_id
+                    checkpoint_retry_no = recovered.retry_no
+                    batch = recovered.batch
+                    await self._validate_candidate(batch=batch, snapshot=snapshot)
+                else:
+                    checkpoint_attempt_id = (
+                        recovered.provider_attempt_id
+                        if recovered is not None
+                        else await self._checkpoint_runtime.begin(
+                            command=command,
+                            snapshot=snapshot,
+                        )
+                    )
+                    checkpoint_retry_no = recovered.retry_no if recovered is not None else 0
+                    while True:
+                        invocation_started_at = self._clock()
+                        try:
+                            response = await self._execute_and_meter(
+                                command=command,
+                                prompt_version=command.prompt_version,
+                                input_context=_build_input_context(command, snapshot),
+                                repair_no=0,
+                                provider_attempt_id=checkpoint_attempt_id,
+                                provider_retry_no=checkpoint_retry_no,
+                            )
+                        except AIExecutionError as error:
+                            next_attempt_id = (
+                                await self._checkpoint_runtime.checkpoint_failure(
+                                    command=command,
+                                    snapshot=snapshot,
+                                    provider_attempt_id=checkpoint_attempt_id,
+                                    error_class=error.error_class,
+                                    retryable=error.retryable,
+                                    latency_ms=Decimal(
+                                        str(
+                                            (self._clock() - invocation_started_at)
+                                            * 1000
+                                        )
+                                    ),
+                                )
+                            )
+                            if next_attempt_id is None:
+                                raise ContextStructuringError(error.error_class) from None
+                            checkpoint_attempt_id = next_attempt_id
+                            checkpoint_retry_no += 1
+                            continue
+                        if response.provider_attempt_id != checkpoint_attempt_id:
+                            raise ContextStructuringValidationError(
+                                "provider_attempt_identity_mismatch"
+                            )
+                        batch = await self._validate_response(
+                            response=response,
+                            snapshot=snapshot,
+                        )
+                        break
+                    await self._checkpoint_runtime.checkpoint_success(
+                        command=command,
+                        snapshot=snapshot,
+                        provider_attempt_id=checkpoint_attempt_id,
+                        response=response,
+                        batch=batch,
+                    )
 
             async with self._unit_of_work_factory() as unit_of_work:
                 context_version = await unit_of_work.repository.allocate_next_version(
@@ -363,6 +496,22 @@ class ContextStructuringUseCase:
                     project_id=command.project_id,
                     job_id=command.job_id,
                 )
+                if checkpoint_attempt_id is not None:
+                    finalizer = getattr(
+                        unit_of_work.repository,
+                        "finalize_invocation_checkpoint",
+                        None,
+                    )
+                    if not callable(finalizer):
+                        raise ContextStructuringRepositoryError(
+                            "checkpoint_finalizer_unavailable"
+                        )
+                    await finalizer(
+                        account_id=command.account_id,
+                        project_id=command.project_id,
+                        job_id=command.job_id,
+                        provider_attempt_id=checkpoint_attempt_id,
+                    )
                 await unit_of_work.commit()
 
             result = ContextStructuringResult(
@@ -504,6 +653,8 @@ class ContextStructuringUseCase:
         prompt_version: str,
         input_context: Mapping[str, object],
         repair_no: int,
+        provider_attempt_id: UUID | None = None,
+        provider_retry_no: int = 0,
     ) -> StructuredAIResponse:
         response = await self._ai_execution.execute_structured(
             task_type=command.task_type,
@@ -519,6 +670,12 @@ class ContextStructuringUseCase:
                 "project_id": str(command.project_id),
                 "job_id": str(command.job_id),
                 "correlation_id": str(command.correlation_id),
+                **(
+                    {"provider_attempt_id": str(provider_attempt_id)}
+                    if provider_attempt_id is not None
+                    else {}
+                ),
+                "retry_no": provider_retry_no,
             },
         )
         if self._usage_ledger is not None:
@@ -549,6 +706,15 @@ class ContextStructuringUseCase:
             )
         return response
 
+    async def _validate_candidate(
+        self,
+        *,
+        batch: CandidateContextBatch,
+        snapshot: tuple[SourceSnapshot, ...],
+    ) -> None:
+        _validate_candidate_batch(batch, snapshot)
+        await self._unsupported_claim_validator.validate(batch=batch, snapshot=snapshot)
+
     async def _validate_response(
         self,
         *,
@@ -557,8 +723,7 @@ class ContextStructuringUseCase:
     ) -> CandidateContextBatch:
         try:
             batch = _require_candidate_batch(response.data)
-            _validate_candidate_batch(batch, snapshot)
-            await self._unsupported_claim_validator.validate(batch=batch, snapshot=snapshot)
+            await self._validate_candidate(batch=batch, snapshot=snapshot)
             return batch
         except ContextStructuringError as error:
             self._record_validation_failure(

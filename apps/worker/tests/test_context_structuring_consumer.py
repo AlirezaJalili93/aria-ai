@@ -64,6 +64,7 @@ class _CommandFactory:
             task_type="context_structuring",
             workflow_version="synthetic-ai-01-v1",
             prompt_version="synthetic-prompt-v1",
+            output_schema_version="context-structuring-output-v1",
             repair_prompt_version="synthetic-repair-v1",
             repair_policy=ContextRepairPolicy(
                 policy_version="synthetic-no-repair-v1",

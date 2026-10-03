@@ -68,6 +68,11 @@ def test_openai_adapter_enforces_structured_output_and_no_tools_or_implicit_cach
     assert client.responses.kwargs["tools"] == []
     assert client.responses.kwargs["store"] is False
     assert client.responses.kwargs["prompt_cache_options"] == {"mode": "explicit"}
+    assert client.responses.kwargs["max_output_tokens"] == 25_000
+    assert client.responses.kwargs["reasoning"] == {
+        "mode": "standard",
+        "effort": "medium",
+    }
 
 
 def test_openai_adapter_fails_closed_on_nonzero_cache_write_tokens() -> None:

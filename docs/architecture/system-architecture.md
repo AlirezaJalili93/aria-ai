@@ -90,6 +90,23 @@ Job/Outbox را idempotent می‌سازد، Queue فقط شناسه‌های ن
 یک Transaction واحد هستند. Public Endpoint، Parser chaining، Hosted task registration، Provider
 واقعی، Customer Content و post-provider paid recovery در این Increment فعال نیستند.
 
+مطابق ADR-069، 0083 مرز provider-neutral بازیابی پس از پاسخ AI را به‌صورت Synthetic Foundation
+اضافه می‌کند. Attempt پیش از فراخوانی پایدار می‌شود؛ normalized result معتبر و Usage همان Attempt
+اتمیک checkpoint می‌شوند و recovery فقط همان نتیجه را برای Domain finalization بازاستفاده می‌کند.
+Attempt شروع‌شده بدون checkpoint با `AI_INVOCATION_OUTCOME_UNKNOWN` و بدون فراخوانی خودکار مجدد
+fail-closed می‌شود. payload موقت فقط پس از موفقیت Job پاک می‌شود. این Port/Adapter در Hosted
+Composition Root فعال نیست و Provider واقعی و Customer Content همچنان NO-GO هستند.
+
+مطابق ADR-070، 0084 این مرز را فقط به AI-01 مصنوعی و تک-attempt متصل می‌کند. Attempt ID پیش از
+Fake invocation ساخته می‌شود، Source Versionهای دقیق fingerprint می‌شوند و `result_ready` بدون
+فراخوانی یا Usage تازه بازیابی می‌گردد. Context Items، Project Context Version، موفقیت Job و
+پاک‌سازی checkpoint اتمیک‌اند. Hosted و multi-attempt composition همچنان فعال نیستند.
+
+مطابق ADR-071، 0085 یک حالت opt-in و صرفاً مصنوعی برای Technical Retry شناخته‌شده اضافه می‌کند.
+Timeout تلاش اول به‌صورت `failed_known` همراه Usage ناموجود و `retry_not_before` پایدار ثبت می‌شود؛
+پس از restart همان schedule و fingerprint استفاده شده و فقط یک Attempt دوم مجاز است. Ambiguous
+`started` همچنان terminal است و Repair، Fallback، Provider واقعی و Hosted activation فعال نیستند.
+
 منطق Application مشترک بین API و Worker در `packages/backend-application` نگهداری می‌شود. Worker
 فقط wrapper/runtime است و Domain یا قواعد Context را دوباره تعریف نمی‌کند. مطابق ADR-026، H02
 Source snapshot را یک‌بار resolve می‌کند، تمام Candidateها را پیش از Write اعتبارسنجی می‌کند و

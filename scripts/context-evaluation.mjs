@@ -169,7 +169,10 @@ function validSourceRefs(fixture, refs) {
   return refs.every((ref) => {
     if (!ref || typeof ref.source_id !== "string" || typeof ref.source_version_id !== "string") return false;
     if (sources.get(ref.source_id) !== ref.source_version_id) return false;
-    if (ref.start_offset === undefined && ref.end_offset === undefined) return true;
+    const hasStart = ref.start_offset !== undefined && ref.start_offset !== null;
+    const hasEnd = ref.end_offset !== undefined && ref.end_offset !== null;
+    if (hasStart !== hasEnd) return false;
+    if (!hasStart) return true;
     if (!Number.isInteger(ref.start_offset) || !Number.isInteger(ref.end_offset)) return false;
     const text = fixture.input.sources.find((source) => source.source_id === ref.source_id)?.canonical_text ?? "";
     return ref.start_offset >= 0 && ref.start_offset < ref.end_offset && ref.end_offset <= text.length;

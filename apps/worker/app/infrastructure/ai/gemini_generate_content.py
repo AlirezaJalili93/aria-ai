@@ -73,6 +73,10 @@ class GeminiGenerateContentAdapter:
             response_json_schema=dict(output_schema),
             tools=None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            max_output_tokens=25_000,
+            thinking_config=types.ThinkingConfig(
+                thinking_level=types.ThinkingLevel.MEDIUM
+            ),
         )
         try:
             response = await self._client.models.generate_content(

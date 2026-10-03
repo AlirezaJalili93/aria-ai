@@ -319,6 +319,7 @@ class ContextCommandFactory:
             task_type="context_structuring",
             workflow_version="controlled-synthetic-ai-01-v1",
             prompt_version="controlled-synthetic-prompt-v1",
+            output_schema_version="context-structuring-output-v1",
             repair_prompt_version="controlled-synthetic-repair-v1",
             repair_policy=ContextRepairPolicy(
                 policy_version="controlled-synthetic-no-repair-v1",

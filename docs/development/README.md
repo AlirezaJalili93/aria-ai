@@ -72,3 +72,7 @@ docs/development/NNNN-kebab-case/
 - [0080 — Worker Restart and Redelivery E2E](./0080-worker-restart-redelivery-e2e/development.md)
 - [0081 — Generation Lock Role Migration Safety](./0081-generation-lock-role-migration-safety/development.md)
 - [0082 — Controlled Clarification to Scope E2E](./0082-controlled-clarification-to-scope-e2e/development.md)
+- [0083 — Durable AI Invocation Recovery](./0083-durable-ai-invocation-recovery/development.md)
+- [0084 — AI-01 Durable Checkpoint Integration](./0084-ai01-durable-checkpoint-integration/development.md)
+- [0085 — Durable Technical-Retry Checkpoint Integration](./0085-durable-technical-retry-checkpoint-integration/development.md)
+- [0086 — Controlled Real-Provider Quality Evaluation](./0086-controlled-real-provider-quality-evaluation/development.md)

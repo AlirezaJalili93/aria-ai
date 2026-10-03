@@ -59,6 +59,8 @@ def test_gemini_adapter_maps_billable_thinking_tokens_and_disables_tools() -> No
     assert "cached_content" not in client.models.kwargs
     config = client.models.kwargs["config"]
     assert getattr(config, "tools", None) is None
+    assert getattr(config, "max_output_tokens", None) == 25_000
+    assert getattr(getattr(config, "thinking_config", None), "thinking_level", None) == "MEDIUM"
 
 
 def test_gemini_adapter_rejects_unapproved_model_before_any_call() -> None:

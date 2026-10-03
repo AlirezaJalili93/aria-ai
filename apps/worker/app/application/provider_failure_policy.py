@@ -20,6 +20,7 @@ from app.application.provider_adapter import (
 from app.application.provider_execution import ProviderCandidate
 from app.application.provider_pricing import (
     ProviderPriceCatalog,
+    ProviderPriceMismatchError,
     ProviderPriceVersion,
     UnpricedUsageRecord,
     price_usage_record,
@@ -36,6 +37,28 @@ RETRYABLE_ERROR_CLASSES: frozenset[AIErrorClass] = frozenset(
 )
 FALLBACK_ELIGIBLE_ERROR_CLASSES: frozenset[AIErrorClass] = frozenset(
     {"timeout", "provider_unavailable"}
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderInvocationPolicy:
+    max_primary_attempts: int = MAX_PRIMARY_ATTEMPTS
+    max_fallback_attempts: int = MAX_FALLBACK_ATTEMPTS
+    max_total_provider_invocations: int = MAX_TOTAL_PROVIDER_INVOCATIONS
+
+    def __post_init__(self) -> None:
+        if self.max_primary_attempts < 1:
+            raise ValueError("max_primary_attempts_must_be_positive")
+        if self.max_fallback_attempts not in {0, 1}:
+            raise ValueError("max_fallback_attempts_out_of_range")
+        if self.max_total_provider_invocations < self.max_primary_attempts:
+            raise ValueError("total_provider_invocation_budget_too_small")
+
+
+EVALUATION_INVOCATION_POLICY = ProviderInvocationPolicy(
+    max_primary_attempts=1,
+    max_fallback_attempts=0,
+    max_total_provider_invocations=1,
 )
 
 
@@ -117,6 +140,7 @@ class ProviderFailureCoordinator:
         monotonic_clock: Callable[[], float] = perf_counter,
         attempt_id_factory: Callable[[], UUID] = uuid4,
         event_logger: StructuredEventLogger | None = None,
+        policy: ProviderInvocationPolicy | None = None,
     ) -> None:
         self._catalog = catalog
         self._usage_ledger = usage_ledger
@@ -126,6 +150,11 @@ class ProviderFailureCoordinator:
         self._monotonic_clock = monotonic_clock
         self._attempt_id_factory = attempt_id_factory
         self._event_logger = event_logger
+        self._policy = policy or ProviderInvocationPolicy()
+
+    @property
+    def invocation_policy(self) -> ProviderInvocationPolicy:
+        return self._policy
 
     async def execute(
         self,
@@ -135,11 +164,13 @@ class ProviderFailureCoordinator:
         metadata: ProviderExecutionMetadata,
         fallback: ProviderCandidate | None = None,
         fallback_authorization: FallbackAuthorizationPort | None = None,
+        required_primary_price: ProviderPriceVersion | None = None,
+        required_fallback_price: ProviderPriceVersion | None = None,
     ) -> FailureManagedProviderExecution:
         invocation_count = 0
         last_failure: _FailedAttempt | None = None
 
-        for retry_no in range(MAX_PRIMARY_ATTEMPTS):
+        for retry_no in range(self._policy.max_primary_attempts):
             invocation_count += 1
             outcome = await self._invoke(
                 candidate=primary,
@@ -148,13 +179,14 @@ class ProviderFailureCoordinator:
                 retry_no=retry_no,
                 global_attempt_no=invocation_count,
                 used_fallback=False,
+                required_price=required_primary_price,
             )
             if isinstance(outcome, FailureManagedProviderExecution):
                 return outcome
             last_failure = outcome
             if not self._is_retryable_failure(outcome.error):
                 raise outcome.error
-            if retry_no + 1 >= MAX_PRIMARY_ATTEMPTS:
+            if retry_no + 1 >= self._policy.max_primary_attempts:
                 break
             delay_seconds = self._retry_delay_seconds(retry_no=retry_no + 1)
             self._emit(
@@ -168,6 +200,8 @@ class ProviderFailureCoordinator:
             await self._sleeper.sleep(delay_seconds)
 
         assert last_failure is not None
+        if self._policy.max_fallback_attempts == 0:
+            raise last_failure.error
         if not await self._fallback_allowed(
             failure=last_failure.error,
             primary=primary,
@@ -179,7 +213,7 @@ class ProviderFailureCoordinator:
         assert fallback is not None
 
         invocation_count += 1
-        if invocation_count > MAX_TOTAL_PROVIDER_INVOCATIONS:
+        if invocation_count > self._policy.max_total_provider_invocations:
             raise RuntimeError("provider_invocation_budget_exceeded")
         outcome = await self._invoke(
             candidate=fallback,
@@ -188,6 +222,7 @@ class ProviderFailureCoordinator:
             retry_no=0,
             global_attempt_no=invocation_count,
             used_fallback=True,
+            required_price=required_fallback_price,
         )
         if isinstance(outcome, _FailedAttempt):
             raise outcome.error
@@ -202,12 +237,15 @@ class ProviderFailureCoordinator:
         retry_no: int,
         global_attempt_no: int,
         used_fallback: bool,
+        required_price: ProviderPriceVersion | None,
     ) -> FailureManagedProviderExecution | _FailedAttempt:
         price = await self._catalog.resolve(
             provider=candidate.provider,
             model=candidate.model,
             provider_execution_at=self._utc_clock(),
         )
+        if required_price is not None and price != required_price:
+            raise ProviderPriceMismatchError("provider_price_version_changed")
         provider_attempt_id = self._attempt_id_factory()
         started_at = self._monotonic_clock()
         self._emit(
@@ -313,7 +351,7 @@ class ProviderFailureCoordinator:
             RETRY_CAP_DELAY_SECONDS,
             RETRY_BASE_DELAY_SECONDS * (2**retry_no),
         )
-        return ceiling * fraction
+        return float(ceiling * fraction)
 
     async def _fallback_allowed(
         self,

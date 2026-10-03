@@ -18,3 +18,4 @@ apps/*/.venv/
 .uv-cache/
 .tools/
 .data/
+.local/eval-review-bundles/

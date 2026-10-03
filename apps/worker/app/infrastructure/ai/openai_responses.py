@@ -81,6 +81,8 @@ class OpenAIResponsesAdapter:
                 parallel_tool_calls=False,
                 store=False,
                 prompt_cache_options={"mode": "explicit"},
+                max_output_tokens=25_000,
+                reasoning={"mode": "standard", "effort": "medium"},
             )
         except Exception as error:
             raise _map_openai_error(error) from error

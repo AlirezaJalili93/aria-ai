@@ -50,6 +50,7 @@ class PostgresContextStructuringSnapshotReader:
                                        v.version_no,
                                        v.canonical_text,
                                        v.storage_ref,
+                                       v.content_hash,
                                        row_number() OVER (
                                            PARTITION BY v.source_id
                                            ORDER BY v.version_no DESC
@@ -65,7 +66,7 @@ class PostgresContextStructuringSnapshotReader:
                                   AND s.status<>'deleted'
                             )
                             SELECT source_id, source_version_id, version_no,
-                                   canonical_text, storage_ref
+                                   canonical_text, storage_ref, content_hash
                             FROM ranked
                             WHERE ready_rank=1
                             ORDER BY source_id
@@ -83,6 +84,7 @@ class PostgresContextStructuringSnapshotReader:
                 version_no=row["version_no"],
                 canonical_text=row["canonical_text"],
                 storage_ref=row["storage_ref"],
+                content_hash=row["content_hash"],
             )
             for row in rows
         )
@@ -186,6 +188,39 @@ class SqlContextStructuringRepository:
             {"account_id": account_id, "project_id": project_id, "job_id": job_id},
         )
         _require_one(result.rowcount, "job_not_running")
+
+    async def finalize_invocation_checkpoint(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        job_id: UUID,
+        provider_attempt_id: UUID,
+    ) -> None:
+        await self._connection.execute(
+            text(
+                "SELECT pg_catalog.set_config('aria.checkpoint_account_id', "
+                ":account_id, true)"
+            ),
+            {"account_id": str(account_id)},
+        )
+        result = await self._connection.execute(
+            text(
+                "UPDATE public.ai_invocation_checkpoints "
+                "SET status='finalized', normalized_result=NULL, "
+                "finalized_at=CURRENT_TIMESTAMP "
+                "WHERE provider_attempt_id=:provider_attempt_id "
+                "AND account_id=:account_id AND project_id=:project_id "
+                "AND job_id=:job_id AND status='result_ready'"
+            ),
+            {
+                "provider_attempt_id": provider_attempt_id,
+                "account_id": account_id,
+                "project_id": project_id,
+                "job_id": job_id,
+            },
+        )
+        _require_one(result.rowcount, "checkpoint_not_ready")
 
 
 class PostgresContextStructuringUnitOfWork:
@@ -358,7 +393,23 @@ class SqlAlchemyContextStructuringJobStore:
                     },
                 )
                 if result.rowcount != 1:
-                    raise ContextStructuringRuntimePersistenceError
+                    existing = (
+                        await connection.execute(
+                            text(
+                                "SELECT status, error_code FROM public.jobs "
+                                "WHERE id=:job_id AND account_id=:account_id "
+                                "AND project_id=:project_id "
+                                "AND job_type='context_structuring'"
+                            ),
+                            {
+                                "job_id": job.job_id,
+                                "account_id": job.account_id,
+                                "project_id": job.project_id,
+                            },
+                        )
+                    ).mappings().one_or_none()
+                    if existing != {"status": "failed", "error_code": error_code}:
+                        raise ContextStructuringRuntimePersistenceError
         except ContextStructuringRuntimePersistenceError:
             raise
         except SQLAlchemyError:

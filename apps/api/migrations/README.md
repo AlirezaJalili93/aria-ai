@@ -17,6 +17,7 @@ is never stored in this directory.
 → 0026_context_structuring_runtime
 → 0027_requirement_generation_runtime → 0028_gap_detection_runtime
 → 0029_scope_generation_runtime → 0030_generation_input_row_locks
+→ 0031_ai_invocation_checkpoints → 0032_ai01_checkpoint_integration
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -143,3 +144,23 @@ fixed helpers in non-exposed `aria_internal`; only `aria_worker` may execute the
 No broad table write grant is given to the Worker. Its cluster-global owner Role is conditionally
 created, must match every approved least-privilege attribute, and is retained by downgrade while
 another database still depends on it. See ADR-064 and ADR-067.
+
+`0031_ai_invocation_checkpoints` adds the synthetic-only durable boundary for a Provider response
+that precedes Domain finalization. One Tenant/Project/Job-scoped row shares the immutable
+`provider_attempt_id` with exactly one UsageRecord. A normalized, schema-valid result and Usage
+commit together; recovery reuses that payload without a Provider call. A started Attempt without a
+durable result becomes `outcome_unknown`, fails the existing Job with
+`AI_INVOCATION_OUTCOME_UNKNOWN` and cannot be retried automatically. Successful Domain/Job
+finalization permits idempotent payload cleanup while retaining the result hash. Forced RLS,
+immutable identity, restricted transitions and Worker SELECT/INSERT/UPDATE-only grants protect the
+transient content. No Hosted composition or real Provider activation is introduced. See ADR-069.
+
+`0032_ai01_checkpoint_integration` adds the unique logical-attempt guard across
+Account/Project/Job/task/retry/repair identity. AI-01 uses it only for the approved synthetic,
+single-attempt checkpoint path; it adds no Provider, public route or Hosted activation. See
+ADR-070.
+
+`0033_durable_retry_checkpoint` adds the immutable `failed_known` transition and bounded retry
+metadata. Attempt 0 persists timeout Usage and one `retry_not_before` atomically; Attempt 1 has no
+further schedule. The logical-attempt unique index is the final concurrency guard. Downgrade
+refuses known-failure history that the prior schema cannot represent. See ADR-071.

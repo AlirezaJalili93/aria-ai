@@ -43,6 +43,7 @@ class SqlAlchemyContextSnapshotReader:
                 ContextSourceVersionModel.version_no.label("version_no"),
                 ContextSourceVersionModel.canonical_text.label("canonical_text"),
                 ContextSourceVersionModel.storage_ref.label("storage_ref"),
+                ContextSourceVersionModel.content_hash.label("content_hash"),
                 rank,
             )
             .join(
@@ -71,6 +72,7 @@ class SqlAlchemyContextSnapshotReader:
                             ranked.c.version_no,
                             ranked.c.canonical_text,
                             ranked.c.storage_ref,
+                            ranked.c.content_hash,
                         )
                         .where(ranked.c.ready_rank == 1)
                         .order_by(ranked.c.source_id)
@@ -85,6 +87,7 @@ class SqlAlchemyContextSnapshotReader:
                 version_no=row.version_no,
                 canonical_text=row.canonical_text,
                 storage_ref=row.storage_ref,
+                content_hash=row.content_hash,
             )
             for row in rows
         )

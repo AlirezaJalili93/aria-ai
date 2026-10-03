@@ -232,6 +232,7 @@ def _command(*, max_repairs: int = 1) -> ContextStructuringCommand:
         task_type="opaque-task",
         workflow_version="caller-workflow",
         prompt_version="caller-prompt",
+        output_schema_version="caller-schema-v1",
         repair_prompt_version="caller-repair-prompt",
         repair_policy=ContextRepairPolicy(
             policy_version="caller-repair-policy",

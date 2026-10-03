@@ -180,6 +180,24 @@ M000 extensions
   `jobs` همان منابع حقیقت موجود می‌مانند؛ Draft جدید و موفقیت Job در یک تراکنش ثبت می‌شوند.
   هیچ جدول Scope یا مسیر Hosted/Public جدیدی ایجاد نشده است. جزئیات در
   [ADR-062](../adr/ADR-062-scope-generation-runtime-foundation.md) آمده است.
+- 0083 جدول عملیاتی `ai_invocation_checkpoints` را برای مرز مبهم بین پاسخ Provider و Domain
+  finalization معرفی می‌کند. این جدول Domain output دوم نیست: payload فقط در وضعیت
+  `result_ready` و برای recovery همان `provider_attempt_id` نگه داشته می‌شود و پس از موفقیت Job
+  پاک می‌گردد؛ hash و metadata غیرمحتوایی باقی می‌مانند. `started` بدون نتیجهٔ durable به
+  `outcome_unknown` می‌رود و automatic re-invocation ممنوع است. UsageRecord و checkpoint موفق در
+  یک Transaction ثبت می‌شوند؛ جزئیات در
+  [ADR-069](../adr/ADR-069-durable-ai-invocation-recovery.md) آمده است.
+- 0084 برای هر `account_id/project_id/job_id/task_type/retry_no/repair_no` دقیقاً یک checkpoint
+  منطقی مجاز می‌کند. Codec نسخه‌دار AI-01 فقط شناسه/hash ورودی‌های pin‌شده و Candidateهای معتبر
+  لازم برای persistence را نگه می‌دارد. Context/Project/Job finalization و پاک‌سازی payload در یک
+  Transaction انجام می‌شوند؛ جزئیات در
+  [ADR-070](../adr/ADR-070-ai01-durable-checkpoint-integration.md) آمده است.
+- 0085 حالت `failed_known`، `failure_class`, `retryable`, `retry_not_before` و
+  `failed_known_at` را اضافه می‌کند. برای retry شمارهٔ صفر، timeout Usage ناموجود و schedule در یک
+  Transaction ثبت می‌شوند؛ retry شمارهٔ یک schedule دیگری ندارد. Attempt دوم identity مستقل ولی
+  همان Job و input fingerprint را دارد و unique logical-attempt index مانع ایجاد concurrent آن
+  می‌شود. جزئیات در
+  [ADR-071](../adr/ADR-071-durable-technical-retry-checkpoint-integration.md) آمده است.
 
 ## Migration Guardrails
 
