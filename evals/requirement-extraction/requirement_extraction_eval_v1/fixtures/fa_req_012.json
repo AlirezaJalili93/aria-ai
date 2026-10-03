@@ -1,0 +1,67 @@
+{
+  "fixture_id": "fa_req_012",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_012_ctx_1",
+        "item_type": "constraint",
+        "content": "هیچ اسکریپت ردیابی شخص ثالثی به سایت اضافه نشود.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_012_src_a",
+            "source_version_id": "fa_req_012_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_012_req_1",
+        "title": "ممنوعیت ردیابی شخص ثالث",
+        "description": "پیاده‌سازی نباید اسکریپت ردیابی شخص ثالث اضافه کند.",
+        "category": "constraint",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_012_src_a",
+            "source_version_id": "fa_req_012_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_012_cand_1",
+        "gold_requirement_id": "fa_req_012_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_012_cand_1"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "privacy",
+      "tracking",
+      "constraint"
+    ],
+    "fixture_version": "1"
+  }
+}

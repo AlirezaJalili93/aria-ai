@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/context-structuring-fixture-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixture_id", "eval_set_id", "language", "project_type", "input", "expected_structured_output", "expected_labels", "provenance_expectations", "failure_expectations", "metadata"],
+  "$defs": {
+    "source_ref": {
+      "type": "object",
+      "required": ["source_id", "source_version_id"],
+      "properties": {
+        "source_id": { "type": "string" },
+        "source_version_id": { "type": "string" },
+        "start_offset": { "type": "integer", "minimum": 0 },
+        "end_offset": { "type": "integer", "minimum": 1 }
+      },
+      "dependentRequired": {
+        "start_offset": ["end_offset"],
+        "end_offset": ["start_offset"]
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "fixture_id": { "type": "string", "pattern": "^fa_ctx_[0-9]{3}$" },
+    "eval_set_id": { "const": "context_structuring_eval_v1" },
+    "language": { "const": "fa" },
+    "project_type": { "enum": ["landing", "corporate", "portfolio"] },
+    "input": {
+      "type": "object",
+      "required": ["sources"],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["source_id", "source_version_id", "canonical_text"],
+            "properties": {
+              "source_id": { "type": "string" },
+              "source_version_id": { "type": "string" },
+              "canonical_text": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "expected_structured_output": {
+      "type": "object",
+      "required": ["items", "forbidden_claims", "required_item_ids"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["gold_item_id", "item_type", "content", "source_refs", "trace_required"],
+            "properties": {
+              "gold_item_id": { "type": "string" },
+              "item_type": { "enum": ["fact", "assumption", "decision", "constraint", "reference", "unknown"] },
+              "content": { "type": "string", "minLength": 1 },
+              "source_refs": { "type": "array", "items": { "$ref": "#/$defs/source_ref" } },
+              "trace_required": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "forbidden_claims": { "type": "array", "items": { "type": "string" } },
+        "required_item_ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "expected_labels": {
+      "type": "object",
+      "required": ["clarity", "has_assumption", "has_constraint", "has_decision", "requires_unknown", "prompt_injection", "unsupported_assumption"],
+      "properties": {
+        "clarity": { "enum": ["clear", "ambiguous", "incomplete", "contradictory", "insufficient"] },
+        "has_assumption": { "type": "boolean" },
+        "has_constraint": { "type": "boolean" },
+        "has_decision": { "type": "boolean" },
+        "requires_unknown": { "type": "boolean" },
+        "prompt_injection": { "type": "boolean" },
+        "unsupported_assumption": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "provenance_expectations": {
+      "type": "object",
+      "required": ["allowed_source_ids", "trace_required_item_ids", "offset_policy", "whole_version_reference_allowed"],
+      "properties": {
+        "allowed_source_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "trace_required_item_ids": { "type": "array", "items": { "type": "string" } },
+        "offset_policy": { "enum": ["optional", "required"] },
+        "whole_version_reference_allowed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "failure_expectations": {
+      "type": "object",
+      "required": ["expected_outcome", "allowed_failure_codes", "must_not_persist_on_failure"],
+      "properties": {
+        "expected_outcome": { "enum": ["success", "repair_then_success", "fail"] },
+        "allowed_failure_codes": { "type": "array", "items": { "type": "string" } },
+        "must_not_persist_on_failure": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["synthetic", "segment", "difficulty", "phenomena", "fixture_version"],
+      "properties": {
+        "synthetic": { "const": true },
+        "segment": { "enum": ["clear", "ambiguous", "incomplete", "contradictory", "fragmented", "mixed", "adversarial", "insufficient"] },
+        "difficulty": { "enum": ["basic", "intermediate", "hard"] },
+        "phenomena": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "fixture_version": { "const": "1" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -61,6 +61,24 @@ class ContextSourceRepository(Protocol):
         self, *, account_id: UUID, project_id: UUID, source_id: UUID
     ) -> ContextSourceVersion | None: ...
 
+    async def get_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        source_id: UUID,
+        version_id: UUID,
+    ) -> ContextSourceVersion | None: ...
+
+    async def reset_failed_for_retry(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        source_id: UUID,
+        version_id: UUID,
+    ) -> bool: ...
+
 
 class ContextSourceUnitOfWork(Protocol):
     @property

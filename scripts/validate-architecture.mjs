@@ -16,6 +16,7 @@ const skippedDirectories = new Set([
   ".pytest_cache",
   ".ruff_cache",
   ".tools",
+  ".uv-cache",
   ".venv",
   "__pycache__",
   "node_modules"
@@ -74,6 +75,7 @@ const requiredPaths = [
   "packages/config/README.md",
   "packages/contracts/openapi.yaml",
   "packages/contracts/events.schema.json",
+  "packages/contracts/product-analytics.schema.json",
   "packages/design-tokens/tokens.json",
   "packages/design-tokens/tokens.css",
   "infra/compose.yaml",
@@ -115,6 +117,7 @@ for (const jsonPath of [
   "package.json",
   "apps/web/package.json",
   "packages/contracts/events.schema.json",
+  "packages/contracts/product-analytics.schema.json",
   "packages/design-tokens/tokens.json"
 ]) {
   try {
@@ -309,10 +312,14 @@ if (!failures.some((item) => /Domain imports|Application imports/.test(item))) {
 
 const apiPyproject = await read("apps/api/pyproject.toml");
 const workerPyproject = await read("apps/worker/pyproject.toml");
-if (/celery|dramatiq|\brq\b/i.test(`${apiPyproject}\n${workerPyproject}`)) {
-  fail("Queue framework was selected before the required queue spike/ADR");
+if (/celery|dramatiq|\brq\b/i.test(apiPyproject)) {
+  fail("API deployable must remain Queue-framework neutral");
+} else if (/dramatiq|\brq\b/i.test(workerPyproject)) {
+  fail("Worker Queue dependency conflicts with accepted ADR-015");
+} else if (/celery/i.test(workerPyproject) && !/"celery\[redis\]==5\.6\.3"/.test(workerPyproject)) {
+  fail("Worker Celery dependency must use the exact ADR-015 pin with Redis transport");
 } else {
-  pass("Worker bootstrap preserves the documented open queue decision");
+  pass("Queue dependencies respect accepted ADR-015 and the API/Worker boundary");
 }
 
 const openApi = await read("packages/contracts/openapi.yaml");
@@ -335,8 +342,8 @@ for (const secretName of [
   "QUEUE_BROKER_URL",
   "STORAGE_ACCESS_KEY",
   "STORAGE_SECRET_KEY",
-  "AI_PROVIDER_A_KEY",
-  "AI_PROVIDER_B_KEY",
+  "OPENAI_API_KEY",
+  "GEMINI_API_KEY",
   "ANALYTICS_SERVER_KEY",
   "ERROR_TRACKING_DSN"
 ]) {

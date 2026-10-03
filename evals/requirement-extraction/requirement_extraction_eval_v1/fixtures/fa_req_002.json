@@ -1,0 +1,101 @@
+{
+  "fixture_id": "fa_req_002",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_002_ctx_1",
+        "item_type": "fact",
+        "content": "شرکت خدمات حسابداری ابری ارائه می‌کند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_002_src_a",
+            "source_version_id": "fa_req_002_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_002_ctx_2",
+        "item_type": "decision",
+        "content": "خدمات معرفی شوند و امکان درخواست دمو وجود داشته باشد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_002_src_a",
+            "source_version_id": "fa_req_002_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_002_req_1",
+        "title": "معرفی خدمات حسابداری ابری",
+        "description": "سایت باید خدمات حسابداری ابری شرکت را معرفی کند.",
+        "category": "content",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_002_src_a",
+            "source_version_id": "fa_req_002_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_002_req_2",
+        "title": "درخواست دمو",
+        "description": "کاربر باید بتواند درخواست دمو ثبت کند.",
+        "category": "functional",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_002_src_a",
+            "source_version_id": "fa_req_002_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_002_cand_1",
+        "gold_requirement_id": "fa_req_002_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_002_cand_2",
+        "gold_requirement_id": "fa_req_002_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_002_cand_1",
+      "fa_req_002_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "services",
+      "content",
+      "lead_generation"
+    ],
+    "fixture_version": "1"
+  }
+}

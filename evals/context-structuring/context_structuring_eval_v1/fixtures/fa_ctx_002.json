@@ -1,0 +1,16 @@
+{
+  "fixture_id": "fa_ctx_002",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": { "sources": [{ "source_id": "fa_ctx_002_src_a", "source_version_id": "fa_ctx_002_src_a_v1", "canonical_text": "شرکت آفتاب در حوزه حسابداری ابری فعالیت می‌کند. سایت باید خدمات را معرفی کند و درخواست دمو بگیرد." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_002_f1", "item_type": "fact", "content": "شرکت در حوزه حسابداری ابری فعالیت می‌کند", "source_refs": [{ "source_id": "fa_ctx_002_src_a", "source_version_id": "fa_ctx_002_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_002_d1", "item_type": "decision", "content": "CTA درخواست دمو", "source_refs": [{ "source_id": "fa_ctx_002_src_a", "source_version_id": "fa_ctx_002_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_002_u1", "item_type": "unknown", "content": "مخاطب اصلی مشخص نشده", "source_refs": [], "trace_required": false }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_002_f1", "fa_ctx_002_d1", "fa_ctx_002_u1"] },
+  "expected_labels": { "clarity": "incomplete", "has_assumption": false, "has_constraint": false, "has_decision": true, "requires_unknown": true, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_002_src_a"], "trace_required_item_ids": ["fa_ctx_002_f1", "fa_ctx_002_d1"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "incomplete", "difficulty": "basic", "phenomena": ["fact", "decision", "unknown"], "fixture_version": "1" }
+}

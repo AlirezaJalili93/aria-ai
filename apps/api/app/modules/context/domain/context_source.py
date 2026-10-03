@@ -2,8 +2,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal, cast
 from uuid import UUID
+
+from aria_backend_application.text_normalization import (
+    TEXT_CONTEXT_MAX_CHARACTERS as SHARED_TEXT_CONTEXT_MAX_CHARACTERS,
+)
+from aria_backend_application.text_normalization import (
+    TextSafetyValidationError,
+    normalize_text,
+    validate_text_safety,
+)
+
+TEXT_CONTEXT_MAX_CHARACTERS = SHARED_TEXT_CONTEXT_MAX_CHARACTERS
 
 ContextSourceType = Literal["text", "file", "message", "url_reference"]
 ContextSourceStatus = Literal["uploaded", "parsing", "ready", "failed", "deleted"]
@@ -110,6 +122,21 @@ def validate_ready_content(canonical_text: str | None, storage_ref: str | None) 
         raise ContextSourceValidationError(
             "A ready Context Source Version requires canonical_text or storage_ref"
         )
+
+
+def validate_text_context(value: str) -> str:
+    try:
+        validated = validate_text_safety(value)
+    except TextSafetyValidationError as error:
+        raise ContextSourceValidationError(str(error)) from None
+    if not normalize_text(validated):
+        raise ContextSourceValidationError("Text Context cannot be blank")
+    return validated
+
+
+def text_context_checksum(value: str) -> str:
+    validate_text_context(value)
+    return sha256(value.encode("utf-8")).hexdigest()
 
 
 def _require_timezone(value: datetime, field: str) -> None:

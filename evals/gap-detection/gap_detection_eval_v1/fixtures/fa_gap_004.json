@@ -1,0 +1,81 @@
+{
+  "fixture_id": "fa_gap_004",
+  "eval_set_id": "gap_detection_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "source_versions": [
+      {
+        "source_id": "fa_gap_004_src",
+        "source_version_id": "fa_gap_004_src_v1",
+        "canonical_length": 64
+      }
+    ],
+    "context_items": [
+      {
+        "context_item_id": "fa_gap_004_ctx_1",
+        "item_type": "assumption",
+        "content": "فرض شده است پرداخت آنلاین لازم است، اما در ورودی مشتری تأییدی برای آن وجود ندارد.",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_004_src",
+            "source_version_id": "fa_gap_004_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "status": "proposed"
+      }
+    ],
+    "requirements": []
+  },
+  "expected_output": {
+    "no_gap": false,
+    "gaps": [
+      {
+        "gold_gap_id": "fa_gap_004_gold_1",
+        "gap_type": "unsupported_assumption",
+        "severity": "critical",
+        "source_refs_expectation": "required",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_004_src",
+            "source_version_id": "fa_gap_004_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "affected_requirement_ids": [],
+        "critical_for_scope": true,
+        "critical_rule_id": "CGR-003",
+        "semantic_group_id": "fa_gap_004_group_1"
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "deterministic_output_candidate_ids": [
+      "fa_gap_004_candidate_1"
+    ],
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_gap_004_candidate_1",
+        "gold_gap_id": "fa_gap_004_gold_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true,
+        "source_refs_expectation": "required"
+      }
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "mixed",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "unsupported_assumption",
+      "critical"
+    ],
+    "fixture_version": "1"
+  }
+}

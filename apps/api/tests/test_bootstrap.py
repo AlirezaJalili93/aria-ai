@@ -48,6 +48,7 @@ def test_staging_settings_accept_the_documented_service_bindings() -> None:
         database_url="postgresql://staging.example.test/aria",
         queue_broker_url="redis://queue-staging.example.test:6379/0",
         storage_endpoint="https://storage-staging.example.test",
+        storage_region="eu-central-1",
         storage_bucket="aria-staging-artifacts",
         storage_access_key="test-access-key",
         storage_secret_key="test-secret-key",
@@ -110,6 +111,7 @@ def test_staging_settings_reject_malformed_typed_values(field: str, value: str) 
         "database_url": "postgresql://staging.example.test/aria",
         "queue_broker_url": "redis://queue-staging.example.test:6379/0",
         "storage_endpoint": "https://storage-staging.example.test",
+        "storage_region": "eu-central-1",
         "storage_bucket": "aria-staging-artifacts",
         "storage_access_key": "test-access-key",
         "storage_secret_key": "test-secret-key",
@@ -124,3 +126,16 @@ def test_staging_settings_reject_malformed_typed_values(field: str, value: str) 
         ApiSettings(**values)  # type: ignore[arg-type]
 
     assert value not in str(error.value)
+
+
+def test_txt_upload_flag_is_fail_closed_and_requires_complete_storage_configuration() -> None:
+    settings = ApiSettings(app_env="test", app_version="0.1.0", log_level="INFO")
+    assert settings.txt_upload_enabled is False
+
+    with pytest.raises(ValidationError, match="Missing required TXT upload configuration"):
+        ApiSettings(
+            app_env="test",
+            app_version="0.1.0",
+            log_level="INFO",
+            txt_upload_enabled=True,
+        )
