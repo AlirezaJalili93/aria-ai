@@ -18,6 +18,8 @@ is never stored in this directory.
 → 0027_requirement_generation_runtime → 0028_gap_detection_runtime
 → 0029_scope_generation_runtime → 0030_generation_input_row_locks
 → 0031_ai_invocation_checkpoints → 0032_ai01_checkpoint_integration
+→ 0033_durable_technical_retry_checkpoint → 0034_scope_share_links
+→ 0035_scope_approvals
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -164,3 +166,12 @@ ADR-070.
 metadata. Attempt 0 persists timeout Usage and one `retry_not_before` atomically; Attempt 1 has no
 further schedule. The logical-attempt unique index is the final concurrency guard. Downgrade
 refuses known-failure history that the prior schema cannot represent. See ADR-071.
+
+`0034_scope_share_links` creates exact immutable Scope-Version capabilities with hash-only token
+persistence, mandatory expiry, terminal revocation and deny-by-default Data API access. See
+ADR-074.
+
+`0035_scope_approvals` creates immutable one-per-ScopeVersion guest Approvals. It records the exact
+version number/hash and capability lineage, keeps guest idempotency separate from authenticated
+records, transitions only ScopeVersion in the Application transaction, and grants no direct Data
+API access. See ADR-077.

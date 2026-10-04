@@ -8,6 +8,103 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /public/scope-shares/resolve:
+    post:
+      operationId: resolvePublicScopeShare
+      summary: Resolve one active Share capability to its exact immutable Scope snapshot
+      description: >-
+        Public capability endpoint. The raw token is accepted only in the JSON body and is never
+        placed in a path, query, response, log, trace, Analytics event, or persistence record.
+        Unknown, malformed, expired, revoked, and inaccessible capabilities share the same 404.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResolvePublicScopeShareRequest" }
+      responses:
+        "200":
+          description: Exact immutable Scope snapshot allowlist.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicScopeSnapshotEnvelope" }
+        "404":
+          description: The capability is not resolvable.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The JSON request does not have the exact required shape.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /public/scope-shares/approve:
+    post:
+      operationId: approvePublicScopeShare
+      summary: Record one final guest Approval for an exact immutable Scope Version
+      description: >-
+        Public bearer-capability command. The raw token is accepted only in the JSON body. A valid
+        capability, exact normalized guest name, literal consent and Idempotency-Key atomically
+        create one immutable Approval and transition only its Scope Version to approved. The
+        persisted version hash is never exposed in the public response.
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovePublicScopeRequest" }
+      responses:
+        "201":
+          description: First successful final Approval.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicScopeApprovalEnvelope" }
+        "200":
+          description: Same-key replay of the exact canonical Approval command.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicScopeApprovalEnvelope" }
+        "404":
+          description: The Share capability is not resolvable.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT or SCOPE_ALREADY_APPROVED.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Invalid exact body, guest name, consent or Idempotency-Key.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /accounts:
     get:
       operationId: listActiveAccounts
@@ -301,6 +398,87 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ScopeVersionDetailEnvelope" }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/versions/{version_no}/share:
+    post:
+      operationId: createScopeShareLink
+      summary: Create an expiring Share Link for one exact immutable Scope Version
+      description: >-
+        The first successful response discloses the raw token exactly once. A same-key replay of
+        the same canonical command returns the existing Share Link identity with token=null and
+        token_available=false; the idempotency record never contains the raw token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version_no
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateScopeShareLinkRequest" }
+      responses:
+        "201":
+          description: Share Link created and raw token disclosed once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeShareLinkEnvelope" }
+        "200":
+          description: Safe replay metadata; raw token is unavailable and not reconstructed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeShareLinkEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT for a changed canonical command.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Invalid exact request shape, expiry, version number or idempotency key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/scope-shares/{share_link_id}/revoke:
+    post:
+      operationId: revokeScopeShareLink
+      summary: Terminally revoke one visible Scope Share Link
+      description: >-
+        Accepts an exactly empty body. Owner/Admin may revoke any visible Project link; Member may
+        revoke only a link they created. Same-key/same-target replay remains an empty 204.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: share_link_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      responses:
+        "204": { description: Share Link revoked or the exact command replayed; body is empty. }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: IDEMPOTENCY_CONFLICT for a changed target.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: The request body is not exactly empty or the idempotency key is invalid.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /projects/{project_id}/context-sources:
     post:
       operationId: createTextContextSource
@@ -963,6 +1141,58 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    ResolvePublicScopeShareRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string }
+    PublicScopeSnapshot:
+      type: object
+      additionalProperties: false
+      required: [version_no, snapshot_data]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        snapshot_data: { $ref: "#/components/schemas/ScopeContent" }
+    PublicScopeSnapshotEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/PublicScopeSnapshot" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ApprovePublicScopeRequest:
+      type: object
+      additionalProperties: false
+      required: [token, guest_name, explicit_consent]
+      properties:
+        token: { type: string }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        explicit_consent: { type: boolean, const: true }
+    PublicScopeApproval:
+      type: object
+      additionalProperties: false
+      required: [approval_id, scope_version_no, status, guest_name, approved_at]
+      properties:
+        approval_id: { type: string, format: uuid }
+        scope_version_no: { type: integer, minimum: 1 }
+        status: { type: string, const: approved }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        approved_at: { type: string, format: date-time }
+    PublicScopeApprovalMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id, replayed]
+      properties:
+        request_id: { type: string, format: uuid }
+        replayed: { type: boolean }
+    PublicScopeApprovalEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/PublicScopeApproval" }
+        meta: { $ref: "#/components/schemas/PublicScopeApprovalMeta" }
     AccountSelection:
       type: object
       additionalProperties: false
@@ -1194,6 +1424,36 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ScopeVersionSummary" }
         meta: { $ref: "#/components/schemas/CollectionMeta" }
+    CreateScopeShareLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [expires_at]
+      properties:
+        expires_at: { type: string, format: date-time }
+    ScopeShareLink:
+      type: object
+      additionalProperties: false
+      required: [id, scope_version_no, expires_at, token, token_available]
+      properties:
+        id: { type: string, format: uuid }
+        scope_version_no: { type: integer, minimum: 1 }
+        expires_at: { type: string, format: date-time }
+        token: { type: [string, "null"] }
+        token_available: { type: boolean }
+    ScopeShareResponseMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id, replayed]
+      properties:
+        request_id: { type: string, format: uuid }
+        replayed: { type: boolean }
+    ScopeShareLinkEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeShareLink" }
+        meta: { $ref: "#/components/schemas/ScopeShareResponseMeta" }
     ContextItemType:
       type: string
       enum: [fact, assumption, decision, constraint, reference, unknown]

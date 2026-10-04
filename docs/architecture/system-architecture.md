@@ -62,7 +62,7 @@ Infrastructure Adapters ─implements→ Domain/Application Ports
 | Scope | draft، readiness policy و immutable version snapshot |
 | Jobs | durable job lifecycle و idempotency |
 | Metering | provider price version و append-only usage ledger |
-| Sharing & Approval | Sprint 2 |
+| Sharing & Approval | Share-Link امن، resolve عمومی ScopeVersion دقیق، و Approval آینده |
 | Artifact & Revision | Sprint 3/4 |
 | Billing & Entitlement | Sprint 5 |
 
@@ -147,6 +147,25 @@ Database/RLS اثبات می‌شود. Resource ناموجود و foreign یک �
 audit عمومی `resource.access_denied` فقط از context مجاز همان request ساخته می‌شود؛ هیچ lookup
 خارج از Tenant برای تشخیص existence انجام نمی‌شود. Scope عمومی با `project_id + version_no` و UUID
 داخلی Scope فقط در Repository/Database/RLS آزموده می‌شود.
+
+مطابق ADR-074 و ADR-075، Sharing یک Share Link را فقط به یک ScopeVersion immutable متصل می‌کند و
+فقط SHA-256 توکن تصادفی را پایدار نگه می‌دارد. Resolve عمومی صرفاً با `POST` و token داخل body، بدون
+JWT یا Tenant header انجام می‌شود؛ expiry/revocation هم‌زمان بررسی می‌شوند و پاسخ مستقل فقط
+`version_no` و snapshot allowlisted را با `Cache-Control: no-store` برمی‌گرداند. نقش‌های Data API
+هیچ دسترسی مستقیم به Share Link یا ScopeVersion ندارند و token، hash و محتوای request در telemetry
+ثبت نمی‌شوند.
+
+مطابق ADR-076، Create/Revoke لینک اشتراک از API احراز‌شده و Tenant-scoped عبور می‌کند. Create
+دارای idempotency اتمیک و one-time token disclosure است: replay فقط شناسه و metadata امن را
+برمی‌گرداند و raw token را بازسازی نمی‌کند. Idempotency store فقط `scope_share_link_id` و outcome
+امن را نگه می‌دارد؛ Revoke نیز terminal و با body کاملاً خالی idempotent است. Share URL، browser
+bootstrap، Guest Session و Change Request همچنان خارج از این مرز هستند.
+
+مطابق ADR-077، Approval عمومی از `POST` body-token و Idempotency-Key مستقل مهمان استفاده می‌کند.
+یک transaction کوتاه Share Link معتبر و ScopeVersion دقیق را lock می‌کند، version/hash همان
+snapshot را در Approval immutable ثبت می‌کند و فقط ScopeVersion را به approved می‌برد. replay همان
+business result را برمی‌گرداند؛ raw token، version hash و guest attribution وارد response یا
+telemetry نمی‌شوند و Project/ShareLink lifecycle تغییر نمی‌کند.
 
 ## AI و Generation Guardrails
 

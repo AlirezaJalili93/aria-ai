@@ -21,6 +21,7 @@ test("0086 freezes the exact matrix and fail-closed numeric caps", () => {
   assert.match(harness, /MAX_SERIALIZED_INPUT_BYTES = 8_000/);
   assert.match(harness, /MAX_OUTPUT_TOKENS = 25_000/);
   assert.match(harness, /MAX_TOTAL_BUDGET = Decimal\("25\.00"\)/);
+  assert.match(harness, /evaluation_price_version_expired/);
 });
 
 test("0086 sends the frozen reasoning and output ceilings to both providers", () => {
@@ -85,6 +86,9 @@ test("0086 normalizes every successful Provider output before evaluation evidenc
 
 test("0086 real wiring is manual-only and retains the existing single Usage writer", () => {
   const runtime = read("apps/worker/app/runtime/provider_quality_evaluation.py");
+  const command = read(
+    "apps/worker/app/runtime/provider_quality_evaluation_command.py",
+  );
 
   assert.match(runtime, /FailureCoordinatorSingleInvocation/);
   assert.match(runtime, /EVALUATION_INVOCATION_POLICY/);
@@ -93,6 +97,13 @@ test("0086 real wiring is manual-only and retains the existing single Usage writ
   assert.match(runtime, /PostgresProviderPriceCatalog/);
   assert.match(runtime, /SqlAlchemyUsageLedger/);
   assert.doesNotMatch(runtime, /if __name__ == ["']__main__["']/);
+  assert.match(command, /execute-0086-controlled-paid-evaluation/);
+  assert.match(command, /load_versioned_synthetic_cases/);
+  assert.match(command, /LocalReviewBundle/);
+  assert.match(command, /build_safe_execution_report/);
+  assert.match(command, /ON CONFLICT \(id\) DO NOTHING/);
+  assert.doesNotMatch(command, /scheduler|celery|hosted_execution\s*=\s*True/i);
+  assert.match(command, /raise SystemExit\(main\(\)\)/);
 });
 
 test("0086 imports adjudicated review evidence through the frozen safe comparison boundary", () => {

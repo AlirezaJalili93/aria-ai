@@ -3,7 +3,7 @@
 - منبع حاکم: [Production Data Architecture & Database Schema v2.0](https://docs.google.com/document/d/1w7k1hUHbWLS4YLsZU9QmLJDRkuSnG5zJ77_US82_x1w/edit)
 - فرهنگ داده: [Detailed Data Dictionary v1.0](https://docs.google.com/document/d/1TIZ96m-VvtdR3-_QtnsC5sK_maqfi_aMcUhj9xTDCaQ/edit)
 - برنامه‌ی اجرا: [Database Migration Execution Plan v1.0](https://docs.google.com/document/d/1VyLMX73lvXsmkR9PvDIJH5Qe29Ulga4Qw6gA4WZ1qaQ/edit)
-- تاریخ همگام‌سازی: 2026-09-20
+- تاریخ همگام‌سازی: 2026-10-03
 
 این سند mirror توسعه‌دهنده‌محور مدل مصوب است. Migrationها فقط در Story پایگاه داده و با Alembic versioned ایجاد می‌شوند؛ وجود این سند مجوز ساخت schema خارج از آن Story نیست.
 
@@ -65,6 +65,8 @@ M000 extensions
 | clarification_resolutions | id, account_id, project_id, gap_id, clarification_id, resolution_type, answer_text, author_type, author_id, actor_id, created_at | هر Clarification حداکثر یک Resolution terminal دارد؛ actor داخلی احرازشده اجباری است؛ author فقط user/client و client بدون Profile مجاز است؛ تاریخچه با RESTRICT حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by_type, updated_by, created_at, updated_at | strict `scope_content_schema_v1` JSONB؛ دوازده Section از نظر ساختاری اجباری ولی empty مجاز؛ `UNIQUE(project_id,context_version)`؛ Draft قدیمی پس از پیشروی Context تاریخی/read-only؛ readiness و revision persisted در K01 superseded/deferred و updated_at CAS canonical؛ K02 readiness به‌صورت computed policy و بدون ستون persistence؛ K03 فقط Draft جدید می‌سازد و Draft موجود را overwrite نمی‌کند |
 | scope_versions | id, account_id, project_id, version_no, context_version, status, snapshot_data, snapshot_hash, created_by, created_at | `UNIQUE(project_id,version_no)`؛ `scope_snapshot_canonicalization_v1` + SHA-256؛ payload/hash/lineage immutable و status فقط lifecycle projection کنترل‌شده است |
+| scope_share_links | id, account_id, project_id, scope_version_id, token_hash, expires_at, revoked_at, created_by, created_at | اتصال دقیق به ScopeVersion immutable؛ فقط hash سی‌ودوبایتی token ذخیره می‌شود؛ expiry اجباری و revocation terminal است؛ حذف فیزیکی ممنوع |
+| scope_approvals | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, explicit_consent, idempotency_key, request_hash, approved_at | هر ScopeVersion دقیقاً یک Approval نهایی immutable؛ snapshot hash ثبت‌شده ولی public-hidden؛ consent همواره true؛ guest idempotency capability-scoped؛ بدون raw token/email/IP/User-Agent؛ Project status بدون تغییر |
 
 ## Async و Metering
 
@@ -72,7 +74,7 @@ M000 extensions
 |---|---|---|
 | jobs | id, account_id, project_id, job_type, status, payload_ref, attempt_count/max_attempts, idempotency_key, correlation_id, available/started/finished/created time, safe error | state machine پایدار؛ Queue transport منبع حقیقت نیست؛ J02-A نتیجه terminal Gap را با کلید خصوصی `payload_ref.gap_count` ثبت می‌کند تا replay صفر نیز قابل اثبات باشد؛ AI-01 در هر Project حداکثر یک Job فعال `queued|running` دارد |
 | outbox_events | id, account_id, aggregate_type/id, event_type, delivery_channel, payload, status, attempt_count, available/created/published time, claim_id/claimed_at/lease_until | همراه تغییر Business در یک Transaction؛ payload immutable؛ channel صریح؛ claim کوتاه و crash-safe مطابق ADR-057 |
-| idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد |
+| idempotency_records | id, account_id, actor_id, route_key, idempotency_key, request_hash, response_status/ref, expires_at, created_at | `UNIQUE(account_id,actor_id,route_key,idempotency_key)`؛ TTL برابر ۲۴ ساعت؛ request hash تمام input مؤثر از جمله Project را پوشش می‌دهد؛ برای Share Create فقط `scope_share_link_id` امن ذخیره می‌شود و raw token/response اولیه ممنوع است |
 | provider_price_versions | id, provider, model, pricing_version, currency, input/cached-input/output rate per 1M, effective_from, created_at | global Platform catalog؛ identity و effective time برای هر Provider/Model یکتا؛ append-only؛ Worker فقط read |
 | usage_records | id؛ provider_attempt_id؛ account_id اجباری؛ project_id/job_id nullable؛ task_type؛ workflow_version؛ prompt_version؛ provider/model/provider_request_id؛ input/cached/output tokens؛ latency_ms؛ status؛ error_code؛ retry_no؛ repair_no؛ accounting_status؛ estimated_cost؛ currency؛ pricing_version؛ correlation_id؛ created_at | append-only و traceable؛ attempt یکتا و persistence idempotent؛ Usage کامل یا unknown با NULL، نه صفر جعلی؛ cached input زیرمجموعه input؛ cost با Decimal/ROUND_HALF_UP و Catalog قطعی؛ نقش `aria_worker` فقط INSERT دارد؛ FKهای Parent و Price همگی `ON DELETE RESTRICT` |
 

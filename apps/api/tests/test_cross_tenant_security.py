@@ -108,7 +108,8 @@ def clean_security_schema() -> Iterator[None]:
     command.upgrade(_migration_config(), "head")
     asyncio.run(
         _execute(
-            "TRUNCATE scope_versions, scope_drafts, clarification_resolutions, "
+            "TRUNCATE scope_approvals, scope_share_links, scope_versions, scope_drafts, "
+            "clarification_resolutions, "
             "clarifications, gap_requirement_links, gaps, requirements, context_items, "
             "usage_records, outbox_events, jobs, idempotency_records, "
             "context_source_versions, context_sources, project_create_requests, projects, "
@@ -575,6 +576,8 @@ def test_repositories_hide_foreign_internal_uuids_and_data_api_roles_are_denied(
         "gaps",
         "scope_drafts",
         "scope_versions",
+        "scope_share_links",
+        "scope_approvals",
         "jobs",
     )
     security = asyncio.run(

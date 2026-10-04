@@ -57,5 +57,11 @@ class ApprovedCandidateModelPreflight:
         except EvaluationContractError:
             raise
         except Exception as error:
-            raise EvaluationContractError("provider_model_preflight_failed") from error
+            failure_codes = {
+                OPENAI_PROVIDER: "openai_model_preflight_failed",
+                GEMINI_PROVIDER: "gemini_model_preflight_failed",
+            }
+            raise EvaluationContractError(
+                failure_codes.get(provider, "provider_model_preflight_failed")
+            ) from error
         raise EvaluationContractError("evaluation_candidate_not_approved")

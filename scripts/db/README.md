@@ -32,3 +32,25 @@ uv run --project apps/api python scripts/db/provision_eval_prices.py
 
 Neither variable may be committed or printed. This provisioning path does not authorize a paid
 Provider invocation; the separate 0086 credential/model/budget preflight remains mandatory.
+
+## Controlled 0086 manual evaluation
+
+After migrations and price provisioning pass on the isolated evaluation database, start the paid
+synthetic matrix only through the manual command below. Enter secrets through hidden PowerShell
+prompts; do not paste them into chat, source files or command history.
+
+```powershell
+$env:DATABASE_URL = [System.Net.NetworkCredential]::new('', (Read-Host 'Isolated eval DATABASE_URL' -AsSecureString)).Password
+$env:OPENAI_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'OpenAI API key' -AsSecureString)).Password
+$env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Gemini API key' -AsSecureString)).Password
+$env:ARIA_EVAL_RUN_ID = '0086-YYYYMMDD-NN'
+$env:ARIA_EVAL_DATABASE_CONFIRMED = 'execute-0086-controlled-paid-evaluation'
+
+npm run eval:0086:run
+```
+
+The command performs the frozen remote model/price/budget preflight before generation, creates only
+the deterministic synthetic Account required by the append-only Usage ledger, and writes review
+material beneath `.local/eval-review-bundles/<eval_run_id>/`. It does not perform Retry, Repair,
+Fallback, promotion, Hosted execution or customer-data processing. A completed matrix remains
+awaiting human review, comparison and mandatory local-bundle deletion.

@@ -33,6 +33,7 @@ from app.api.errors import (
     JobNotRetryableError,
     MembershipRequiredError,
     ResourceNotFoundError,
+    ScopeAlreadyApprovedError,
     ScopeDraftStaleError,
     ScopeVersionUnchangedError,
     StorageApiError,
@@ -60,6 +61,7 @@ from app.api.errors import (
     membership_required_handler,
     request_validation_handler,
     resource_not_found_handler,
+    scope_already_approved_handler,
     scope_draft_stale_handler,
     scope_version_unchanged_handler,
     storage_error_handler,
@@ -68,6 +70,7 @@ from app.api.errors import (
     version_conflict_handler,
 )
 from app.api.middleware.observability import ObservabilityMiddleware
+from app.api.middleware.public_share_no_store import PublicShareNoStoreMiddleware
 from app.api.routers.accounts import create_accounts_router
 from app.api.routers.auth import create_auth_router
 from app.api.routers.clarifications import create_clarifications_router
@@ -77,8 +80,10 @@ from app.api.routers.context_structuring import create_context_structuring_route
 from app.api.routers.health import create_health_router
 from app.api.routers.jobs import create_jobs_router
 from app.api.routers.projects import create_projects_router
+from app.api.routers.public_scope_shares import create_public_scope_shares_router
 from app.api.routers.requirements import create_requirements_router
 from app.api.routers.scope_drafts import create_scope_drafts_router
+from app.api.routers.scope_shares import create_scope_shares_router
 from app.api.routers.scope_versions import create_scope_versions_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
@@ -154,6 +159,16 @@ from app.modules.scope.infrastructure.repository import (
 from app.modules.scope.infrastructure.version_repository import (
     SqlAlchemyScopeVersionUnitOfWorkFactory,
 )
+from app.modules.sharing.application.public_approval import PublicScopeApprovalService
+from app.modules.sharing.application.public_resolver import PublicScopeShareResolver
+from app.modules.sharing.application.service import ScopeShareLinkService
+from app.modules.sharing.infrastructure.approval_repository import (
+    SqlAlchemyScopeApprovalUnitOfWorkFactory,
+)
+from app.modules.sharing.infrastructure.repository import (
+    SqlAlchemyScopeShareLinkUnitOfWorkFactory,
+)
+from app.modules.sharing.infrastructure.tokens import SecureScopeShareTokenIssuer
 
 
 class UnavailableAccountBootstrapper:
@@ -193,6 +208,9 @@ def create_app(
     clarification_service: ClarificationService | None = None,
     scope_draft_service: ScopeDraftService | None = None,
     scope_version_service: ScopeVersionService | None = None,
+    scope_share_link_service: ScopeShareLinkService | None = None,
+    public_scope_share_resolver: PublicScopeShareResolver | None = None,
+    public_scope_approval_service: PublicScopeApprovalService | None = None,
     operational_metrics: OperationalMetrics | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
@@ -251,6 +269,7 @@ def create_app(
         event_logger=resolved_event_logger,
         operational_metrics=resolved_operational_metrics,
     )
+    app.add_middleware(PublicShareNoStoreMiddleware)
     app.add_exception_handler(AuthenticationRequiredError, authentication_required_handler)
     app.add_exception_handler(
         AuthenticationProviderUnavailableError,
@@ -264,6 +283,7 @@ def create_app(
     app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
+    app.add_exception_handler(ScopeAlreadyApprovedError, scope_already_approved_handler)
     app.add_exception_handler(CriticalGapsOpenError, critical_gaps_open_handler)
     app.add_exception_handler(ScopeVersionUnchangedError, scope_version_unchanged_handler)
     app.add_exception_handler(InvalidContextItemStateError, invalid_context_item_state_handler)
@@ -402,6 +422,33 @@ def create_app(
         if database_runtime is not None
         else None
     )
+    app.state.scope_share_link_service = scope_share_link_service or (
+        ScopeShareLinkService(
+            SqlAlchemyScopeShareLinkUnitOfWorkFactory(database_runtime.session_factory),
+            SecureScopeShareTokenIssuer(),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.public_scope_share_resolver = public_scope_share_resolver or (
+        PublicScopeShareResolver(
+            SqlAlchemyScopeShareLinkUnitOfWorkFactory(database_runtime.session_factory),
+            SecureScopeShareTokenIssuer(),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.public_scope_approval_service = public_scope_approval_service or (
+        PublicScopeApprovalService(
+            SqlAlchemyScopeApprovalUnitOfWorkFactory(database_runtime.session_factory),
+            SecureScopeShareTokenIssuer(),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
     app.include_router(
         create_health_router(resolved_settings, resolved_database_probe, resolved_queue_probe)
     )
@@ -423,6 +470,8 @@ def create_app(
     app.include_router(create_clarifications_router(), prefix="/api/v1")
     app.include_router(create_scope_drafts_router(), prefix="/api/v1")
     app.include_router(create_scope_versions_router(), prefix="/api/v1")
+    app.include_router(create_scope_shares_router(), prefix="/api/v1")
+    app.include_router(create_public_scope_shares_router(), prefix="/api/v1")
     app.include_router(create_jobs_router(), prefix="/api/v1")
     return app
 

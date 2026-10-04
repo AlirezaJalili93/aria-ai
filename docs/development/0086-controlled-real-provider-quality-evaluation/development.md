@@ -23,6 +23,8 @@ execution.
 - [Sprint 1 Technical Backlog v1.0](https://docs.google.com/document/d/1O0yayIY1Akal6sV1jVJa6LGkZuJZSYGL_JhqMf6UNsA/edit) — S1-H05, S1-I05, S1-J05 and AI Release Gate; reread 2026-09-30.
 - [AI Workflow Specification v1.0](https://docs.google.com/document/d/1a2sOibUb5C-JP1-H1UKzDqIgreve9v5RSro_y2nOXTo/edit) — Evaluation Mode, Usage/Cost and Release Gate; reread 2026-09-30.
 - [ADR-072](../../adr/ADR-072-controlled-real-provider-quality-evaluation.md).
+- [ADR-073](../../adr/ADR-073-mvp-real-provider-integration-deferral.md) — owner-approved execution
+  deferral after the MVP feature cycle, 2026-10-03.
 - [OpenAI GPT-5.6 Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra) and
   [Reasoning models](https://developers.openai.com/api/docs/guides/reasoning); verified
   2026-09-30.
@@ -42,6 +44,8 @@ execution.
 | REQ-8609 | Owner PostgreSQL preflight | Catalog resolution and Worker-only Usage insert execute against migrated isolated PostgreSQL without Provider calls | TC-8612 |
 | REQ-8610 | Owner-approved Human Review/alignment continuation; ADR-072 | Strict local review import and safe H05/I05/J05 comparison aggregation with deterministic latency/cost statistics | TC-8614, TC-8615 |
 | REQ-8611 | Owner continuation after official Provider-price verification, 2026-10-03; ADR-072 | Explicit Platform-owned provisioning of the two exact immutable Price Versions with UTC date normalization and fail-closed conflict detection | TC-8617 |
+| REQ-8612 | Owner instruction to continue 0086 after publishing the tested foundation, 2026-10-03; ADR-072 explicit/manual boundary | Fail-closed manual CLI, deterministic synthetic Account provisioning, exact 120-case metadata and local-only evidence output | TC-8618 |
+| REQ-8613 | Owner decision to defer real-Provider connections until the MVP feature cycle is complete, 2026-10-03; ADR-073 | Keep the tested harness dormant, close implementation without claiming model quality, and preserve all promotion/customer/Hosted NO-GO gates | TC-8616, TC-8619 |
 
 ## Assumptions and Clarifications
 
@@ -80,6 +84,12 @@ beyond those approved contracts.
 - Added an explicit, transaction-locked and idempotent Platform provisioning command for the two
   verified 0086 Price Versions. It requires an isolated-database confirmation, grants no Runtime
   write access, makes no Provider call and rolls back when an existing Catalog row differs.
+- Added the sole manual 0086 execution entrypoint. It requires a second exact paid-execution
+  confirmation, both credentials and an explicit run ID; provisions only a deterministic synthetic
+  Account, performs the frozen preflight, uses `aria_worker` for metered calls and writes normalized
+  output only to the ignored local review bundle alongside a content-free execution report.
+- Kept remote preflight fail-closed while splitting its safe operational error into bounded OpenAI
+  and Gemini codes; raw SDK, credential and model-response details remain suppressed.
 
 ## Structure Preservation
 
@@ -91,7 +101,8 @@ beyond those approved contracts.
   was introduced.
 - Real-candidate composition is dependency wiring only; it has no executable entry point and cannot
   start an Eval Run without an explicit caller and successful preflight.
-- Customer content is rejected by the case contract and no Provider call has been made.
+- Customer content is rejected by the case contract. One non-generation OpenAI model preflight was
+  attempted and failed safely; no paid generation was made.
 
 ## Senior Review
 
@@ -112,24 +123,36 @@ beyond those approved contracts.
   safe comparison report.
 - PASS: the two officially verified Price Versions provisioned twice without duplicates in a fresh
   migrated `aria_0086_test` PostgreSQL database; exact-row verification passed after each run.
-- PENDING: remote credential/model preflight, controlled paid execution and human adjudication.
+- PASS: the manual execution command fails before side effects when confirmation/configuration is
+  absent; its 120 metadata records are deterministic and its console projection contains no
+  credential, Provider output, prompt or fixture content.
+- PASS: remote model-preflight failure was bounded to `openai_model_preflight_failed`, exposed no
+  secret or raw SDK detail and created no Account or Usage row.
+- DEFERRED BY OWNER: controlled paid execution and human adjudication move to the post-MVP
+  integration phase under ADR-073. No model-quality claim is made.
 
 ## Verification
 
 See [test-report.md](./test-report.md). Focused contract, unit, lint, typecheck and repository-wide
-test gates pass. Architecture validation remains truthfully non-PASS only because 0086 itself is
-PENDING; paid synthetic execution and human adjudication remain pending.
+test gates pass. ADR-073 closes this increment as an implementation and fail-closed-preflight PASS;
+paid synthetic execution and human adjudication remain a separate post-MVP release gate.
 
 ## Remaining Risks
 
 - Prompt/schema quality remains unproven until both real candidates complete the controlled run;
   their versions are now frozen rather than inferred from fake-provider fixtures.
-- Local PostgreSQL Catalog/Usage preflight passed. Remote credential and Provider model retrieval
-  have not been executed.
+- Local PostgreSQL Catalog/Usage preflight passed. OpenAI model retrieval was attempted once and
+  failed with the bounded `openai_model_preflight_failed` result before paid generation; Gemini
+  model retrieval was not reached.
 - Human review/adjudication and temporary bundle deletion have not run on real outputs.
 - The verified Price Versions now have an executable provisioning path, but no external database
   was changed because an isolated evaluation `DATABASE_URL` was not supplied in this session.
-- A PASS will remain evidence only; Provider promotion, customer data and Hosted activation stay
-  separate NO-GO gates.
+- The manual CLI is ready and the fresh local `aria_0086_eval` database is migrated through `0033`
+  with only the two frozen Price Versions. This process still has no Provider credentials, so the
+  CLI was exercised only through its pre-call fail-closed path.
+- This implementation PASS is not model-quality evidence; Provider promotion, customer data and
+  Hosted activation stay separate NO-GO gates.
 
-**Final status:** PENDING — controlled paid execution and required human review have not run.
+**Final status:** PASS — implementation, local/PostgreSQL verification and fail-closed remote
+preflight are complete. Controlled paid execution and required human review are explicitly
+deferred by ADR-073 and no Model Quality Gate PASS is claimed.

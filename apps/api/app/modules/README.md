@@ -44,3 +44,11 @@ an exact ready snapshot, accepts only draft/confirmed Requirements, maps AI-05 i
 sections, meters every AI/repair call, and conflicts instead of overwriting an existing Draft.
 Public API/UI, concrete Providers, Worker wiring, regeneration and immutable Scope Snapshots remain
 deferred to later increments.
+
+`sharing/domain` owns exact immutable ScopeVersion binding, token-hash, terminal revocation and
+immutable final Approval invariants. `sharing/application` owns authenticated Create/Revoke with
+one-time token disclosure, safe idempotency replay, public exact-version resolution and public
+body-token Approval. Approval captures the exact snapshot hash, transitions only ScopeVersion and
+uses a dedicated capability-scoped idempotency boundary without weakening authenticated records.
+Infrastructure keeps raw tokens out of PostgreSQL. Public browser bootstrap, Change Request and
+Share UI remain deferred.

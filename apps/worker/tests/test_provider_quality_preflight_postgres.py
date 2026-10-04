@@ -97,7 +97,7 @@ def test_postgres_price_and_worker_ledger_preflight_for_approved_candidates() ->
             2099,
             1,
             1,
-            microsecond=int(suffix[:5], 16),
+            microsecond=int(suffix[:5], 16) % 1_000_000,
             tzinfo=UTC,
         )
         try:

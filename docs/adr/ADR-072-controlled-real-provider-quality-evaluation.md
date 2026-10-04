@@ -32,6 +32,9 @@ run nor relying on a Provider default is sufficient.
 
 - The run is explicit and manual. It has no public endpoint, Queue trigger, workflow chaining,
   scheduler or Hosted composition.
+- The repository exposes one manual CLI only. It requires the exact isolated-database confirmation,
+  both Provider credentials and an explicit `eval_run_id`; missing configuration fails before DB,
+  model-retrieval or generation side effects.
 - Only the three immutable synthetic fixture sets above are eligible. Customer content,
   customer-derived fixtures and production prompts are prohibited.
 - Candidate identity is fixed to ADR-055. No additional Provider or model is accepted.
@@ -143,6 +146,11 @@ a parallel cost table or calculate an authoritative cost from report data. One a
 equals one durable attempt identity and one Usage record. The evaluation Account and Project are
 not customer or production identities.
 
+The manual CLI derives the required synthetic Account identity deterministically from
+`eval_run_id`, creates only that Account through the isolated database owner, then executes all
+Provider calls through `aria_worker`. Reusing an existing identity is accepted only when its fixed
+`free/active` fields match; any conflict fails closed.
+
 ### Prompt, input and output-schema package v1
 
 The three Provider contracts are independent and immutable for a run:
@@ -219,6 +227,15 @@ notes and source references are forbidden in logs and metric labels. `eval_run_i
 - Scope-generation and AI-04 real-Provider evaluation.
 - Production data retention for model inputs or outputs.
 
+## Execution timing amendment — 2026-10-03
+
+[ADR-073](ADR-073-mvp-real-provider-integration-deferral.md) changes only the execution order.
+The 0086 harness, caps, safety boundaries and future evaluation contract remain accepted, but the
+paid run and human adjudication are deferred until the MVP feature cycle is complete. The 0086
+implementation may close after its local, PostgreSQL and fail-closed remote-preflight evidence
+passes. That closure is not a Model Quality Gate PASS and authorizes no Provider promotion,
+customer content or Hosted execution.
+
 ## Sources
 
 - Owner-approved 0086 contract-definition boundary, 2026-09-30.
@@ -235,5 +252,7 @@ notes and source references are forbidden in logs and metric labels. `eval_run_i
   and [OpenAI Changelog](https://developers.openai.com/api/docs/changelog), verified 2026-10-03.
 - [Gemini Developer API pricing](https://ai.google.dev/gemini-api/docs/pricing) and
   [Gemini Release Notes](https://ai.google.dev/gemini-api/docs/changelog), verified 2026-10-03.
+- Product-owner decision to defer real-Provider integration/evaluation until completion of the MVP
+  feature cycle, recorded in ADR-073 on 2026-10-03.
 
 **Unapproved assumptions:** None

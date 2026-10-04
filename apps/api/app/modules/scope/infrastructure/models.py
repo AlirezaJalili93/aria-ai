@@ -91,6 +91,16 @@ class ScopeVersionModel(Base):
             ondelete="RESTRICT",
         ),
         UniqueConstraint("project_id", "version_no", name="uq_scope_versions_project_version"),
+        UniqueConstraint(
+            "id", "account_id", "project_id", name="uq_scope_versions_id_account_project"
+        ),
+        UniqueConstraint(
+            "id",
+            "account_id",
+            "project_id",
+            "version_no",
+            name="uq_scope_versions_id_account_project_version",
+        ),
         Index(
             "ix_scope_versions_account_project_version",
             "account_id",

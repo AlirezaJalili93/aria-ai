@@ -50,6 +50,10 @@ class ScopeVersionUnchangedError(Exception):
     """API signal for a Scope freeze identical to the latest snapshot."""
 
 
+class ScopeAlreadyApprovedError(Exception):
+    """API signal for a second final Approval of the same Scope Version."""
+
+
 class InvalidContextItemStateError(Exception):
     """API signal for a Context Item command rejected by its immutable state."""
 
@@ -267,6 +271,8 @@ def _resource_type_for_route(route_template: object) -> str:
         return "resource"
     if "/scope/versions" in route_template:
         return "scope_version"
+    if "/scope-shares" in route_template:
+        return "scope_share_link"
     if "/scope/draft" in route_template:
         return "scope_draft"
     if "/context-items" in route_template:
@@ -342,6 +348,18 @@ async def scope_version_unchanged_handler(
         status_code=409,
         code="SCOPE_VERSION_UNCHANGED",
         message="The current Scope is unchanged from the latest version.",
+        retryable=False,
+    )
+
+
+async def scope_already_approved_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, ScopeAlreadyApprovedError):
+        raise TypeError("Unexpected exception type for Scope Approval handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_ALREADY_APPROVED",
+        message="The Scope Version already has its final Approval.",
         retryable=False,
     )
 

@@ -232,6 +232,57 @@ def test_preflight_freezes_exact_matrix_and_24945_reservation() -> None:
     assert invocation.calls == []
 
 
+def test_expired_introductory_price_fails_before_provider_invocation() -> None:
+    class FrozenIntroCatalog(FixedCatalog):
+        async def resolve(
+            self,
+            *,
+            provider: str,
+            model: str,
+            provider_execution_at: datetime,
+        ) -> ProviderPriceVersion:
+            price = await super().resolve(
+                provider=provider,
+                model=model,
+                provider_execution_at=provider_execution_at,
+            )
+            if provider != "google":
+                return price
+            return ProviderPriceVersion(
+                provider=price.provider,
+                model=price.model,
+                pricing_version=(
+                    "google-gemini-3.8-flash-standard-intro-2026-09-02"
+                ),
+                currency=price.currency,
+                input_rate_per_1m=price.input_rate_per_1m,
+                cached_input_rate_per_1m=price.cached_input_rate_per_1m,
+                output_rate_per_1m=price.output_rate_per_1m,
+                effective_from=datetime(2026, 9, 2, tzinfo=UTC),
+            )
+
+    catalog = FrozenIntroCatalog()
+    invocation = RecordingInvocation(catalog)
+    harness = ControlledProviderQualityEvaluation(
+        price_catalog=catalog,
+        model_preflight=RecordingModelPreflight(),
+        invocation=invocation,
+        output_normalizer=PassThroughNormalizer(),
+    )
+
+    with pytest.raises(EvaluationContractError, match="evaluation_price_version_expired"):
+        asyncio.run(
+            harness.preflight(
+                cases=_cases(),
+                candidates=_candidates(),
+                execution_at=datetime(2027, 1, 1, tzinfo=UTC),
+                paid_synthetic_evaluation_confirmed=True,
+            )
+        )
+
+    assert invocation.calls == []
+
+
 def test_missing_manual_confirmation_fails_before_model_or_provider_call() -> None:
     catalog = FixedCatalog()
     verifier = RecordingModelPreflight()

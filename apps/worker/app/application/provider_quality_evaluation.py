@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -47,6 +47,13 @@ APPROVED_SUITE_COUNTS = {
     "context_structuring_eval_v1": FIXTURES_PER_SUITE,
     "requirement_extraction_eval_v1": FIXTURES_PER_SUITE,
     "gap_detection_eval_v1": FIXTURES_PER_SUITE,
+}
+EVALUATION_PRICE_EXPIRY = {
+    (
+        "google",
+        "gemini-3.8-flash",
+        "google-gemini-3.8-flash-standard-intro-2026-09-02",
+    ): datetime(2027, 1, 1, tzinfo=UTC),
 }
 
 
@@ -225,6 +232,11 @@ class ControlledProviderQualityEvaluation:
                 model=candidate.model,
                 provider_execution_at=execution_at,
             )
+            expires_at = EVALUATION_PRICE_EXPIRY.get(
+                (candidate.provider, candidate.model, price.pricing_version)
+            )
+            if expires_at is not None and execution_at >= expires_at:
+                raise EvaluationContractError("evaluation_price_version_expired")
             if price.currency != "USD":
                 raise EvaluationContractError("evaluation_price_currency_unsupported")
             maximum_cost = _maximum_invocation_cost(price)

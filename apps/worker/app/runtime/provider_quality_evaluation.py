@@ -79,7 +79,7 @@ def compose_controlled_provider_evaluation(
     gemini_client = create_gemini_client(gemini_api_key)
     gemini_async = cast(Any, gemini_client.aio)
     engine = create_async_engine(
-        _normalize_async_database_url(database_url),
+        normalize_async_database_url(database_url),
         connect_args={"server_settings": {"role": "aria_worker"}},
         poolclass=NullPool,
     )
@@ -129,7 +129,7 @@ def compose_controlled_provider_evaluation(
     )
 
 
-def _normalize_async_database_url(database_url: str) -> str:
+def normalize_async_database_url(database_url: str) -> str:
     if database_url.startswith("postgresql+asyncpg://"):
         value = database_url
     elif database_url.startswith("postgres://"):
