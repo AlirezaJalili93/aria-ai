@@ -159,13 +159,19 @@ JWT یا Tenant header انجام می‌شود؛ expiry/revocation هم‌زم�
 دارای idempotency اتمیک و one-time token disclosure است: replay فقط شناسه و metadata امن را
 برمی‌گرداند و raw token را بازسازی نمی‌کند. Idempotency store فقط `scope_share_link_id` و outcome
 امن را نگه می‌دارد؛ Revoke نیز terminal و با body کاملاً خالی idempotent است. Share URL، browser
-bootstrap، Guest Session و Change Request همچنان خارج از این مرز هستند.
+bootstrap و Guest Session همچنان خارج از این مرز هستند.
 
 مطابق ADR-077، Approval عمومی از `POST` body-token و Idempotency-Key مستقل مهمان استفاده می‌کند.
 یک transaction کوتاه Share Link معتبر و ScopeVersion دقیق را lock می‌کند، version/hash همان
 snapshot را در Approval immutable ثبت می‌کند و فقط ScopeVersion را به approved می‌برد. replay همان
 business result را برمی‌گرداند؛ raw token، version hash و guest attribution وارد response یا
 telemetry نمی‌شوند و Project/ShareLink lifecycle تغییر نمی‌کند.
+
+مطابق ADR-078، درخواست تغییر عمومی یک aggregate مستقل و immutable است و مدل ترکیبی Approval
+را supersede می‌کند. `POST` body-token با guest idempotency مستقل، comment نرمال‌شده و snapshot
+identity دقیق ثبت می‌شود؛ سپس همان ScopeVersion در transaction مشترک به `changes_requested`
+می‌رود. Approval و Change Request همان ScopeVersion را lock می‌کنند تا دقیقاً یکی از دو transition
+terminal commit شود. هیچ ScopeVersion/Draft جدیدی ساخته نمی‌شود و Project/ShareLink تغییر نمی‌کنند.
 
 ## AI و Generation Guardrails
 

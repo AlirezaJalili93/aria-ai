@@ -79,7 +79,8 @@ def clean_share_link_schema() -> Iterator[None]:
     command.upgrade(_migration_config(), "head")
     asyncio.run(
         _execute(
-            "TRUNCATE scope_share_links, scope_versions, scope_drafts, "
+            "TRUNCATE scope_change_requests, scope_approvals, scope_share_links, "
+            "scope_versions, scope_drafts, "
             "clarification_resolutions, clarifications, gap_requirement_links, gaps, "
             "requirements, context_items, usage_records, outbox_events, jobs, "
             "idempotency_records, context_source_versions, context_sources, "

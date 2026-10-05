@@ -10,9 +10,9 @@ from uuid import UUID, uuid4
 
 from aria_observability import StructuredEventLogger
 
-from app.modules.sharing.application.approval_ports import (
-    ScopeApprovalRepositoryError,
-    ScopeApprovalUnitOfWorkFactory,
+from app.modules.sharing.application.change_request_ports import (
+    ScopeChangeRequestRepositoryError,
+    ScopeChangeRequestUnitOfWorkFactory,
 )
 from app.modules.sharing.application.ports import ScopeShareTokenHasher
 from app.modules.sharing.application.public_decision_errors import (
@@ -20,39 +20,40 @@ from app.modules.sharing.application.public_decision_errors import (
     PublicScopeChangesAlreadyRequested,
 )
 from app.modules.sharing.application.public_resolver import is_canonical_public_token
-from app.modules.sharing.domain.scope_approval import (
-    NewScopeApproval,
-    ScopeApproval,
-    normalize_guest_name,
+from app.modules.sharing.domain.scope_approval import normalize_guest_name
+from app.modules.sharing.domain.scope_change_request import (
+    NewScopeChangeRequest,
+    ScopeChangeRequest,
+    normalize_change_comment,
 )
 
 
-class PublicScopeApprovalNotFound(Exception):
+class PublicScopeChangeRequestNotFound(Exception):
     """The capability is malformed, unavailable, expired, revoked, or inaccessible."""
 
 
-class PublicScopeApprovalIdempotencyConflict(Exception):
+class PublicScopeChangeRequestIdempotencyConflict(Exception):
     """A guest idempotency key was reused with changed canonical semantics."""
 
 
 @dataclass(frozen=True, slots=True)
-class ApprovePublicScopeCommand:
+class RequestPublicScopeChangesCommand:
     token: str
     guest_name: str
-    explicit_consent: bool
+    comment: str
     idempotency_key: str
 
 
 @dataclass(frozen=True, slots=True)
-class ApprovePublicScopeResult:
-    approval: ScopeApproval
+class RequestPublicScopeChangesResult:
+    change_request: ScopeChangeRequest
     replayed: bool
 
 
-class PublicScopeApprovalService:
+class PublicScopeChangeRequestService:
     def __init__(
         self,
-        unit_of_work_factory: ScopeApprovalUnitOfWorkFactory,
+        unit_of_work_factory: ScopeChangeRequestUnitOfWorkFactory,
         token_hasher: ScopeShareTokenHasher,
         event_logger: StructuredEventLogger,
         *,
@@ -65,16 +66,17 @@ class PublicScopeApprovalService:
         self._id_factory = id_factory
         self._clock = clock
 
-    async def approve(self, command: ApprovePublicScopeCommand) -> ApprovePublicScopeResult:
+    async def request_changes(
+        self, command: RequestPublicScopeChangesCommand
+    ) -> RequestPublicScopeChangesResult:
         started_at = perf_counter()
         guest_name = normalize_guest_name(command.guest_name)
-        if command.explicit_consent is not True:
-            raise ValueError("explicit_consent must be true")
+        comment = normalize_change_comment(command.comment)
         if not command.idempotency_key.strip():
             raise ValueError("Idempotency-Key must not be empty")
         if not is_canonical_public_token(command.token):
             self._emit_not_found(started_at)
-            raise PublicScopeApprovalNotFound
+            raise PublicScopeChangeRequestNotFound
 
         token_hash = self._token_hasher.hash_public_token(command.token)
         now = self._clock()
@@ -86,15 +88,15 @@ class PublicScopeApprovalService:
                 )
                 if target is None:
                     self._emit_not_found(started_at)
-                    raise PublicScopeApprovalNotFound
+                    raise PublicScopeChangeRequestNotFound
 
-                request_hash = _approval_request_hash(
+                request_hash = _change_request_hash(
                     share_link_id=target.share_link_id,
                     token_hash=token_hash,
                     guest_name=guest_name,
-                    explicit_consent=True,
+                    comment=comment,
                 )
-                existing = await unit_of_work.repository.approval_for_scope_version(
+                existing = await unit_of_work.repository.change_request_for_scope_version(
                     target.scope_version_id
                 )
                 if existing is not None:
@@ -103,19 +105,22 @@ class PublicScopeApprovalService:
                         and existing.idempotency_key == command.idempotency_key
                     ):
                         if existing.request_hash != request_hash:
-                            raise PublicScopeApprovalIdempotencyConflict
+                            raise PublicScopeChangeRequestIdempotencyConflict
                         self._event_logger.emit(
-                            "scope_approval.replayed",
-                            scope_approval_id=str(existing.id),
+                            "scope_change_request.replayed",
+                            scope_change_request_id=str(existing.id),
                             scope_share_link_id=str(existing.share_link_id),
                             scope_version_id=str(existing.scope_version_id),
                             version_no=existing.version_no,
-                            operation="approve",
+                            operation="request_changes",
                             duration_ms=(perf_counter() - started_at) * 1000,
                             status="succeeded",
                         )
-                        return ApprovePublicScopeResult(approval=existing, replayed=True)
-                    raise PublicScopeAlreadyApproved
+                        return RequestPublicScopeChangesResult(
+                            change_request=existing,
+                            replayed=True,
+                        )
+                    raise PublicScopeChangesAlreadyRequested
 
                 if target.scope_status == "approved":
                     raise PublicScopeAlreadyApproved
@@ -123,10 +128,10 @@ class PublicScopeApprovalService:
                     raise PublicScopeChangesAlreadyRequested
                 if target.scope_status != "awaiting_approval":
                     self._emit_not_found(started_at)
-                    raise PublicScopeApprovalNotFound
+                    raise PublicScopeChangeRequestNotFound
 
-                approval = await unit_of_work.repository.add(
-                    NewScopeApproval(
+                change_request = await unit_of_work.repository.add(
+                    NewScopeChangeRequest(
                         id=self._id_factory(),
                         account_id=target.account_id,
                         project_id=target.project_id,
@@ -135,42 +140,44 @@ class PublicScopeApprovalService:
                         version_no=target.version_no,
                         version_hash=target.version_hash,
                         guest_name=guest_name,
-                        explicit_consent=True,
+                        comment=comment,
                         idempotency_key=command.idempotency_key,
                         request_hash=request_hash,
-                        approved_at=now,
+                        requested_at=now,
                     )
                 )
-                await unit_of_work.repository.mark_scope_version_approved(target.scope_version_id)
+                await unit_of_work.repository.mark_scope_version_changes_requested(
+                    target.scope_version_id
+                )
                 await unit_of_work.commit()
-        except ScopeApprovalRepositoryError:
+        except ScopeChangeRequestRepositoryError:
             self._event_logger.emit(
-                "scope_approval.persistence_failed",
+                "scope_change_request.persistence_failed",
                 level="ERROR",
-                operation="approve",
+                operation="request_changes",
                 duration_ms=(perf_counter() - started_at) * 1000,
                 status="failed",
-                error_code="SCOPE_APPROVAL_PERSISTENCE_FAILURE",
+                error_code="SCOPE_CHANGE_REQUEST_PERSISTENCE_FAILURE",
             )
             raise
 
         self._event_logger.emit(
-            "scope_approval.created",
-            scope_approval_id=str(approval.id),
-            scope_share_link_id=str(approval.share_link_id),
-            scope_version_id=str(approval.scope_version_id),
-            version_no=approval.version_no,
-            operation="approve",
+            "scope_change_request.created",
+            scope_change_request_id=str(change_request.id),
+            scope_share_link_id=str(change_request.share_link_id),
+            scope_version_id=str(change_request.scope_version_id),
+            version_no=change_request.version_no,
+            operation="request_changes",
             duration_ms=(perf_counter() - started_at) * 1000,
             status="succeeded",
         )
-        return ApprovePublicScopeResult(approval=approval, replayed=False)
+        return RequestPublicScopeChangesResult(change_request=change_request, replayed=False)
 
     def _emit_not_found(self, started_at: float) -> None:
         self._event_logger.emit(
-            "scope_approval.not_found",
+            "scope_change_request.not_found",
             level="WARNING",
-            operation="approve",
+            operation="request_changes",
             reason_code="not_resolvable",
             duration_ms=(perf_counter() - started_at) * 1000,
             status="not_found",
@@ -178,12 +185,12 @@ class PublicScopeApprovalService:
         )
 
 
-def _approval_request_hash(
-    *, share_link_id: UUID, token_hash: bytes, guest_name: str, explicit_consent: bool
+def _change_request_hash(
+    *, share_link_id: UUID, token_hash: bytes, guest_name: str, comment: str
 ) -> str:
     canonical = json.dumps(
         {
-            "explicit_consent": explicit_consent,
+            "comment": comment,
             "guest_name": guest_name,
             "share_link_id": str(share_link_id),
             "token_hash_reference": token_hash.hex(),

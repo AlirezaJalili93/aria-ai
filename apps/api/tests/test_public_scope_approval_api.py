@@ -15,6 +15,9 @@ from app.modules.sharing.application.public_approval import (
     PublicScopeApprovalIdempotencyConflict,
     PublicScopeApprovalNotFound,
 )
+from app.modules.sharing.application.public_decision_errors import (
+    PublicScopeChangesAlreadyRequested,
+)
 from app.modules.sharing.domain.scope_approval import ScopeApproval
 
 NOW = datetime.now(UTC)
@@ -137,6 +140,11 @@ def test_public_failures_use_frozen_safe_codes() -> None:
         (PublicScopeApprovalNotFound(), 404, "RESOURCE_NOT_FOUND"),
         (PublicScopeApprovalIdempotencyConflict(), 409, "IDEMPOTENCY_CONFLICT"),
         (PublicScopeAlreadyApproved(), 409, "SCOPE_ALREADY_APPROVED"),
+        (
+            PublicScopeChangesAlreadyRequested(),
+            409,
+            "SCOPE_CHANGES_ALREADY_REQUESTED",
+        ),
     )
     for error, expected_status, expected_code in cases:
         service.error = error

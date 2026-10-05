@@ -56,7 +56,7 @@ test("public API contract keeps Bearer JWT, health, and capability exceptions ex
   );
 
   assert.match(openapi, /bearerAuth:\s*\n\s+type: http\s*\n\s+scheme: bearer\s*\n\s+bearerFormat: JWT/);
-  assert.equal((openapi.match(/security: \[\]/g) ?? []).length, 4);
+  assert.equal((openapi.match(/security: \[\]/g) ?? []).length, 5);
   assert.match(
     openapi,
     /\/public\/scope-shares\/resolve:[\s\S]*?operationId: resolvePublicScopeShare[\s\S]*?security: \[\]/,
@@ -64,5 +64,9 @@ test("public API contract keeps Bearer JWT, health, and capability exceptions ex
   assert.match(
     openapi,
     /\/public\/scope-shares\/approve:[\s\S]*?operationId: approvePublicScopeShare[\s\S]*?security: \[\]/,
+  );
+  assert.match(
+    openapi,
+    /\/public\/scope-shares\/request-changes:[\s\S]*?operationId: requestPublicScopeChanges[\s\S]*?security: \[\]/,
   );
 });

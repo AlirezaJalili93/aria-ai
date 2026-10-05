@@ -12,6 +12,7 @@ from app.api.errors import (
     IdempotencyConflictError,
     ResourceNotFoundError,
     ScopeAlreadyApprovedError,
+    ScopeChangesAlreadyRequestedError,
     ValidationFailedError,
 )
 from app.modules.sharing.application.public_approval import (
@@ -20,6 +21,15 @@ from app.modules.sharing.application.public_approval import (
     PublicScopeApprovalIdempotencyConflict,
     PublicScopeApprovalNotFound,
     PublicScopeApprovalService,
+)
+from app.modules.sharing.application.public_change_request import (
+    PublicScopeChangeRequestIdempotencyConflict,
+    PublicScopeChangeRequestNotFound,
+    PublicScopeChangeRequestService,
+    RequestPublicScopeChangesCommand,
+)
+from app.modules.sharing.application.public_decision_errors import (
+    PublicScopeChangesAlreadyRequested,
 )
 from app.modules.sharing.application.public_resolver import (
     PublicScopeShareNotFound,
@@ -88,12 +98,44 @@ class PublicScopeApprovalEnvelope(BaseModel):
     meta: ApprovalResponseMeta
 
 
+class RequestPublicScopeChangesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str
+    guest_name: str
+    comment: str
+
+
+class PublicScopeChangeRequestResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    change_request_id: UUID
+    scope_version_no: int
+    status: Literal["changes_requested"] = "changes_requested"
+    guest_name: str
+    requested_at: datetime
+
+
+class PublicScopeChangeRequestEnvelope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: PublicScopeChangeRequestResponse
+    meta: ApprovalResponseMeta
+
+
 def _resolver(request: Request) -> PublicScopeShareResolver:
     return cast(PublicScopeShareResolver, request.app.state.public_scope_share_resolver)
 
 
 def _approval_service(request: Request) -> PublicScopeApprovalService:
     return cast(PublicScopeApprovalService, request.app.state.public_scope_approval_service)
+
+
+def _change_request_service(request: Request) -> PublicScopeChangeRequestService:
+    return cast(
+        PublicScopeChangeRequestService,
+        request.app.state.public_scope_change_request_service,
+    )
 
 
 def create_public_scope_shares_router() -> APIRouter:
@@ -142,6 +184,8 @@ def create_public_scope_shares_router() -> APIRouter:
             raise IdempotencyConflictError from None
         except PublicScopeAlreadyApproved:
             raise ScopeAlreadyApprovedError from None
+        except PublicScopeChangesAlreadyRequested:
+            raise ScopeChangesAlreadyRequestedError from None
         except ValueError:
             raise ValidationFailedError from None
 
@@ -154,6 +198,50 @@ def create_public_scope_shares_router() -> APIRouter:
                 scope_version_no=approval.version_no,
                 guest_name=approval.guest_name,
                 approved_at=approval.approved_at,
+            ),
+            meta=ApprovalResponseMeta(request_id=_request_id(), replayed=result.replayed),
+        )
+
+    @router.post(
+        "/request-changes",
+        response_model=PublicScopeChangeRequestEnvelope,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def request_public_scope_changes(
+        body: RequestPublicScopeChangesRequest,
+        response: Response,
+        service: Annotated[PublicScopeChangeRequestService, Depends(_change_request_service)],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> PublicScopeChangeRequestEnvelope:
+        try:
+            result = await service.request_changes(
+                RequestPublicScopeChangesCommand(
+                    token=body.token,
+                    guest_name=body.guest_name,
+                    comment=body.comment,
+                    idempotency_key=idempotency_key,
+                )
+            )
+        except PublicScopeChangeRequestNotFound:
+            raise ResourceNotFoundError from None
+        except PublicScopeChangeRequestIdempotencyConflict:
+            raise IdempotencyConflictError from None
+        except PublicScopeAlreadyApproved:
+            raise ScopeAlreadyApprovedError from None
+        except PublicScopeChangesAlreadyRequested:
+            raise ScopeChangesAlreadyRequestedError from None
+        except ValueError:
+            raise ValidationFailedError from None
+
+        if result.replayed:
+            response.status_code = status.HTTP_200_OK
+        change_request = result.change_request
+        return PublicScopeChangeRequestEnvelope(
+            data=PublicScopeChangeRequestResponse(
+                change_request_id=change_request.id,
+                scope_version_no=change_request.version_no,
+                guest_name=change_request.guest_name,
+                requested_at=change_request.requested_at,
             ),
             meta=ApprovalResponseMeta(request_id=_request_id(), replayed=result.replayed),
         )

@@ -15,6 +15,9 @@ from app.modules.sharing.application.public_approval import (
     PublicScopeApprovalNotFound,
     PublicScopeApprovalService,
 )
+from app.modules.sharing.application.public_decision_errors import (
+    PublicScopeChangesAlreadyRequested,
+)
 from app.modules.sharing.domain.scope_approval import NewScopeApproval, ScopeApproval
 from app.modules.sharing.infrastructure.tokens import SecureScopeShareTokenIssuer
 
@@ -156,4 +159,8 @@ def test_capability_is_validated_before_state_and_non_approvable_state_fails_clo
     assert repository.target is not None
     repository.target = replace(repository.target, scope_status="superseded")
     with pytest.raises(PublicScopeApprovalNotFound):
+        asyncio.run(service.approve(_command(token)))
+
+    repository.target = replace(repository.target, scope_status="changes_requested")
+    with pytest.raises(PublicScopeChangesAlreadyRequested):
         asyncio.run(service.approve(_command(token)))

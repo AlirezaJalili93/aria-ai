@@ -54,6 +54,10 @@ class ScopeAlreadyApprovedError(Exception):
     """API signal for a second final Approval of the same Scope Version."""
 
 
+class ScopeChangesAlreadyRequestedError(Exception):
+    """API signal for a second final Change Request of the same Scope Version."""
+
+
 class InvalidContextItemStateError(Exception):
     """API signal for a Context Item command rejected by its immutable state."""
 
@@ -360,6 +364,20 @@ async def scope_already_approved_handler(request: Request, error: Exception) -> 
         status_code=409,
         code="SCOPE_ALREADY_APPROVED",
         message="The Scope Version already has its final Approval.",
+        retryable=False,
+    )
+
+
+async def scope_changes_already_requested_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ScopeChangesAlreadyRequestedError):
+        raise TypeError("Unexpected exception type for Scope Change Request handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_CHANGES_ALREADY_REQUESTED",
+        message="The Scope Version already has its final Change Request.",
         retryable=False,
     )
 

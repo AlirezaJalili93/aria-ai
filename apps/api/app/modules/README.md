@@ -46,9 +46,9 @@ Public API/UI, concrete Providers, Worker wiring, regeneration and immutable Sco
 deferred to later increments.
 
 `sharing/domain` owns exact immutable ScopeVersion binding, token-hash, terminal revocation and
-immutable final Approval invariants. `sharing/application` owns authenticated Create/Revoke with
+immutable final Approval and independent Change Request invariants. `sharing/application` owns authenticated Create/Revoke with
 one-time token disclosure, safe idempotency replay, public exact-version resolution and public
-body-token Approval. Approval captures the exact snapshot hash, transitions only ScopeVersion and
-uses a dedicated capability-scoped idempotency boundary without weakening authenticated records.
-Infrastructure keeps raw tokens out of PostgreSQL. Public browser bootstrap, Change Request and
-Share UI remain deferred.
+body-token Approval and Change Request. Both decisions capture the exact snapshot hash, lock the
+same ScopeVersion and use dedicated capability-scoped idempotency without weakening authenticated
+records; only one terminal decision can commit. Infrastructure keeps raw tokens out of PostgreSQL.
+Public browser bootstrap, authenticated revision commands and Share UI remain deferred.

@@ -7,6 +7,7 @@ PUBLIC_SCOPE_PATHS = frozenset(
     {
         "/api/v1/public/scope-shares/resolve",
         "/api/v1/public/scope-shares/approve",
+        "/api/v1/public/scope-shares/request-changes",
     }
 )
 

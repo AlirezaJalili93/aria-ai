@@ -105,6 +105,67 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /public/scope-shares/request-changes:
+    post:
+      operationId: requestPublicScopeChanges
+      summary: Record one final guest Change Request for an exact immutable Scope Version
+      description: >-
+        Public bearer-capability command. The raw token is accepted only in the JSON body. A valid
+        capability, normalized guest name, normalized bounded comment and Idempotency-Key atomically
+        create one immutable Change Request and transition only its Scope Version to
+        changes_requested. The comment and persisted version hash are never exposed in the public
+        response.
+      security: []
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RequestPublicScopeChangesRequest" }
+      responses:
+        "201":
+          description: First successful final Change Request.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicScopeChangeRequestEnvelope" }
+        "200":
+          description: Same-key replay of the exact canonical Change Request command.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicScopeChangeRequestEnvelope" }
+        "404":
+          description: The Share capability is not resolvable or the version is not decision-eligible.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "409":
+          description: >-
+            IDEMPOTENCY_CONFLICT, SCOPE_ALREADY_APPROVED or
+            SCOPE_CHANGES_ALREADY_REQUESTED.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Invalid exact body, guest name, comment or Idempotency-Key.
+          headers:
+            Cache-Control:
+              schema: { type: string, const: no-store }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /accounts:
     get:
       operationId: listActiveAccounts
@@ -1192,6 +1253,31 @@ components:
       required: [data, meta]
       properties:
         data: { $ref: "#/components/schemas/PublicScopeApproval" }
+        meta: { $ref: "#/components/schemas/PublicScopeApprovalMeta" }
+    RequestPublicScopeChangesRequest:
+      type: object
+      additionalProperties: false
+      required: [token, guest_name, comment]
+      properties:
+        token: { type: string }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        comment: { type: string, minLength: 1, maxLength: 4000 }
+    PublicScopeChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [change_request_id, scope_version_no, status, guest_name, requested_at]
+      properties:
+        change_request_id: { type: string, format: uuid }
+        scope_version_no: { type: integer, minimum: 1 }
+        status: { type: string, const: changes_requested }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        requested_at: { type: string, format: date-time }
+    PublicScopeChangeRequestEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/PublicScopeChangeRequest" }
         meta: { $ref: "#/components/schemas/PublicScopeApprovalMeta" }
     AccountSelection:
       type: object

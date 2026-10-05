@@ -34,6 +34,7 @@ from app.api.errors import (
     MembershipRequiredError,
     ResourceNotFoundError,
     ScopeAlreadyApprovedError,
+    ScopeChangesAlreadyRequestedError,
     ScopeDraftStaleError,
     ScopeVersionUnchangedError,
     StorageApiError,
@@ -62,6 +63,7 @@ from app.api.errors import (
     request_validation_handler,
     resource_not_found_handler,
     scope_already_approved_handler,
+    scope_changes_already_requested_handler,
     scope_draft_stale_handler,
     scope_version_unchanged_handler,
     storage_error_handler,
@@ -160,10 +162,16 @@ from app.modules.scope.infrastructure.version_repository import (
     SqlAlchemyScopeVersionUnitOfWorkFactory,
 )
 from app.modules.sharing.application.public_approval import PublicScopeApprovalService
+from app.modules.sharing.application.public_change_request import (
+    PublicScopeChangeRequestService,
+)
 from app.modules.sharing.application.public_resolver import PublicScopeShareResolver
 from app.modules.sharing.application.service import ScopeShareLinkService
 from app.modules.sharing.infrastructure.approval_repository import (
     SqlAlchemyScopeApprovalUnitOfWorkFactory,
+)
+from app.modules.sharing.infrastructure.change_request_repository import (
+    SqlAlchemyScopeChangeRequestUnitOfWorkFactory,
 )
 from app.modules.sharing.infrastructure.repository import (
     SqlAlchemyScopeShareLinkUnitOfWorkFactory,
@@ -211,6 +219,7 @@ def create_app(
     scope_share_link_service: ScopeShareLinkService | None = None,
     public_scope_share_resolver: PublicScopeShareResolver | None = None,
     public_scope_approval_service: PublicScopeApprovalService | None = None,
+    public_scope_change_request_service: PublicScopeChangeRequestService | None = None,
     operational_metrics: OperationalMetrics | None = None,
 ) -> FastAPI:
     resolved_settings = settings or load_api_settings()
@@ -284,6 +293,10 @@ def create_app(
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
     app.add_exception_handler(ScopeAlreadyApprovedError, scope_already_approved_handler)
+    app.add_exception_handler(
+        ScopeChangesAlreadyRequestedError,
+        scope_changes_already_requested_handler,
+    )
     app.add_exception_handler(CriticalGapsOpenError, critical_gaps_open_handler)
     app.add_exception_handler(ScopeVersionUnchangedError, scope_version_unchanged_handler)
     app.add_exception_handler(InvalidContextItemStateError, invalid_context_item_state_handler)
@@ -443,6 +456,15 @@ def create_app(
     app.state.public_scope_approval_service = public_scope_approval_service or (
         PublicScopeApprovalService(
             SqlAlchemyScopeApprovalUnitOfWorkFactory(database_runtime.session_factory),
+            SecureScopeShareTokenIssuer(),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.public_scope_change_request_service = public_scope_change_request_service or (
+        PublicScopeChangeRequestService(
+            SqlAlchemyScopeChangeRequestUnitOfWorkFactory(database_runtime.session_factory),
             SecureScopeShareTokenIssuer(),
             resolved_event_logger,
         )

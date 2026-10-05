@@ -67,6 +67,7 @@ M000 extensions
 | scope_versions | id, account_id, project_id, version_no, context_version, status, snapshot_data, snapshot_hash, created_by, created_at | `UNIQUE(project_id,version_no)`؛ `scope_snapshot_canonicalization_v1` + SHA-256؛ payload/hash/lineage immutable و status فقط lifecycle projection کنترل‌شده است |
 | scope_share_links | id, account_id, project_id, scope_version_id, token_hash, expires_at, revoked_at, created_by, created_at | اتصال دقیق به ScopeVersion immutable؛ فقط hash سی‌ودوبایتی token ذخیره می‌شود؛ expiry اجباری و revocation terminal است؛ حذف فیزیکی ممنوع |
 | scope_approvals | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, explicit_consent, idempotency_key, request_hash, approved_at | هر ScopeVersion دقیقاً یک Approval نهایی immutable؛ snapshot hash ثبت‌شده ولی public-hidden؛ consent همواره true؛ guest idempotency capability-scoped؛ بدون raw token/email/IP/User-Agent؛ Project status بدون تغییر |
+| scope_change_requests | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, comment, idempotency_key, request_hash, requested_at | Change Request مستقل و immutable؛ برای هر ScopeVersion حداکثر یک رکورد؛ comment canonical و ۱..۴۰۰۰ کاراکتر؛ snapshot identity ثبت‌شده ولی public-hidden؛ Approval و Change Request با lock همان ScopeVersion mutually exclusive هستند؛ هیچ ScopeVersion، Draft، Project یا ShareLink خودکار تغییر نمی‌کند |
 
 ## Async و Metering
 

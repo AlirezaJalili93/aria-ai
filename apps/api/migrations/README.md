@@ -20,6 +20,7 @@ is never stored in this directory.
 → 0031_ai_invocation_checkpoints → 0032_ai01_checkpoint_integration
 → 0033_durable_technical_retry_checkpoint → 0034_scope_share_links
 → 0035_scope_approvals
+→ 0036_scope_change_requests
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -175,3 +176,9 @@ ADR-074.
 version number/hash and capability lineage, keeps guest idempotency separate from authenticated
 records, transitions only ScopeVersion in the Application transaction, and grants no direct Data
 API access. See ADR-077.
+
+`0036_scope_change_requests` creates the independent immutable public Change Request aggregate.
+It preserves exact ScopeVersion/capability lineage and canonical bounded comments, gives each
+ScopeVersion at most one Change Request, revokes all Data API access and relies on the shared
+ScopeVersion row lock to serialize Approval versus Change Request. It creates no new ScopeVersion
+or Draft and does not mutate Project or ShareLink lifecycle. See ADR-078.

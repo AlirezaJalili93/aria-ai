@@ -76,5 +76,6 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-075 — Public Scope Share Resolution](ADR-075-public-scope-share-resolution.md)
 - [ADR-076 — Authenticated Scope Share Management API](ADR-076-authenticated-scope-share-management-api.md)
 - [ADR-077 — Public Scope Approval](ADR-077-public-scope-approval.md)
+- [ADR-078 — Public Scope Change Request](ADR-078-public-scope-change-request.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)
