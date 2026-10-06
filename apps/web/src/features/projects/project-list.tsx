@@ -2,16 +2,39 @@
 
 import Link from "next/link"
 import { useState, useTransition } from "react"
+import {
+  FolderPlus,
+  Plus,
+  Clock,
+  Layout,
+  Building2,
+  Sparkles,
+  ChevronLeft,
+  Briefcase
+} from "lucide-react"
 
 import { loadMoreProjectsAction } from "./actions"
 import { projectStatusLabel, projectTypeLabel } from "./presentation"
-import type { ProjectSummary } from "./types"
+import type { ProjectSummary, ProjectType } from "./types"
 
 type ProjectListProps = Readonly<{
   initialProjects: readonly ProjectSummary[]
   initialNextCursor: string | null
   initialHasMore: boolean
 }>
+
+function getProjectTypeIcon(type: ProjectType) {
+  switch (type) {
+    case "landing":
+      return <Layout className="icon-sm" aria-hidden="true" />
+    case "corporate":
+      return <Building2 className="icon-sm" aria-hidden="true" />
+    case "portfolio":
+      return <Sparkles className="icon-sm" aria-hidden="true" />
+    default:
+      return <Briefcase className="icon-sm" aria-hidden="true" />
+  }
+}
 
 export function ProjectList({
   initialProjects,
@@ -27,11 +50,17 @@ export function ProjectList({
   if (projects.length === 0) {
     return (
       <section className="empty-state" aria-labelledby="projects-title">
+        <div className="empty-state__icon-wrapper" aria-hidden="true">
+          <FolderPlus className="icon-xl" />
+        </div>
         <p className="eyebrow">پروژه‌ها</p>
         <h1 id="projects-title">هنوز پروژه‌ای ندارید</h1>
-        <p>اولین پروژه را بسازید تا اطلاعات آن را در یک فضای قابل ردیابی مدیریت کنید.</p>
+        <p className="empty-state__description">
+          اولین پروژه را بسازید تا اطلاعات آن را در یک فضای قابل ردیابی مدیریت کنید.
+        </p>
         <Link className="button button--primary" href="/projects/new">
-          ایجاد اولین پروژه
+          <Plus className="icon-sm" aria-hidden="true" />
+          <span>ایجاد اولین پروژه</span>
         </Link>
       </section>
     )
@@ -64,23 +93,40 @@ export function ProjectList({
         <div>
           <p className="eyebrow">فضای کاری</p>
           <h1 id="projects-title">پروژه‌ها</h1>
+          <p className="section-intro">
+            مدیریت، رصد نیازمندی‌ها و تبدیل سند بریف به محدوده کاری برای پروژه‌های فعال شما.
+          </p>
         </div>
         <Link className="button button--primary" href="/projects/new">
-          ایجاد پروژه
+          <Plus className="icon-sm" aria-hidden="true" />
+          <span>ایجاد پروژه</span>
         </Link>
       </div>
       <ul className="project-list">
         {projects.map((project) => (
           <li key={project.id}>
             <Link className="project-card" href={`/projects/${project.id}`}>
-              <span className="project-card__title">{project.title}</span>
-              <span className="project-card__meta">
-                <span>{projectTypeLabel(project.project_type)}</span>
+              <div className="project-card__header">
+                <div className="project-card__icon-badge" aria-hidden="true">
+                  {getProjectTypeIcon(project.project_type)}
+                </div>
+                <span className="project-card__title">{project.title}</span>
                 <span className="status-badge">{projectStatusLabel(project.status)}</span>
-              </span>
-              <span className="project-card__updated">
-                آخرین تغییر: <time dateTime={project.updated_at}>{project.updated_at}</time>
-              </span>
+              </div>
+              <div className="project-card__meta">
+                <span className="project-card__type-tag">
+                  {projectTypeLabel(project.project_type)}
+                </span>
+                <span className="project-card__updated">
+                  <Clock className="icon-xs" aria-hidden="true" />
+                  <span>آخرین تغییر:</span>{" "}
+                  <time dateTime={project.updated_at}>{project.updated_at}</time>
+                </span>
+              </div>
+              <div className="project-card__action" aria-hidden="true">
+                <span>مشاهده پروژه</span>
+                <ChevronLeft className="icon-xs" />
+              </div>
             </Link>
           </li>
         ))}
