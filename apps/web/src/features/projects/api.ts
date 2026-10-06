@@ -9,7 +9,8 @@ import type {
   ProjectAccess,
   ProjectPage,
   ProjectStatus,
-  ProjectType
+  ProjectType,
+  ContextSourceItem
 } from "./types"
 
 const accountRoles = new Set<AccountRole>(["owner", "admin", "member"])
@@ -83,6 +84,39 @@ export async function fetchProject(
     accountId
   })
   return parseProject(payload)
+}
+
+
+export async function fetchContextSources(
+  accessToken: string,
+  accountId: string,
+  projectId: string
+): Promise<readonly ContextSourceItem[]> {
+  const payload = await requestJson(
+    `projects/${encodeURIComponent(projectId)}/context-sources`,
+    accessToken,
+    { accountId }
+  )
+  if (!isObject(payload) || !Array.isArray(payload.data)) return []
+  return payload.data as unknown as readonly ContextSourceItem[]
+}
+
+export async function createContextSource(
+  accessToken: string,
+  accountId: string,
+  projectId: string,
+  input: Readonly<{ rawText: string; originalName?: string }>
+): Promise<ContextSourceItem> {
+  const payload = await requestJson(
+    `projects/${encodeURIComponent(projectId)}/context-sources`,
+    accessToken,
+    {
+      accountId,
+      method: "POST",
+      body: { raw_text: input.rawText, original_name: input.originalName ?? "brief.txt" }
+    }
+  )
+  return payload as unknown as ContextSourceItem
 }
 
 export async function createProject(

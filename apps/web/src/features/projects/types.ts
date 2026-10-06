@@ -71,3 +71,13 @@ export type LoadMoreProjectsResult =
       }>
     }>
   | Readonly<{ status: "error"; message: string; requestId?: string }>
+
+export type ContextSourceItem = Readonly<{
+  id: string
+  project_id: string
+  source_type: string
+  status: string
+  raw_text: string | null
+  original_name: string | null
+  created_at: string
+}>

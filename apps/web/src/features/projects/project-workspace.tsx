@@ -15,12 +15,14 @@ import {
   ArrowUpRight
 } from "lucide-react"
 
-import type { Project } from "./types"
+import { saveBriefAction } from "./context-actions"
+import type { ContextSourceItem, Project } from "./types"
 
 type TabKey = "context" | "requirements" | "gaps" | "scope"
 
 type WorkspaceProps = Readonly<{
   project: Project
+  initialSources?: readonly ContextSourceItem[]
 }>
 
 const activeClarifications: Readonly<Record<string, string>> = {
@@ -28,20 +30,31 @@ const activeClarifications: Readonly<Record<string, string>> = {
   gap_2: "نسخه فاز اول بدون پیامک"
 }
 
-export function ProjectWorkspace({ project }: WorkspaceProps) {
+export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("context")
   const [briefText, setBriefText] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [sourcesList, setSourcesList] = useState<readonly string[]>([])
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
+  const [sourcesList, setSourcesList] = useState<readonly ContextSourceItem[]>(initialSources)
 
-  const handleSaveBrief = () => {
+  const handleSaveBrief = async () => {
     if (!briefText.trim()) return
     setIsAnalyzing(true)
-    setTimeout(() => {
-      setSourcesList((prev) => [...prev, `سند بریف: ${briefText.slice(0, 35)}…`])
-      setBriefText("")
+    setSaveFeedback(null)
+    try {
+      const res = await saveBriefAction(project.id, briefText)
+      if (res.success && res.source) {
+        setSourcesList((prev) => [res.source!, ...prev])
+        setBriefText("")
+        setSaveFeedback("بریف با موفقیت در پایگاه داده ثبت شد.")
+      } else {
+        setSaveFeedback(res.message ?? "خطا در ثبت بریف.")
+      }
+    } catch {
+      setSaveFeedback("خطای اتصال به سرور.")
+    } finally {
       setIsAnalyzing(false)
-    }, 600)
+    }
   }
 
   return (
@@ -128,16 +141,24 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
 
             <div className="sources-list-section">
               <h4>سورس‌های ثبت شده در این پروژه</h4>
+              {saveFeedback && (
+                <div style={{ color: "hsl(var(--color-primary-default))", fontSize: "var(--font-size-sm)", marginBottom: "var(--primitive-space-2)" }}>
+                  {saveFeedback}
+                </div>
+              )}
               {sourcesList.length === 0 ? (
                 <div className="empty-mini-state">
                   <p>هنوز سورس یا متنی ثبت نشده است. اولین بریف را در کادر بالا وارد کنید.</p>
                 </div>
               ) : (
                 <ul className="sources-list">
-                  {sourcesList.map((source, index) => (
-                    <li key={index} className="source-item">
-                      <CheckCircle2 className="icon-xs text-primary" aria-hidden="true" />
-                      <span>{source}</span>
+                  {sourcesList.map((source) => (
+                    <li key={source.id} className="source-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "var(--primitive-space-2)" }}>
+                        <CheckCircle2 className="icon-xs text-primary" aria-hidden="true" />
+                        <span>{source.original_name ?? "سند متنی"}: {source.raw_text?.slice(0, 45) ?? ""}…</span>
+                      </div>
+                      <span className="badge badge--success" style={{ fontSize: "0.75rem" }}>{source.status}</span>
                     </li>
                   ))}
                 </ul>

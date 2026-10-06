@@ -14,7 +14,7 @@ import {
 import { projectStatusLabel, projectTypeLabel } from "./presentation"
 import { ProjectOpenedEvent } from "./project-opened-event"
 import { ProjectWorkspace } from "./project-workspace"
-import type { AccountSelection, Project } from "./types"
+import type { AccountSelection, ContextSourceItem, Project } from "./types"
 
 const modulesConfig = [
   {
@@ -46,10 +46,12 @@ const modulesConfig = [
 export function ProjectOverview({
   account,
   project,
+  initialSources = [],
   emitOpenedEvent = true
 }: Readonly<{
   account: AccountSelection
   project: Project
+  initialSources?: readonly ContextSourceItem[]
   emitOpenedEvent?: boolean
 }>) {
   return (
@@ -135,7 +137,7 @@ export function ProjectOverview({
           </div>
         </section>
 
-        <ProjectWorkspace project={project} />
+        <ProjectWorkspace project={project} initialSources={initialSources} />
       </article>
     </>
   )
