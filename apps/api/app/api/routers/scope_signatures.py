@@ -29,6 +29,34 @@ class ScopeSignatureResponse(BaseModel):
     signed_at: datetime
 
 
+class CreateChangeRequestPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requester_name: str
+    requester_role: str
+    category: str = "general"
+    requested_changes: str
+
+
+class ScopeChangeRequestResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    scope_id: str
+    requester_name: str
+    requester_role: str
+    category: str
+    requested_changes: str
+    status: str
+    created_at: datetime
+
+
+class ScopeChangeRequestsListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: list[ScopeChangeRequestResponse]
+
+
 def create_scope_signatures_router() -> APIRouter:
     router = APIRouter(prefix="/scopes/{scope_id}", tags=["scope-signatures"])
 
@@ -154,5 +182,104 @@ def create_scope_signatures_router() -> APIRouter:
                 verification_code=existing["verification_code"],
                 signed_at=existing["signed_at"],
             )
+
+    @router.post(
+        "/change-requests",
+        response_model=ScopeChangeRequestResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_change_request(
+        scope_id: str,
+        body: CreateChangeRequestPayload,
+        request: Request,
+    ) -> ScopeChangeRequestResponse:
+        session_factory = getattr(request.app.state, "session_factory", None)
+        if session_factory is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database session factory is unavailable.",
+            )
+
+        req_id = uuid4()
+        insert_sql = (
+            "INSERT INTO scope_change_requests ("
+            "id, scope_id, requester_name, requester_role, category, "
+            "requested_changes, status) "
+            "VALUES ("
+            ":id, :scope_id, :requester_name, :requester_role, :category, "
+            ":requested_changes, 'pending') "
+            "RETURNING id, scope_id, requester_name, requester_role, "
+            "category, requested_changes, status, created_at"
+        )
+
+        async with session_factory() as session:
+            result = (
+                await session.execute(
+                    text(insert_sql),
+                    {
+                        "id": req_id,
+                        "scope_id": scope_id,
+                        "requester_name": body.requester_name.strip(),
+                        "requester_role": body.requester_role.strip(),
+                        "category": body.category.strip(),
+                        "requested_changes": body.requested_changes.strip(),
+                    },
+                )
+            ).mappings().one()
+            await session.commit()
+
+            return ScopeChangeRequestResponse(
+                id=result["id"],
+                scope_id=result["scope_id"],
+                requester_name=result["requester_name"],
+                requester_role=result["requester_role"],
+                category=result["category"],
+                requested_changes=result["requested_changes"],
+                status=result["status"],
+                created_at=result["created_at"],
+            )
+
+    @router.get(
+        "/change-requests",
+        response_model=ScopeChangeRequestsListResponse,
+    )
+    async def list_change_requests(
+        scope_id: str,
+        request: Request,
+    ) -> ScopeChangeRequestsListResponse:
+        session_factory = getattr(request.app.state, "session_factory", None)
+        if session_factory is None:
+            return ScopeChangeRequestsListResponse(data=[])
+
+        select_sql = (
+            "SELECT id, scope_id, requester_name, requester_role, "
+            "category, requested_changes, status, created_at "
+            "FROM scope_change_requests "
+            "WHERE scope_id = :scope_id "
+            "ORDER BY created_at DESC"
+        )
+
+        async with session_factory() as session:
+            rows = (
+                await session.execute(
+                    text(select_sql),
+                    {"scope_id": scope_id},
+                )
+            ).mappings().all()
+
+            data = [
+                ScopeChangeRequestResponse(
+                    id=r["id"],
+                    scope_id=r["scope_id"],
+                    requester_name=r["requester_name"],
+                    requester_role=r["requester_role"],
+                    category=r["category"],
+                    requested_changes=r["requested_changes"],
+                    status=r["status"],
+                    created_at=r["created_at"],
+                )
+                for r in rows
+            ]
+            return ScopeChangeRequestsListResponse(data=data)
 
     return router

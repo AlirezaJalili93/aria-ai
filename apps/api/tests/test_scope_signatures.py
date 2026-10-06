@@ -29,3 +29,16 @@ def test_scope_signature_sign_requires_fields() -> None:
     client = create_test_client()
     response = client.post("/api/v1/scopes/test-scope-1/sign", json={})
     assert response.status_code == 422
+
+
+def test_list_change_requests_returns_empty_when_no_session_factory() -> None:
+    client = create_test_client()
+    response = client.get("/api/v1/scopes/test-scope-1/change-requests")
+    assert response.status_code == 200
+    assert response.json() == {"data": []}
+
+
+def test_create_change_request_requires_fields() -> None:
+    client = create_test_client()
+    response = client.post("/api/v1/scopes/test-scope-1/change-requests", json={})
+    assert response.status_code == 422
