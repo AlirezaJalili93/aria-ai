@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation"
 
-import { fetchProject, ProjectApiError, resolveProjectAccess } from "../../../features/projects/api"
+import { fetchContextSources, fetchProject, ProjectApiError, resolveProjectAccess } from "../../../features/projects/api"
+import type { ContextSourceItem } from "../../../features/projects/types"
 import { ProjectOverview } from "../../../features/projects/project-overview"
 import { AccountBlockedState, ProjectRequestFailure } from "../../../features/projects/project-state"
 
@@ -57,9 +58,16 @@ export default async function ProjectOverviewPage({
     )
   }
 
+  let sources: readonly ContextSourceItem[] = []
+  try {
+    sources = await fetchContextSources(access.accessToken, access.account.id, projectId)
+  } catch {
+    // Graceful fallback
+  }
+
   return (
     <main id="main-content" className="projects-main" tabIndex={-1}>
-      <ProjectOverview account={access.account} project={project} />
+      <ProjectOverview account={access.account} project={project} initialSources={sources} />
     </main>
   )
 }

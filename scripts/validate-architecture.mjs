@@ -17,6 +17,8 @@ const skippedDirectories = new Set([
   ".ruff_cache",
   ".tools",
   ".venv",
+  ".worktrees",
+  ".tmp",
   "__pycache__",
   "node_modules"
 ]);

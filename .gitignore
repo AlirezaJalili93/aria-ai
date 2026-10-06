@@ -17,3 +17,6 @@ apps/*/.venv/
 .pip-cache/
 .tools/
 .data/
+
+.worktrees/
+
