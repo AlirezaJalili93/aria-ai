@@ -2,51 +2,68 @@
 
 import { useState } from "react"
 import {
-  CheckCircle2,
   FileCheck,
   ShieldCheck,
-  Building,
-  User,
   Printer,
+  User,
+  Building,
   Sparkles,
+  CheckCircle2,
   AlertTriangle,
-  Lock
+  FileSignature,
+  Loader2
 } from "lucide-react"
 
-type ScopeSignoffProps = Readonly<{
+import { signScopeAction, type ScopeSignature } from "./actions"
+
+export function ScopeSignoff({
+  scopeId,
+  initialSignature = null
+}: Readonly<{
   scopeId: string
-}>
+  initialSignature?: ScopeSignature | null
+}>) {
+  const [signerName, setSignerName] = useState(initialSignature?.signerName ?? "")
+  const [signerRole, setSignerRole] = useState(initialSignature?.signerRole ?? "")
+  const [organization, setOrganization] = useState(initialSignature?.organization ?? "")
+  const [agreed, setAgreed] = useState(Boolean(initialSignature))
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
-  const [signerName, setSignerName] = useState("")
-  const [signerRole, setSignerRole] = useState("")
-  const [organization, setOrganization] = useState("")
-  const [agreed, setAgreed] = useState(false)
-  const [signedState, setSignedState] = useState<{
-    signed: boolean
-    timestamp?: string
-    verificationCode?: string
-  }>({ signed: false })
+  const [signature, setSignature] = useState<ScopeSignature | null>(initialSignature)
 
-  const handleSign = (e: React.FormEvent) => {
+  const handleSign = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!signerName || !signerRole || !agreed) return
 
-    const now = new Date()
-    const verificationCode = `SIG-${scopeId.slice(0, 8).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
+    setIsSubmitting(true)
+    setErrorMsg(null)
 
-    setSignedState({
-      signed: true,
-      timestamp: now.toLocaleDateString("fa-IR", {
+    const result = await signScopeAction({
+      scopeId,
+      signerName,
+      signerRole,
+      organization: organization || undefined
+    })
+
+    setIsSubmitting(false)
+
+    if (result.success && result.signature) {
+      setSignature(result.signature)
+    } else {
+      setErrorMsg(result.message ?? "ثبت امضا ناموفق بود.")
+    }
+  }
+
+  const formattedDate = signature?.signedAt
+    ? new Date(signature.signedAt).toLocaleDateString("fa-IR", {
         year: "numeric",
         month: "long",
         day: "numeric",
         hour: "2-digit",
         minute: "2-digit"
-      }),
-      verificationCode
-    })
-  }
+      })
+    : ""
 
   return (
     <div className="signoff-portal">
@@ -65,8 +82,8 @@ export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
       <div className="signoff-doc-card">
         <header className="doc-header">
           <div className="doc-header__badge">
-            <Lock className="icon-xs" aria-hidden="true" />
-            <span>سند رسمی محافظت‌شده</span>
+            <FileSignature className="icon-xs" aria-hidden="true" />
+            <span>سند رسمی فنی</span>
           </div>
           <h1>سند محدوده اجرایی و مشخصات فنی پروژه</h1>
           <div className="doc-header__meta">
@@ -119,7 +136,7 @@ export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
         </section>
 
         <section className="doc-signature-section">
-          {signedState.signed ? (
+          {signature ? (
             <div className="signature-success-box" role="status">
               <div className="signature-success-icon">
                 <FileCheck className="icon-lg text-primary" aria-hidden="true" />
@@ -129,21 +146,21 @@ export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
               <dl className="signature-details">
                 <div>
                   <dt>امضاکننده:</dt>
-                  <dd>{signerName} ({signerRole})</dd>
+                  <dd>{signature.signerName} ({signature.signerRole})</dd>
                 </div>
-                {organization && (
+                {signature.organization && (
                   <div>
                     <dt>سازمان / شرکت:</dt>
-                    <dd>{organization}</dd>
+                    <dd>{signature.organization}</dd>
                   </div>
                 )}
                 <div>
                   <dt>زمان امضا:</dt>
-                  <dd>{signedState.timestamp}</dd>
+                  <dd>{formattedDate}</dd>
                 </div>
                 <div>
                   <dt>کد اعتبارسنجی امنیتی:</dt>
-                  <dd><code>{signedState.verificationCode}</code></dd>
+                  <dd><code>{signature.verificationCode}</code></dd>
                 </div>
               </dl>
               <div className="signature-actions">
@@ -163,6 +180,12 @@ export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
               <p className="signature-form__intro">
                 جهت ابلاغ شروع رسمی پروژه، مشخصات خود را وارد نموده و سند را امضا فرمایید:
               </p>
+
+              {errorMsg && (
+                <div className="form-feedback form-feedback--error" role="alert">
+                  {errorMsg}
+                </div>
+              )}
 
               <div className="form-grid">
                 <div className="field-group">
@@ -229,10 +252,19 @@ export function ScopeSignoff({ scopeId }: ScopeSignoffProps) {
               <button
                 type="submit"
                 className="button button--primary button--full"
-                disabled={!signerName || !signerRole || !agreed}
+                disabled={!signerName || !signerRole || !agreed || isSubmitting}
               >
-                <Sparkles className="icon-xs" aria-hidden="true" />
-                <span>امضا و تأیید نهایی سند محدوده کار</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="icon-xs animate-spin" aria-hidden="true" />
+                    <span>در حال ثبت امن امضا...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="icon-xs" aria-hidden="true" />
+                    <span>امضا و تأیید نهایی سند محدوده کار</span>
+                  </>
+                )}
               </button>
             </form>
           )}

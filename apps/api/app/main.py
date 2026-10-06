@@ -35,6 +35,7 @@ from app.api.routers.auth import create_auth_router
 from app.api.routers.context_sources import create_context_sources_router
 from app.api.routers.health import create_health_router
 from app.api.routers.projects import create_projects_router
+from app.api.routers.scope_signatures import create_scope_signatures_router
 from app.core.config import ApiSettings, load_api_settings
 from app.infrastructure.auth.supabase_jwt import (
     RejectingAccessTokenVerifier,
@@ -200,6 +201,7 @@ def create_app(
     app.include_router(create_accounts_router(), prefix="/api/v1")
     app.include_router(create_projects_router(), prefix="/api/v1")
     app.include_router(create_context_sources_router(), prefix="/api/v1")
+    app.include_router(create_scope_signatures_router(), prefix="/api/v1")
     return app
 
 

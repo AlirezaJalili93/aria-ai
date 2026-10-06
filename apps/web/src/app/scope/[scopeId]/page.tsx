@@ -1,4 +1,6 @@
 import type { Metadata } from "next"
+
+import { getScopeSignatureAction } from "../../../features/scope/actions"
 import { ScopeSignoff } from "../../../features/scope/scope-signoff"
 
 export const metadata: Metadata = {
@@ -10,6 +12,7 @@ export default async function ScopePage({
   params
 }: Readonly<{ params: Promise<{ scopeId: string }> }>) {
   const { scopeId } = await params
+  const initialSignature = await getScopeSignatureAction(scopeId)
 
-  return <ScopeSignoff scopeId={scopeId} />
+  return <ScopeSignoff scopeId={scopeId} initialSignature={initialSignature} />
 }
