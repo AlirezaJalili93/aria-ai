@@ -109,6 +109,11 @@
   --color-danger: var(--color-danger-on-dark);
   --button-primary-background: var(--color-primary-strong);
   --button-primary-background-hover: var(--primitive-color-indigo-700);
+  --card-background: var(--color-surface);
+  --card-border: var(--color-border);
+  --field-background: var(--primitive-color-neutral-900);
+  --field-border: var(--color-border);
+  --field-text: var(--color-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

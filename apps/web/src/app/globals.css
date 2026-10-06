@@ -151,11 +151,19 @@ input {
   padding-inline: var(--responsive-gutter);
 }
 
-.auth-main,
 .projects-main {
   min-block-size: calc(100dvh - var(--header-height));
   padding-block: var(--primitive-space-8);
   padding-inline: var(--responsive-gutter);
+}
+
+.auth-main {
+  min-block-size: calc(100dvh - var(--header-height));
+  padding-block: var(--primitive-space-8);
+  padding-inline: var(--responsive-gutter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .auth-main--centered,
@@ -201,6 +209,52 @@ h1 {
 
 .auth-card {
   inline-size: min(100%, var(--auth-card-max-width));
+  margin-inline: auto;
+  background: hsl(var(--color-surface));
+  border: var(--border-width-default) solid hsl(var(--color-border));
+  color: hsl(var(--color-text));
+  box-shadow: 0 12px 40px hsl(var(--primitive-color-neutral-900) / 0.4);
+}
+
+.auth-card h1 {
+  color: hsl(var(--color-text));
+}
+
+.auth-card .eyebrow {
+  color: hsl(var(--color-primary));
+}
+
+.auth-intro {
+  color: hsl(var(--color-text-muted));
+}
+
+.auth-card label {
+  color: hsl(var(--color-text));
+  font-weight: var(--font-weight-label);
+}
+
+.auth-card .text-field {
+  background: hsl(var(--color-background));
+  border: var(--border-width-default) solid hsl(var(--color-border));
+  color: hsl(var(--color-text));
+}
+
+.auth-card .text-field:focus {
+  border-color: hsl(var(--color-primary));
+  outline: 2px solid hsl(var(--color-primary) / 0.2);
+}
+
+.auth-card .button--primary {
+  inline-size: 100%;
+}
+
+.auth-card .auth-alternative {
+  color: hsl(var(--color-text-muted));
+}
+
+.auth-card .auth-alternative a {
+  color: hsl(var(--color-primary));
+  font-weight: var(--font-weight-label);
 }
 
 .button {
