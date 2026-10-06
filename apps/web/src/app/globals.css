@@ -1601,8 +1601,9 @@ h1 {
   padding: var(--primitive-space-8);
   border: var(--border-width-default) solid hsl(var(--card-border));
   border-radius: var(--card-radius);
-  background: hsl(var(--card-background));
-  box-shadow: 0 4px 20px hsl(var(--primitive-color-neutral-900) / 0.15);
+  background: hsl(var(--color-surface));
+  color: hsl(var(--color-text));
+  box-shadow: 0 8px 30px hsl(var(--primitive-color-neutral-900) / 0.3);
 }
 
 .doc-header {

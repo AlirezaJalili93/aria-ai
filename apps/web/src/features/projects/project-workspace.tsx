@@ -24,8 +24,8 @@ type WorkspaceProps = Readonly<{
 }>
 
 const activeClarifications: Readonly<Record<string, string>> = {
-  gap_1: "????? ???? (????????)",
-  gap_2: "???? ??? ??? ???? ?????"
+  gap_1: "درگاه واسط (زرین‌پال)",
+  gap_2: "نسخه فاز اول بدون پیامک"
 }
 
 export function ProjectWorkspace({ project }: WorkspaceProps) {
@@ -38,7 +38,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
     if (!briefText.trim()) return
     setIsAnalyzing(true)
     setTimeout(() => {
-      setSourcesList((prev) => [...prev, `??? ????: ${briefText.slice(0, 35)}�`])
+      setSourcesList((prev) => [...prev, `سند بریف: ${briefText.slice(0, 35)}…`])
       setBriefText("")
       setIsAnalyzing(false)
     }, 600)
@@ -47,14 +47,14 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
   return (
     <div className="project-workspace">
       <div className="workspace-tabs-wrapper">
-        <nav className="workspace-tabs" aria-label="??????? ???? ???? ?????">
+        <nav className="workspace-tabs" aria-label="بخش‌های محیط کاری پروژه">
           <button
             type="button"
             className={`workspace-tab ${activeTab === "context" ? "workspace-tab--active" : ""}`}
             onClick={() => setActiveTab("context")}
           >
             <FileText className="icon-sm" aria-hidden="true" />
-            <span>Context (?????)</span>
+            <span>Context (زمینه)</span>
           </button>
           <button
             type="button"
@@ -62,7 +62,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
             onClick={() => setActiveTab("requirements")}
           >
             <ListChecks className="icon-sm" aria-hidden="true" />
-            <span>Requirements (???????????)</span>
+            <span>Requirements (نیازمندی‌ها)</span>
           </button>
           <button
             type="button"
@@ -70,7 +70,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
             onClick={() => setActiveTab("gaps")}
           >
             <HelpCircle className="icon-sm" aria-hidden="true" />
-            <span>Gaps (???????)</span>
+            <span>Gaps (ابهامات)</span>
           </button>
           <button
             type="button"
@@ -78,7 +78,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
             onClick={() => setActiveTab("scope")}
           >
             <FileSignature className="icon-sm" aria-hidden="true" />
-            <span>Scope (??? ??????)</span>
+            <span>Scope (سند محدوده)</span>
           </button>
         </nav>
       </div>
@@ -88,16 +88,16 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
           <section className="workspace-panel" aria-labelledby="context-panel-heading">
             <div className="panel-header">
               <div>
-                <h3 id="context-panel-heading">????????? ????? ? ??? ????</h3>
+                <h3 id="context-panel-heading">ورودی‌های اولیه و متن بریف</h3>
                 <p className="panel-subtitle">
-                  ??????? ? ???????? ????? ?? ??????? ?? ???? ???? ?? ??? ?????? Aria ????? ?? ????? ?????.
+                  توضیحات و فایل‌های گفتگو با کارفرما را وارد کنید تا هوش مصنوعی Aria آن‌ها را تحلیل نماید.
                 </p>
               </div>
             </div>
 
             <div className="brief-input-box">
               <label htmlFor="brief-text-field" className="field-label">
-                ??? ???? ?? ????? ?????:
+                متن بریف یا خلاصه گفتگو:
               </label>
               <textarea
                 id="brief-text-field"
@@ -105,7 +105,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                 rows={4}
                 value={briefText}
                 onChange={(e) => setBriefText(e.target.value)}
-                placeholder="????: ??????? ??????? ?? ?????? ???????? ??????? ???? ???? ??????? ??????? ????. ????? ???? ?? ????? ?????? ? ????? ?? ????? ????? ?????? ???..."
+                placeholder="مثال: کارفرما درخواست یک پلتفرم فروشگاهی اختصاصی برای فروش محصولات دیجیتال دارد. احراز هویت با شماره موبایل و اتصال به درگاه بانکی الزامی است..."
               />
               <div className="brief-input-actions">
                 <button
@@ -115,11 +115,11 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                   disabled={!briefText.trim() || isAnalyzing}
                 >
                   {isAnalyzing ? (
-                    <span>?? ??? ??????? ? ??????????�</span>
+                    <span>در حال استخراج و ساختاربندی…</span>
                   ) : (
                     <>
                       <Sparkles className="icon-xs" aria-hidden="true" />
-                      <span>??? ? ????? ????</span>
+                      <span>ثبت و تحلیل بریف</span>
                     </>
                   )}
                 </button>
@@ -127,10 +127,10 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
             </div>
 
             <div className="sources-list-section">
-              <h4>???????? ??? ??? ?? ??? ?????</h4>
+              <h4>سورس‌های ثبت شده در این پروژه</h4>
               {sourcesList.length === 0 ? (
                 <div className="empty-mini-state">
-                  <p>???? ???? ?? ???? ??? ???? ???. ????? ???? ?? ?? ???? ???? ???? ????.</p>
+                  <p>هنوز سورس یا متنی ثبت نشده است. اولین بریف را در کادر بالا وارد کنید.</p>
                 </div>
               ) : (
                 <ul className="sources-list">
@@ -150,9 +150,9 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
           <section className="workspace-panel" aria-labelledby="req-panel-heading">
             <div className="panel-header">
               <div>
-                <h3 id="req-panel-heading">???????????? ??????? ???</h3>
+                <h3 id="req-panel-heading">نیازمندی‌های استخراج شده</h3>
                 <p className="panel-subtitle">
-                  ????? ???????????? ??????? ? ?????? ??? ?? ????? ??????? ?????? Aria AI.
+                  تفکیک نیازمندی‌های کاربردی و مشخصات فنی بر مبنای قرارداد معماری Aria AI.
                 </p>
               </div>
             </div>
@@ -161,32 +161,32 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
               <div className="req-column">
                 <div className="req-column-title">
                   <Layers className="icon-xs text-primary" aria-hidden="true" />
-                  <h4>???????????? ??????? (Functional)</h4>
+                  <h4>نیازمندی‌های کاربردی (Functional)</h4>
                 </div>
                 <div className="req-cards">
                   <div className="req-card">
                     <div className="req-card__top">
-                      <span className="req-tag req-tag--p1">?????? ????</span>
+                      <span className="req-tag req-tag--p1">اولویت اصلی</span>
                       <span className="req-id">REQ-01</span>
                     </div>
-                    <p className="req-title">??????? ? ???? ??????? ???????</p>
-                    <p className="req-note">???????? ?? ???? ????? ? ?????????? ??? ????.</p>
+                    <p className="req-title">ثبت‌نام و ورود یکپارچه کاربران</p>
+                    <p className="req-note">پشتیبانی از ورود ایمیل و اعتبارسنجی امن نشست.</p>
                   </div>
                   <div className="req-card">
                     <div className="req-card__top">
-                      <span className="req-tag req-tag--p1">?????? ????</span>
+                      <span className="req-tag req-tag--p1">اولویت اصلی</span>
                       <span className="req-id">REQ-02</span>
                     </div>
-                    <p className="req-title">??????? ??????? ?? ???????? ?????????</p>
-                    <p className="req-note">????? ?? ???? ????????? ? ????? ???? ?? ????? ????????? ????.</p>
+                    <p className="req-title">کاتالوگ محصولات با فیلترینگ چندمعیاره</p>
+                    <p className="req-note">جستجو بر اساس دسته‌بندی و دامنه قیمت به همراه صفحه‌بندی ایمن.</p>
                   </div>
                   <div className="req-card">
                     <div className="req-card__top">
-                      <span className="req-tag req-tag--p2">?????? ?????</span>
+                      <span className="req-tag req-tag--p2">اولویت متوسط</span>
                       <span className="req-id">REQ-03</span>
                     </div>
-                    <p className="req-title">?????? ??? ???? ? ??? ????? ?????</p>
-                    <p className="req-note">?????? ?????? ????? ? ?????? ??? ?? ???? ?? ????? ??????.</p>
+                    <p className="req-title">فرایند سبد خرید و ثبت نهایی سفارش</p>
+                    <p className="req-note">محاسبه خودکار تخفیف و مالیات قبل از ورود به درگاه پرداخت.</p>
                   </div>
                 </div>
               </div>
@@ -194,24 +194,24 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
               <div className="req-column">
                 <div className="req-column-title">
                   <Layers className="icon-xs text-secondary" aria-hidden="true" />
-                  <h4>??????? ???? ? ?????? (Non-Functional)</h4>
+                  <h4>الزامات کیفی و امنیتی (Non-Functional)</h4>
                 </div>
                 <div className="req-cards">
                   <div className="req-card">
                     <div className="req-card__top">
-                      <span className="req-tag req-tag--tech">????????? ?????</span>
+                      <span className="req-tag req-tag--tech">استاندارد فرانت</span>
                       <span className="req-id">NFR-01</span>
                     </div>
-                    <p className="req-title">????? RTL-First ? ???????????? WCAG AA</p>
-                    <p className="req-note">??????? ???? ?? ???????? ?????? ??????? ????????? ? ???? ????.</p>
+                    <p className="req-title">طراحی RTL-First و دسترسی‌پذیری WCAG AA</p>
+                    <p className="req-note">استفاده کامل از توکن‌های طراحی، کنتراست استاندارد و فونت بومی.</p>
                   </div>
                   <div className="req-card">
                     <div className="req-card__top">
-                      <span className="req-tag req-tag--tech">????????</span>
+                      <span className="req-tag req-tag--tech">پرفورمنس</span>
                       <span className="req-id">NFR-02</span>
                     </div>
-                    <p className="req-title">???? ???????? ??? ?.? ?????</p>
-                    <p className="req-note">?????????? ?????? ? ??????? ?? ????? ???? ?? ????????.</p>
+                    <p className="req-title">زمان بارگذاری زیر ۱.۵ ثانیه</p>
+                    <p className="req-note">بهینه‌سازی تصاویر و استفاده از کشینگ ابری در استیجینگ.</p>
                   </div>
                 </div>
               </div>
@@ -223,9 +223,9 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
           <section className="workspace-panel" aria-labelledby="gaps-panel-heading">
             <div className="panel-header">
               <div>
-                <h3 id="gaps-panel-heading">???? ???? ? ?????? ?????????</h3>
+                <h3 id="gaps-panel-heading">نقاط مبهم و سوالات شفاف‌سازی</h3>
                 <p className="panel-subtitle">
-                  ??? ??????? ???? ??? ?? ??? ???? ?????? ????? ??? ?? ??????? ???? ????.
+                  این ابهامات باید قبل از قفل کردن محدوده نهایی کار با کارفرما شفاف شوند.
                 </p>
               </div>
             </div>
@@ -236,12 +236,12 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                   <AlertCircle className="icon-sm text-warning" aria-hidden="true" />
                 </div>
                 <div className="gap-item__body">
-                  <h4 className="gap-item__title">??? ????? ????? ?????? ?????</h4>
+                  <h4 className="gap-item__title">روش اتصال درگاه پرداخت بانکی</h4>
                   <p className="gap-item__desc">
-                    ?? ???? ???? ???? ?? ??? ????? ?????? ????? (?????/????) ?? ??? ??? ?? ????? ???? ???????
+                    در بریف مشخص نشده که آیا درگاه مستقیم بانکی (شاپرک/سداد) مد نظر است یا درگاه واسط پرداخت؟
                   </p>
                   <div className="gap-item__clarification">
-                    <span className="clarification-label">????? ??? ???:</span>
+                    <span className="clarification-label">تصمیم ثبت شده:</span>
                     <span className="clarification-val">{activeClarifications.gap_1}</span>
                   </div>
                 </div>
@@ -252,12 +252,12 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                   <AlertCircle className="icon-sm text-warning" aria-hidden="true" />
                 </div>
                 <div className="gap-item__body">
-                  <h4 className="gap-item__title">????? ????? ????????? ???????????</h4>
+                  <h4 className="gap-item__title">سیستم ارسال پیامک‌های اطلاع‌رسانی</h4>
                   <p className="gap-item__desc">
-                    ??? ????? ????? ????? ???????? ?? ??? ??? ?????? ??? ?? ?? ??? ??? ????? ?????????? ????? ???
+                    آیا ارسال پیامک وضعیت سفارش‌ها در این فاز الزامی است یا در فاز دوم پروژه پیاده‌سازی خواهد شد؟
                   </p>
                   <div className="gap-item__clarification">
-                    <span className="clarification-label">????? ??? ???:</span>
+                    <span className="clarification-label">تصمیم ثبت شده:</span>
                     <span className="clarification-val">{activeClarifications.gap_2}</span>
                   </div>
                 </div>
@@ -270,9 +270,9 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
           <section className="workspace-panel" aria-labelledby="scope-panel-heading">
             <div className="panel-header">
               <div>
-                <h3 id="scope-panel-heading">??? ?????? ??????? (Scope Document)</h3>
+                <h3 id="scope-panel-heading">سند محدوده کارفرما (Scope Document)</h3>
                 <p className="panel-subtitle">
-                  ??? ????? ? ???? ????? ??? ???? ? ???? ??? ?????? ?????.
+                  سند نهایی و مورد توافق جهت امضا و آغاز فاز اجرایی پروژه.
                 </p>
               </div>
               <div className="panel-header-actions">
@@ -282,7 +282,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                   target="_blank"
                 >
                   <ArrowUpRight className="icon-xs" aria-hidden="true" />
-                  <span>?????? ?????? ????? ???????</span>
+                  <span>مشاهده پورتال امضای کارفرما</span>
                 </Link>
               </div>
             </div>
@@ -291,12 +291,12 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
               <div className="doc-watermark" aria-hidden="true">ARIA AI VERIFIED</div>
               <div className="doc-meta-row">
                 <div>
-                  <span className="doc-meta-label">????? ???:</span>
-                  <strong>?????? ?????? ? ?????? ??? {project.title}</strong>
+                  <span className="doc-meta-label">عنوان سند:</span>
+                  <strong>محدوده اجرایی و مشخصات فنی {project.title}</strong>
                 </div>
                 <div>
-                  <span className="doc-meta-label">????? ????:</span>
-                  <code className="doc-token">{project.id.slice(0, 13)}�</code>
+                  <span className="doc-meta-label">شناسه یکتا:</span>
+                  <code className="doc-token">{project.id.slice(0, 13)}…</code>
                 </div>
               </div>
 
@@ -304,32 +304,32 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                 <div className="scope-box scope-box--in">
                   <h4 className="scope-box-heading">
                     <CheckCircle2 className="icon-xs text-primary" aria-hidden="true" />
-                    <span>?????? ???? ????? (In-Scope)</span>
+                    <span>محدوده داخل پروژه (In-Scope)</span>
                   </h4>
                   <ul>
-                    <li>????? UI/UX ???? ?? ???? ???????????? ???? ? ????? ???? RTL</li>
-                    <li>????? ???? ???? ?????? ? ?????? ???????</li>
-                    <li>??????? ??????? ?? ????? ??? ???? ??????</li>
-                    <li>????? ?? ????? ???? ?????</li>
+                    <li>طراحی UI/UX کامل بر پایه دیزاین‌سیستم آریا و رعایت کامل RTL</li>
+                    <li>احراز هویت ایمن کاربری و مدیریت نشست‌ها</li>
+                    <li>کاتالوگ محصولات به همراه سبد خرید تعاملی</li>
+                    <li>اتصال به درگاه واسط بانکی</li>
                   </ul>
                 </div>
 
                 <div className="scope-box scope-box--out">
                   <h4 className="scope-box-heading">
                     <AlertCircle className="icon-xs text-muted" aria-hidden="true" />
-                    <span>???? ?? ???? ??? ??? (Out-of-Scope)</span>
+                    <span>خارج از تعهد فاز اول (Out-of-Scope)</span>
                   </h4>
                   <ul>
-                    <li>???????? ?????? ???? (iOS / Android)</li>
-                    <li>????? ???????? ? ?????????? ???? ??????????</li>
-                    <li>????? ????? ????? ????????</li>
+                    <li>اپلیکیشن موبایل بومی (iOS / Android)</li>
+                    <li>سیستم چندزبانه و تسویه‌حساب ارزی بین‌المللی</li>
+                    <li>ارسال پیامک انبوه تبلیغاتی</li>
                   </ul>
                 </div>
               </div>
 
               <div className="scope-doc-footer">
                 <p className="footer-note">
-                  ??? ??? ???? ?????? ??????? ???? ?? ?????? ??????? ??????? ????? ??? ???.
+                  این سند برای دریافت تأییدیه رسمی به پورتال اختصاصی کارفرما ارسال شده است.
                 </p>
                 <Link
                   className="button button--secondary"
@@ -337,7 +337,7 @@ export function ProjectWorkspace({ project }: WorkspaceProps) {
                   target="_blank"
                 >
                   <Share2 className="icon-xs" aria-hidden="true" />
-                  <span>??? ???? ???? ???????????? ???????</span>
+                  <span>باز کردن لینک اشتراک‌گذاری کارفرما</span>
                 </Link>
               </div>
             </div>
