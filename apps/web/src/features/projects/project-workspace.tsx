@@ -12,7 +12,9 @@ import {
   Share2,
   AlertCircle,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Plus,
+  Check,
 } from "lucide-react"
 
 import { saveBriefAction } from "./context-actions"
@@ -25,10 +27,89 @@ type WorkspaceProps = Readonly<{
   initialSources?: readonly ContextSourceItem[]
 }>
 
-const activeClarifications: Readonly<Record<string, string>> = {
-  gap_1: "درگاه واسط (زرین‌پال)",
-  gap_2: "نسخه فاز اول بدون پیامک"
+type RequirementItem = {
+  id: string
+  type: "functional" | "non-functional"
+  priority: "p1" | "p2" | "tech"
+  priorityLabel: string
+  title: string
+  note: string
 }
+
+type GapItem = {
+  id: string
+  title: string
+  description: string
+  decision: string | null
+  status: "open" | "resolved"
+}
+
+const defaultRequirements: RequirementItem[] = [
+  {
+    id: "REQ-01",
+    type: "functional",
+    priority: "p1",
+    priorityLabel: "اولویت اصلی",
+    title: "ثبت‌نام و ورود یکپارچه کاربران",
+    note: "پشتیبانی از ورود ایمیل و اعتبارسنجی امن نشست."
+  },
+  {
+    id: "REQ-02",
+    type: "functional",
+    priority: "p1",
+    priorityLabel: "اولویت اصلی",
+    title: "کاتالوگ محصولات با فیلترینگ چندمعیاره",
+    note: "جستجو بر اساس دسته‌بندی و دامنه قیمت به همراه صفحه‌بندی ایمن."
+  },
+  {
+    id: "REQ-03",
+    type: "functional",
+    priority: "p2",
+    priorityLabel: "اولویت متوسط",
+    title: "فرایند سبد خرید و ثبت نهایی سفارش",
+    note: "محاسبه خودکار تخفیف و مالیات قبل از ورود به درگاه پرداخت."
+  },
+  {
+    id: "NFR-01",
+    type: "non-functional",
+    priority: "tech",
+    priorityLabel: "استاندارد فرانت",
+    title: "طراحی RTL-First و دسترسی‌پذیری WCAG AA",
+    note: "استفاده کامل از توکن‌های طراحی، کنتراست استاندارد و فونت بومی."
+  },
+  {
+    id: "NFR-02",
+    type: "non-functional",
+    priority: "tech",
+    priorityLabel: "پرفورمنس",
+    title: "زمان بارگذاری زیر ۱.۵ ثانیه",
+    note: "بهینه‌سازی تصاویر و استفاده از کشینگ ابری در استیجینگ."
+  }
+]
+
+const defaultGaps: GapItem[] = [
+  {
+    id: "gap_1",
+    title: "روش اتصال درگاه پرداخت بانکی",
+    description: "در بریف مشخص نشده که آیا درگاه مستقیم بانکی (شاپرک/سداد) مد نظر است یا درگاه واسط پرداخت؟",
+    decision: "درگاه واسط (زرین‌پال)",
+    status: "resolved"
+  },
+  {
+    id: "gap_2",
+    title: "سیستم ارسال پیامک‌های اطلاع‌رسانی",
+    description: "آیا ارسال پیامک وضعیت سفارش‌ها در این فاز الزامی است یا در فاز دوم پروژه پیاده‌سازی خواهد شد؟",
+    decision: "نسخه فاز اول بدون پیامک",
+    status: "resolved"
+  },
+  {
+    id: "gap_3",
+    title: "سطوح دسترسی و نقش‌های کاربران پنل مدیریت",
+    description: "آیا نیاز به تفکیک نقش‌های حسابدار، انباردار و پشتیبان در این فاز وجود دارد یا تک‌نقش مدیر کافی است؟",
+    decision: null,
+    status: "open"
+  }
+]
 
 export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("context")
@@ -36,6 +117,23 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
   const [sourcesList, setSourcesList] = useState<readonly ContextSourceItem[]>(initialSources)
+
+  // Requirements state
+  const [requirements, setRequirements] = useState<RequirementItem[]>(defaultRequirements)
+  const [showAddReq, setShowAddReq] = useState(false)
+  const [newReqTitle, setNewReqTitle] = useState("")
+  const [newReqNote, setNewReqNote] = useState("")
+  const [newReqType, setNewReqType] = useState<"functional" | "non-functional">("functional")
+  const [newReqPriority, setNewReqPriority] = useState<"p1" | "p2" | "tech">("p1")
+  const [extractingReqs, setExtractingReqs] = useState(false)
+
+  // Gaps state
+  const [gaps, setGaps] = useState<GapItem[]>(defaultGaps)
+  const [activeEditingGap, setActiveEditingGap] = useState<string | null>(null)
+  const [gapDecisionInput, setGapDecisionInput] = useState("")
+  const [showAddGap, setShowAddGap] = useState(false)
+  const [newGapTitle, setNewGapTitle] = useState("")
+  const [newGapDesc, setNewGapDesc] = useState("")
 
   const handleSaveBrief = async () => {
     if (!briefText.trim()) return
@@ -56,6 +154,118 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
       setIsAnalyzing(false)
     }
   }
+
+  const handleAutoExtractRequirements = () => {
+    setExtractingReqs(true)
+    setTimeout(() => {
+      // Simulate intelligent requirement extraction from context sources
+      const allText = sourcesList.map((s) => s.raw_text ?? "").join(" ") + " " + briefText
+      const extracted: RequirementItem[] = []
+
+      if (allText.includes("چت") || allText.includes("پشتیبانی") || allText.includes("تیکت")) {
+        extracted.push({
+          id: `REQ-AUTO-${Date.now() % 1000}`,
+          type: "functional",
+          priority: "p1",
+          priorityLabel: "اولویت اصلی",
+          title: "سیستم هوشمند تیکتینگ و گفتگوی آنلاین مشتریان",
+          note: "پاسخ‌دهی آنی با پشتیبانی از صف انتظار و تاریخچه پیام‌ها بر اساس بریف."
+        })
+      }
+      if (allText.includes("درگاه") || allText.includes("پرداخت") || allText.includes("فروشگاه")) {
+        extracted.push({
+          id: `REQ-AUTO-${(Date.now() + 1) % 1000}`,
+          type: "functional",
+          priority: "p1",
+          priorityLabel: "اولویت اصلی",
+          title: "یکپارچه‌سازی درگاه پرداخت شاپرک با بازگشت امن",
+          note: "ثبت کد پیگیری بانکی و تاییدیه خودکار تراکنش‌ها."
+        })
+      }
+      if (allText.includes("امنیت") || allText.includes("احراز") || allText.includes("موبایل")) {
+        extracted.push({
+          id: `NFR-AUTO-${(Date.now() + 2) % 1000}`,
+          type: "non-functional",
+          priority: "tech",
+          priorityLabel: "امنیت داده",
+          title: "رمزنگاری End-to-End و احراز هویت دومرحله‌ای",
+          note: "رعایت الزامات امنیتی افتا و ذخیره‌سازی هش‌شده اطلاعات هویتی."
+        })
+      }
+
+      if (extracted.length > 0) {
+        setRequirements((prev) => [...extracted, ...prev])
+      } else {
+        // Add a general extracted item
+        setRequirements((prev) => [
+          {
+            id: `REQ-AUTO-${Date.now() % 1000}`,
+            type: "functional",
+            priority: "p1",
+            priorityLabel: "استخراج‌شده",
+            title: "مدیریت فرم‌ها و اعتبارسنجی ورودی‌های کاربر",
+            note: "استخراج شده از مستندات بریف و استانداردهای طراحی سیستم."
+          },
+          ...prev
+        ])
+      }
+      setExtractingReqs(false)
+      setActiveTab("requirements")
+    }, 600)
+  }
+
+  const handleAddRequirement = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newReqTitle.trim()) return
+
+    const priorityLabels: Record<string, string> = {
+      p1: "اولویت اصلی",
+      p2: "اولویت متوسط",
+      tech: "استاندارد فنی"
+    }
+
+    const newItem: RequirementItem = {
+      id: newReqType === "functional" ? `REQ-${requirements.length + 1}` : `NFR-${requirements.length + 1}`,
+      type: newReqType,
+      priority: newReqPriority,
+      priorityLabel: priorityLabels[newReqPriority] ?? "عادی",
+      title: newReqTitle.trim(),
+      note: newReqNote.trim() || "توضیحات تکمیلی توسط راهبر پروژه ثبت شد."
+    }
+
+    setRequirements((prev) => [newItem, ...prev])
+    setNewReqTitle("")
+    setNewReqNote("")
+    setShowAddReq(false)
+  }
+
+  const handleResolveGap = (gapId: string) => {
+    if (!gapDecisionInput.trim()) return
+    setGaps((prev) =>
+      prev.map((g) => (g.id === gapId ? { ...g, decision: gapDecisionInput.trim(), status: "resolved" } : g))
+    )
+    setActiveEditingGap(null)
+    setGapDecisionInput("")
+  }
+
+  const handleAddGap = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newGapTitle.trim()) return
+    const newGap: GapItem = {
+      id: `gap_${Date.now()}`,
+      title: newGapTitle.trim(),
+      description: newGapDesc.trim() || "این موضوع نیاز به تایید نهایی کارفرما قبل از پیاده‌سازی دارد.",
+      decision: null,
+      status: "open"
+    }
+    setGaps((prev) => [newGap, ...prev])
+    setNewGapTitle("")
+    setNewGapDesc("")
+    setShowAddGap(false)
+  }
+
+  const functionalReqs = requirements.filter((r) => r.type === "functional")
+  const nonFunctionalReqs = requirements.filter((r) => r.type === "non-functional")
 
   return (
     <div className="project-workspace">
@@ -83,7 +293,7 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
             onClick={() => setActiveTab("gaps")}
           >
             <HelpCircle className="icon-sm" aria-hidden="true" />
-            <span>Gaps (ابهامات)</span>
+            <span>Gaps (ابهام‌ها)</span>
           </button>
           <button
             type="button"
@@ -120,7 +330,7 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                 onChange={(e) => setBriefText(e.target.value)}
                 placeholder="مثال: کارفرما درخواست یک پلتفرم فروشگاهی اختصاصی برای فروش محصولات دیجیتال دارد. احراز هویت با شماره موبایل و اتصال به درگاه بانکی الزامی است..."
               />
-              <div className="brief-input-actions">
+              <div className="brief-input-actions" style={{ display: "flex", gap: "var(--primitive-space-3)", flexWrap: "wrap" }}>
                 <button
                   type="button"
                   className="button button--primary"
@@ -128,7 +338,7 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                   disabled={!briefText.trim() || isAnalyzing}
                 >
                   {isAnalyzing ? (
-                    <span>در حال استخراج و ساختاربندی…</span>
+                    <span>در حال ذخیره در پایگاه داده…</span>
                   ) : (
                     <>
                       <Sparkles className="icon-xs" aria-hidden="true" />
@@ -136,6 +346,17 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                     </>
                   )}
                 </button>
+                {sourcesList.length > 0 && (
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    onClick={handleAutoExtractRequirements}
+                    disabled={extractingReqs}
+                  >
+                    <ListChecks className="icon-xs" aria-hidden="true" />
+                    <span>{extractingReqs ? "در حال استخراج نیازمندی‌ها…" : "استخراج خودکار نیازمندی‌ها"}</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -169,14 +390,90 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
 
         {activeTab === "requirements" && (
           <section className="workspace-panel" aria-labelledby="req-panel-heading">
-            <div className="panel-header">
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 id="req-panel-heading">نیازمندی‌های استخراج شده</h3>
                 <p className="panel-subtitle">
                   تفکیک نیازمندی‌های کاربردی و مشخصات فنی بر مبنای قرارداد معماری Aria AI.
                 </p>
               </div>
+              <div style={{ display: "flex", gap: "var(--primitive-space-2)" }}>
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setShowAddReq(!showAddReq)}
+                >
+                  <Plus className="icon-xs" aria-hidden="true" />
+                  <span>{showAddReq ? "بستن فرم" : "افزودن نیازمندی"}</span>
+                </button>
+              </div>
             </div>
+
+            {showAddReq && (
+              <form onSubmit={handleAddRequirement} className="auth-card" style={{ maxWidth: "100%", marginBlockEnd: "var(--primitive-space-4)", padding: "var(--primitive-space-4)" }}>
+                <h4 style={{ marginBlockEnd: "var(--primitive-space-3)" }}>افزودن نیازمندی جدید</h4>
+                <div style={{ display: "grid", gap: "var(--primitive-space-3)" }}>
+                  <div>
+                    <label className="field-label" htmlFor="new-req-title">عنوان نیازمندی:</label>
+                    <input
+                      id="new-req-title"
+                      type="text"
+                      className="input"
+                      value={newReqTitle}
+                      onChange={(e) => setNewReqTitle(e.target.value)}
+                      placeholder="مثال: احراز هویت دوعاملی با پیامک OTP"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="new-req-note">شرح و معیار پذیرش:</label>
+                    <input
+                      id="new-req-note"
+                      type="text"
+                      className="input"
+                      value={newReqNote}
+                      onChange={(e) => setNewReqNote(e.target.value)}
+                      placeholder="توضیح عملکرد و رفتار مورد انتظار"
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--primitive-space-4)", flexWrap: "wrap" }}>
+                    <div>
+                      <label className="field-label" htmlFor="new-req-type">نوع نیازمندی:</label>
+                      <select
+                        id="new-req-type"
+                        className="input"
+                        value={newReqType}
+                        onChange={(e) => setNewReqType(e.target.value as "functional" | "non-functional")}
+                      >
+                        <option value="functional">کاربردی (Functional)</option>
+                        <option value="non-functional">کیفی و فنی (Non-Functional)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="field-label" htmlFor="new-req-priority">اولویت:</label>
+                      <select
+                        id="new-req-priority"
+                        className="input"
+                        value={newReqPriority}
+                        onChange={(e) => setNewReqPriority(e.target.value as "p1" | "p2" | "tech")}
+                      >
+                        <option value="p1">اولویت اصلی (P1)</option>
+                        <option value="p2">اولویت متوسط (P2)</option>
+                        <option value="tech">استاندارد فنی (Tech)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--primitive-space-2)", marginBlockStart: "var(--primitive-space-2)" }}>
+                    <button type="submit" className="button button--primary">
+                      <span>ثبت نیازمندی</span>
+                    </button>
+                    <button type="button" className="button button--secondary" onClick={() => setShowAddReq(false)}>
+                      <span>انصراف</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
 
             <div className="req-columns-grid">
               <div className="req-column">
@@ -185,30 +482,16 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                   <h4>نیازمندی‌های کاربردی (Functional)</h4>
                 </div>
                 <div className="req-cards">
-                  <div className="req-card">
-                    <div className="req-card__top">
-                      <span className="req-tag req-tag--p1">اولویت اصلی</span>
-                      <span className="req-id">REQ-01</span>
+                  {functionalReqs.map((req) => (
+                    <div key={req.id} className="req-card">
+                      <div className="req-card__top">
+                        <span className={`req-tag req-tag--${req.priority}`}>{req.priorityLabel}</span>
+                        <span className="req-id">{req.id}</span>
+                      </div>
+                      <p className="req-title">{req.title}</p>
+                      <p className="req-note">{req.note}</p>
                     </div>
-                    <p className="req-title">ثبت‌نام و ورود یکپارچه کاربران</p>
-                    <p className="req-note">پشتیبانی از ورود ایمیل و اعتبارسنجی امن نشست.</p>
-                  </div>
-                  <div className="req-card">
-                    <div className="req-card__top">
-                      <span className="req-tag req-tag--p1">اولویت اصلی</span>
-                      <span className="req-id">REQ-02</span>
-                    </div>
-                    <p className="req-title">کاتالوگ محصولات با فیلترینگ چندمعیاره</p>
-                    <p className="req-note">جستجو بر اساس دسته‌بندی و دامنه قیمت به همراه صفحه‌بندی ایمن.</p>
-                  </div>
-                  <div className="req-card">
-                    <div className="req-card__top">
-                      <span className="req-tag req-tag--p2">اولویت متوسط</span>
-                      <span className="req-id">REQ-03</span>
-                    </div>
-                    <p className="req-title">فرایند سبد خرید و ثبت نهایی سفارش</p>
-                    <p className="req-note">محاسبه خودکار تخفیف و مالیات قبل از ورود به درگاه پرداخت.</p>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -218,22 +501,16 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                   <h4>الزامات کیفی و امنیتی (Non-Functional)</h4>
                 </div>
                 <div className="req-cards">
-                  <div className="req-card">
-                    <div className="req-card__top">
-                      <span className="req-tag req-tag--tech">استاندارد فرانت</span>
-                      <span className="req-id">NFR-01</span>
+                  {nonFunctionalReqs.map((req) => (
+                    <div key={req.id} className="req-card">
+                      <div className="req-card__top">
+                        <span className="req-tag req-tag--tech">{req.priorityLabel}</span>
+                        <span className="req-id">{req.id}</span>
+                      </div>
+                      <p className="req-title">{req.title}</p>
+                      <p className="req-note">{req.note}</p>
                     </div>
-                    <p className="req-title">طراحی RTL-First و دسترسی‌پذیری WCAG AA</p>
-                    <p className="req-note">استفاده کامل از توکن‌های طراحی، کنتراست استاندارد و فونت بومی.</p>
-                  </div>
-                  <div className="req-card">
-                    <div className="req-card__top">
-                      <span className="req-tag req-tag--tech">پرفورمنس</span>
-                      <span className="req-id">NFR-02</span>
-                    </div>
-                    <p className="req-title">زمان بارگذاری زیر ۱.۵ ثانیه</p>
-                    <p className="req-note">بهینه‌سازی تصاویر و استفاده از کشینگ ابری در استیجینگ.</p>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -242,47 +519,127 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
 
         {activeTab === "gaps" && (
           <section className="workspace-panel" aria-labelledby="gaps-panel-heading">
-            <div className="panel-header">
+            <div className="panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 id="gaps-panel-heading">نقاط مبهم و سوالات شفاف‌سازی</h3>
                 <p className="panel-subtitle">
                   این ابهامات باید قبل از قفل کردن محدوده نهایی کار با کارفرما شفاف شوند.
                 </p>
               </div>
+              <div>
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setShowAddGap(!showAddGap)}
+                >
+                  <Plus className="icon-xs" aria-hidden="true" />
+                  <span>{showAddGap ? "بستن فرم" : "ثبت ابهام جدید"}</span>
+                </button>
+              </div>
             </div>
 
-            <div className="gap-items-list">
-              <div className="gap-item">
-                <div className="gap-item__badge">
-                  <AlertCircle className="icon-sm text-warning" aria-hidden="true" />
-                </div>
-                <div className="gap-item__body">
-                  <h4 className="gap-item__title">روش اتصال درگاه پرداخت بانکی</h4>
-                  <p className="gap-item__desc">
-                    در بریف مشخص نشده که آیا درگاه مستقیم بانکی (شاپرک/سداد) مد نظر است یا درگاه واسط پرداخت؟
-                  </p>
-                  <div className="gap-item__clarification">
-                    <span className="clarification-label">تصمیم ثبت شده:</span>
-                    <span className="clarification-val">{activeClarifications.gap_1}</span>
+            {showAddGap && (
+              <form onSubmit={handleAddGap} className="auth-card" style={{ maxWidth: "100%", marginBlockEnd: "var(--primitive-space-4)", padding: "var(--primitive-space-4)" }}>
+                <h4 style={{ marginBlockEnd: "var(--primitive-space-3)" }}>افزودن سوال شفاف‌سازی جدید</h4>
+                <div style={{ display: "grid", gap: "var(--primitive-space-3)" }}>
+                  <div>
+                    <label className="field-label" htmlFor="new-gap-title">موضوع یا نقطه مبهم:</label>
+                    <input
+                      id="new-gap-title"
+                      type="text"
+                      className="input"
+                      value={newGapTitle}
+                      onChange={(e) => setNewGapTitle(e.target.value)}
+                      placeholder="مثال: نحوه تسویه حساب و اتصال به سیستم انبارداری"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="new-gap-desc">شرح سوال برای کارفرما:</label>
+                    <input
+                      id="new-gap-desc"
+                      type="text"
+                      className="input"
+                      value={newGapDesc}
+                      onChange={(e) => setNewGapDesc(e.target.value)}
+                      placeholder="توضیح گزینه‌ها و پرسش مربوطه"
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--primitive-space-2)" }}>
+                    <button type="submit" className="button button--primary">
+                      <span>ثبت سوال</span>
+                    </button>
+                    <button type="button" className="button button--secondary" onClick={() => setShowAddGap(false)}>
+                      <span>انصراف</span>
+                    </button>
                   </div>
                 </div>
-              </div>
+              </form>
+            )}
 
-              <div className="gap-item">
-                <div className="gap-item__badge">
-                  <AlertCircle className="icon-sm text-warning" aria-hidden="true" />
-                </div>
-                <div className="gap-item__body">
-                  <h4 className="gap-item__title">سیستم ارسال پیامک‌های اطلاع‌رسانی</h4>
-                  <p className="gap-item__desc">
-                    آیا ارسال پیامک وضعیت سفارش‌ها در این فاز الزامی است یا در فاز دوم پروژه پیاده‌سازی خواهد شد؟
-                  </p>
-                  <div className="gap-item__clarification">
-                    <span className="clarification-label">تصمیم ثبت شده:</span>
-                    <span className="clarification-val">{activeClarifications.gap_2}</span>
+            <div className="gap-items-list">
+              {gaps.map((gap) => (
+                <div key={gap.id} className="gap-item">
+                  <div className="gap-item__badge">
+                    {gap.status === "resolved" ? (
+                      <CheckCircle2 className="icon-sm text-primary" aria-hidden="true" />
+                    ) : (
+                      <AlertCircle className="icon-sm text-warning" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div className="gap-item__body" style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <h4 className="gap-item__title">{gap.title}</h4>
+                      <span className={`badge ${gap.status === "resolved" ? "badge--success" : "badge--warning"}`} style={{ fontSize: "0.75rem" }}>
+                        {gap.status === "resolved" ? "شفاف‌سازی شد" : "در انتظار تصمیم"}
+                      </span>
+                    </div>
+                    <p className="gap-item__desc">{gap.description}</p>
+
+                    {gap.decision ? (
+                      <div className="gap-item__clarification">
+                        <span className="clarification-label">تصمیم ثبت شده:</span>
+                        <span className="clarification-val">{gap.decision}</span>
+                        <button
+                          type="button"
+                          className="button button--secondary"
+                          style={{ padding: "0.2rem 0.6rem", fontSize: "0.75rem", marginInlineStart: "auto" }}
+                          onClick={() => {
+                            setActiveEditingGap(gap.id)
+                            setGapDecisionInput(gap.decision || "")
+                          }}
+                        >
+                          تغییر تصمیم
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {(activeEditingGap === gap.id || !gap.decision) && (
+                      <div style={{ display: "flex", gap: "var(--primitive-space-2)", marginBlockStart: "var(--primitive-space-2)" }}>
+                        <input
+                          type="text"
+                          className="input"
+                          style={{ flex: 1, padding: "var(--primitive-space-2)" }}
+                          placeholder="تصمیم یا پاسخ توافق‌شده را وارد کنید…"
+                          value={activeEditingGap === gap.id ? gapDecisionInput : ""}
+                          onChange={(e) => {
+                            setActiveEditingGap(gap.id)
+                            setGapDecisionInput(e.target.value)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="button button--primary"
+                          onClick={() => handleResolveGap(gap.id)}
+                        >
+                          <Check className="icon-xs" aria-hidden="true" />
+                          <span>ثبت تصمیم</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </section>
         )}
@@ -325,27 +682,45 @@ export function ProjectWorkspace({ project, initialSources = [] }: WorkspaceProp
                 <div className="scope-box scope-box--in">
                   <h4 className="scope-box-heading">
                     <CheckCircle2 className="icon-xs text-primary" aria-hidden="true" />
-                    <span>محدوده داخل پروژه (In-Scope)</span>
+                    <span>محدوده داخل پروژه (In-Scope Deliverables)</span>
                   </h4>
                   <ul>
-                    <li>طراحی UI/UX کامل بر پایه دیزاین‌سیستم آریا و رعایت کامل RTL</li>
-                    <li>احراز هویت ایمن کاربری و مدیریت نشست‌ها</li>
-                    <li>کاتالوگ محصولات به همراه سبد خرید تعاملی</li>
-                    <li>اتصال به درگاه واسط بانکی</li>
+                    {functionalReqs.map((r) => (
+                      <li key={r.id}>
+                        <strong>{r.title}:</strong> {r.note}
+                      </li>
+                    ))}
+                    {nonFunctionalReqs.map((r) => (
+                      <li key={r.id}>
+                        <strong>{r.title}:</strong> {r.note}
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
                 <div className="scope-box scope-box--out">
                   <h4 className="scope-box-heading">
                     <AlertCircle className="icon-xs text-muted" aria-hidden="true" />
-                    <span>خارج از تعهد فاز اول (Out-of-Scope)</span>
+                    <span>خارج از تعهد فاز جاری (Out-of-Scope)</span>
                   </h4>
                   <ul>
-                    <li>اپلیکیشن موبایل بومی (iOS / Android)</li>
+                    <li>اپلیکیشن موبایل بومی (iOS / Android) خارج از فاز جاری</li>
                     <li>سیستم چندزبانه و تسویه‌حساب ارزی بین‌المللی</li>
-                    <li>ارسال پیامک انبوه تبلیغاتی</li>
+                    <li>ارسال پیامک انبوه تبلیغاتی و کمپین‌های مارکتینگ</li>
+                    <li>یکپارچه‌سازی با نرم‌افزارهای حسابداری متفرقه</li>
                   </ul>
                 </div>
+              </div>
+
+              <div style={{ marginBlock: "var(--primitive-space-4)", padding: "var(--primitive-space-4)", borderRadius: "var(--button-radius)", background: "hsl(var(--card-background))", border: "var(--border-width-default) solid hsl(var(--card-border))" }}>
+                <h5 style={{ marginBlockEnd: "var(--primitive-space-2)", color: "hsl(var(--color-primary))" }}>تصمیمات توافق‌شده برای رفع ابهام:</h5>
+                <ul style={{ paddingInlineStart: "var(--primitive-space-4)", margin: 0 }}>
+                  {gaps.filter((g) => g.decision).map((g) => (
+                    <li key={g.id} style={{ fontSize: "var(--font-size-caption)", color: "hsl(var(--color-text-default))", marginBlockEnd: "var(--primitive-space-1)" }}>
+                      <strong>{g.title}:</strong> {g.decision}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="scope-doc-footer">
