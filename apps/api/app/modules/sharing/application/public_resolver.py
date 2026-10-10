@@ -3,11 +3,17 @@ from __future__ import annotations
 import base64
 import binascii
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from time import perf_counter
+from typing import Any, cast
 
 from aria_observability import StructuredEventLogger
 
+from app.modules.scope.domain.scope_draft import (
+    ScopeDraftValidationError,
+    validate_scope_content,
+)
 from app.modules.sharing.application.ports import (
     ResolvedPublicScope,
     ScopeShareLinkRepositoryError,
@@ -59,6 +65,21 @@ class PublicScopeShareResolver:
         if resolved is None:
             self._emit_not_found(started_at)
             raise PublicScopeShareNotFound
+        try:
+            resolved = replace(
+                resolved,
+                snapshot_data=project_public_scope_content(resolved.snapshot_data),
+            )
+        except ScopeDraftValidationError:
+            self._event_logger.emit(
+                "scope_share.resolve_failed",
+                level="ERROR",
+                operation="resolve",
+                duration_ms=(perf_counter() - started_at) * 1000,
+                status="failed",
+                error_code="PUBLIC_SCOPE_PROJECTION_FAILURE",
+            )
+            raise ScopeShareLinkRepositoryError from None
         self._event_logger.emit(
             "scope_share.resolve_succeeded",
             scope_share_link_id=str(resolved.share_link_id),
@@ -93,3 +114,51 @@ def is_canonical_public_token(token: str) -> bool:
         return False
     canonical = base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii")
     return canonical == token
+
+
+def project_public_scope_content(snapshot_data: dict[str, object]) -> dict[str, object]:
+    """Return the recursive public allowlist; internal lineage never crosses this boundary."""
+    validated = validate_scope_content(snapshot_data)
+    sections: list[dict[str, object]] = []
+    for section in validated["sections"]:
+        section_id = section["section_id"]
+        sections.append(
+            {
+                "section_id": section_id,
+                "value": _project_public_section_value(section_id, section["value"]),
+            }
+        )
+    return {"schema_version": "scope_content_schema_v1", "sections": sections}
+
+
+def _project_public_section_value(section_id: str, value: object) -> object:
+    if section_id in {"summary", "visual_direction"}:
+        return value
+    if section_id in {
+        "goals",
+        "constraints",
+        "assumptions",
+        "out_of_scope",
+        "acceptance_notes",
+    }:
+        return list(cast(list[str], value))
+    if section_id == "pages_sections":
+        pages = cast(list[dict[str, Any]], value)
+        return [
+            {
+                "page_name": page["page_name"],
+                "sections": [{"name": item["name"]} for item in page["sections"]],
+            }
+            for page in pages
+        ]
+    allowed_keys = {
+        "requirements": ("text", "priority"),
+        "content": ("description",),
+        "resolved_gaps": ("text", "resolution_type"),
+        "remaining_non_blocking_gaps": ("text", "severity"),
+    }[section_id]
+    items = cast(list[dict[str, Any]], value)
+    return [
+        {key: item[key] for key in allowed_keys}
+        for item in items
+    ]

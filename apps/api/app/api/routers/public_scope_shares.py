@@ -15,6 +15,7 @@ from app.api.errors import (
     ScopeChangesAlreadyRequestedError,
     ValidationFailedError,
 )
+from app.modules.scope.domain.scope_version import ScopeVersionStatus
 from app.modules.sharing.application.public_approval import (
     ApprovePublicScopeCommand,
     PublicScopeAlreadyApproved,
@@ -47,6 +48,7 @@ class PublicScopeSnapshotResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version_no: int
+    decision_status: ScopeVersionStatus
     snapshot_data: dict[str, object]
 
 
@@ -153,6 +155,7 @@ def create_public_scope_shares_router() -> APIRouter:
         return PublicScopeSnapshotEnvelope(
             data=PublicScopeSnapshotResponse(
                 version_no=resolved.version_no,
+                decision_status=resolved.decision_status,
                 snapshot_data=resolved.snapshot_data,
             ),
             meta=ResponseMeta(request_id=_request_id()),

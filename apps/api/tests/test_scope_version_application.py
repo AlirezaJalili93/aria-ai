@@ -166,12 +166,14 @@ def _target(
     draft: ScopeDraft | None = None,
     gaps: tuple[ScopeReadinessGap, ...] = (),
     latest_hash: str | None = None,
+    latest_status: str | None = None,
 ) -> ScopeVersionFreezeTarget:
     return ScopeVersionFreezeTarget(
         project_current_context_version=2,
         draft=draft or _draft(),
         gaps=gaps,
         latest_snapshot_hash=latest_hash,
+        latest_status=latest_status,
         next_version_no=1,
     )
 
@@ -254,6 +256,20 @@ def test_missing_stale_not_ready_and_unchanged_are_distinct() -> None:
                 _context(),
                 project_id=PROJECT_ID,
                 command=CreateScopeVersionCommand(NOW, "duplicate"),
+            )
+        )
+
+
+def test_generic_freeze_requires_revision_after_change_request() -> None:
+    from app.modules.scope.application.scope_version_service import ScopeRevisionRequired
+
+    repository = FakeRepository(_target(latest_status="changes_requested"))
+    with _trace(), pytest.raises(ScopeRevisionRequired):
+        asyncio.run(
+            _service(repository, FakeLogger([])).create(
+                _context(),
+                project_id=PROJECT_ID,
+                command=CreateScopeVersionCommand(NOW, "must-revise"),
             )
         )
 

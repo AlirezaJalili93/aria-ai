@@ -20,7 +20,6 @@ def _snapshot() -> dict[str, object]:
             {
                 "section_id": "summary",
                 "value": "Synthetic public Scope",
-                "trace": {"context_item_ids": [], "requirement_ids": [], "gap_ids": []},
             }
         ],
     }
@@ -39,6 +38,7 @@ class StubResolver:
             share_link_id=uuid4(),
             scope_version_id=uuid4(),
             version_no=4,
+            decision_status="superseded",
             snapshot_data=_snapshot(),
         )
 
@@ -61,8 +61,16 @@ def test_public_resolve_requires_no_identity_and_returns_minimal_no_store_snapsh
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     assert resolver.tokens == [token]
-    assert response.json()["data"] == {"version_no": 4, "snapshot_data": _snapshot()}
-    assert set(response.json()["data"]) == {"version_no", "snapshot_data"}
+    assert response.json()["data"] == {
+        "version_no": 4,
+        "decision_status": "superseded",
+        "snapshot_data": _snapshot(),
+    }
+    assert set(response.json()["data"]) == {
+        "version_no",
+        "decision_status",
+        "snapshot_data",
+    }
     assert "authorization" not in response.request.headers
     assert "x-account-id" not in response.request.headers
 
@@ -135,3 +143,5 @@ def test_request_observability_never_records_raw_token_or_hash() -> None:
     assert token not in logged
     assert SecureScopeShareTokenIssuer.hash_public_token(token).hex() not in logged
     assert "snapshot_data" not in logged
+    for forbidden in ("trace", "context_item_ids", "requirement_ids", "gap_ids", "item_id"):
+        assert forbidden not in response.text

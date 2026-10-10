@@ -9,7 +9,12 @@ import pytest
 from aria_observability import TraceContext, bind_trace_context
 
 from app.modules.identity.application.tenant_context import TenantContext
-from app.modules.sharing.application.ports import IssuedScopeShareToken
+from app.modules.sharing.application.ports import (
+    IssuedScopeShareToken,
+    ScopeDecisionProjection,
+    ScopeShareCreateTarget,
+    ScopeShareLinkProjection,
+)
 from app.modules.sharing.application.service import (
     CreateScopeShareLinkCommand,
     RevokeScopeShareLinkCommand,
@@ -87,8 +92,14 @@ class FakeIdempotency:
 class FakeRepository:
     def __init__(self) -> None:
         self.target_id: UUID | None = VERSION_ID
+        self.target_status = "awaiting_approval"
         self.links: dict[UUID, ScopeShareLink] = {}
         self.revocation_writes = 0
+        self.list_actor_id: UUID | None = None
+        self.decision = ScopeDecisionProjection(
+            decision_type="none",
+            scope_version_no=1,
+        )
 
     @staticmethod
     def create_route_key(project_id: UUID) -> str:
@@ -100,6 +111,13 @@ class FakeRepository:
 
     async def scope_version_id(self, **_: object) -> UUID | None:
         return self.target_id
+
+    async def lock_scope_version_for_share_create(
+        self, **_: object
+    ) -> ScopeShareCreateTarget | None:
+        if self.target_id is None:
+            return None
+        return ScopeShareCreateTarget(id=self.target_id, status=self.target_status)  # type: ignore[arg-type]
 
     async def scope_version_exists(self, **_: object) -> bool:
         return self.target_id is not None
@@ -126,6 +144,19 @@ class FakeRepository:
         self.revocation_writes += 1
         self.links[link.id] = link
         return link
+
+    async def list_for_scope_version(
+        self, *, actor_id: UUID | None, **_: object
+    ) -> tuple[ScopeShareLinkProjection, ...]:
+        self.list_actor_id = actor_id
+        return tuple(
+            ScopeShareLinkProjection(link=link, scope_version_no=1)
+            for link in self.links.values()
+            if actor_id is None or link.created_by == actor_id
+        )
+
+    async def decision_for_scope_version(self, **_: object) -> ScopeDecisionProjection:
+        return self.decision
 
 
 class FakeUnitOfWork:
@@ -237,6 +268,20 @@ def test_missing_or_cross_tenant_version_is_safe_not_found_before_reservation() 
     assert issuer.calls == 0
 
 
+def test_superseded_version_cannot_create_a_new_share_capability() -> None:
+    repository = FakeRepository()
+    repository.target_status = "superseded"
+    service, unit_of_work, issuer = _service(repository)
+
+    with _trace(), pytest.raises(ScopeShareLinkAccessNotFound):
+        asyncio.run(service.create(_context(), project_id=PROJECT_ID, command=_create_command()))
+
+    assert unit_of_work.commits == 0
+    assert unit_of_work.idempotency.records == {}
+    assert issuer.calls == 0
+    assert repository.links == {}
+
+
 def test_revoke_is_idempotent_and_changed_target_conflicts() -> None:
     repository = FakeRepository()
     service, unit_of_work, _ = _service(repository)
@@ -334,3 +379,68 @@ def test_inactive_membership_is_denied_before_repository_access() -> None:
         )
     assert unit_of_work.idempotency.records == {}
     assert issuer.calls == 0
+
+
+def test_share_projection_filters_members_and_computes_status_and_revoke_capability() -> None:
+    repository = FakeRepository()
+    service, _, _ = _service(repository)
+    member_link = ScopeShareLink(
+        id=uuid4(),
+        account_id=ACCOUNT_ID,
+        project_id=PROJECT_ID,
+        scope_version_id=VERSION_ID,
+        token_hash=b"m" * 32,
+        expires_at=NOW + timedelta(hours=1),
+        revoked_at=None,
+        created_by=SUBJECT,
+        created_at=NOW,
+    )
+    other_link = ScopeShareLink(
+        id=uuid4(),
+        account_id=ACCOUNT_ID,
+        project_id=PROJECT_ID,
+        scope_version_id=VERSION_ID,
+        token_hash=b"o" * 32,
+        expires_at=NOW - timedelta(hours=1),
+        revoked_at=None,
+        created_by=uuid4(),
+        created_at=NOW - timedelta(days=1),
+    )
+    repository.links = {member_link.id: member_link, other_link.id: other_link}
+
+    member_rows = asyncio.run(
+        service.list_for_version(_context(), project_id=PROJECT_ID, version_no=1)
+    )
+    assert [row.id for row in member_rows] == [member_link.id]
+    assert member_rows[0].status == "active"
+    assert member_rows[0].can_revoke is True
+    assert repository.list_actor_id == SUBJECT
+
+    admin_rows = asyncio.run(
+        service.list_for_version(_context(role="admin"), project_id=PROJECT_ID, version_no=1)
+    )
+    assert {row.id for row in admin_rows} == {member_link.id, other_link.id}
+    assert {row.status for row in admin_rows} == {"active", "expired"}
+    assert repository.list_actor_id is None
+
+
+def test_decision_projection_is_exact_version_and_content_is_not_logged() -> None:
+    repository = FakeRepository()
+    comment = "این متن فقط در پاسخ مجاز برمی‌گردد"
+    repository.decision = ScopeDecisionProjection(
+        decision_type="change_request",
+        scope_version_no=1,
+        decision_id=uuid4(),
+        guest_name="مهمان مصنوعی",
+        comment=comment,
+        decided_at=NOW,
+    )
+    logger = FakeLogger([])
+    service, _, _ = _service(repository, logger)
+
+    decision = asyncio.run(
+        service.decision_for_version(_context(), project_id=PROJECT_ID, version_no=1)
+    )
+
+    assert decision is repository.decision
+    assert comment not in repr(logger.events)

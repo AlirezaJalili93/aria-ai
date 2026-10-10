@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from types import TracebackType
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,9 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.infrastructure.db.idempotency import SqlAlchemyIdempotencyRepository
 from app.modules.projects.infrastructure.models import ProjectModel
+from app.modules.scope.domain.scope_version import ScopeVersionStatus
 from app.modules.scope.infrastructure.models import ScopeVersionModel
 from app.modules.sharing.application.ports import (
     ResolvedPublicScope,
+    ScopeDecisionProjection,
+    ScopeShareCreateTarget,
+    ScopeShareLinkProjection,
     ScopeShareLinkRepository,
     ScopeShareLinkRepositoryError,
     ScopeShareLinkUnitOfWork,
@@ -22,7 +27,11 @@ from app.modules.sharing.domain.scope_share_link import (
     ScopeShareLink,
     ScopeShareLinkValidationError,
 )
-from app.modules.sharing.infrastructure.models import ScopeShareLinkModel
+from app.modules.sharing.infrastructure.models import (
+    ScopeApprovalModel,
+    ScopeChangeRequestModel,
+    ScopeShareLinkModel,
+)
 from app.shared.idempotency import IdempotencyRepository, IdempotencyRepositoryError
 
 
@@ -54,6 +63,36 @@ class SqlAlchemyScopeShareLinkRepository:
                 ScopeVersionModel.version_no == version_no,
                 ProjectModel.deleted_at.is_(None),
             )
+        )
+
+    async def lock_scope_version_for_share_create(
+        self, *, account_id: UUID, project_id: UUID, version_no: int
+    ) -> ScopeShareCreateTarget | None:
+        project = await self._session.scalar(
+            select(ProjectModel)
+            .where(
+                ProjectModel.id == project_id,
+                ProjectModel.account_id == account_id,
+                ProjectModel.deleted_at.is_(None),
+            )
+            .with_for_update()
+        )
+        if project is None:
+            return None
+        row = (
+            await self._session.execute(
+                select(ScopeVersionModel.id, ScopeVersionModel.status).where(
+                    ScopeVersionModel.account_id == account_id,
+                    ScopeVersionModel.project_id == project_id,
+                    ScopeVersionModel.version_no == version_no,
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return ScopeShareCreateTarget(
+            id=row.id,
+            status=cast(ScopeVersionStatus, row.status),
         )
 
     async def scope_version_exists(
@@ -159,7 +198,105 @@ class SqlAlchemyScopeShareLinkRepository:
             share_link_id=link.id,
             scope_version_id=version.id,
             version_no=version.version_no,
+            decision_status=version.status,
             snapshot_data=version.snapshot_data,
+        )
+
+    async def list_for_scope_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        scope_version_id: UUID,
+        actor_id: UUID | None,
+    ) -> tuple[ScopeShareLinkProjection, ...]:
+        statement = (
+            select(ScopeShareLinkModel, ScopeVersionModel.version_no)
+            .join(
+                ScopeVersionModel,
+                (ScopeVersionModel.id == ScopeShareLinkModel.scope_version_id)
+                & (ScopeVersionModel.account_id == ScopeShareLinkModel.account_id)
+                & (ScopeVersionModel.project_id == ScopeShareLinkModel.project_id),
+            )
+            .join(
+                ProjectModel,
+                (ProjectModel.id == ScopeShareLinkModel.project_id)
+                & (ProjectModel.account_id == ScopeShareLinkModel.account_id),
+            )
+            .where(
+                ScopeShareLinkModel.account_id == account_id,
+                ScopeShareLinkModel.project_id == project_id,
+                ScopeShareLinkModel.scope_version_id == scope_version_id,
+                ProjectModel.deleted_at.is_(None),
+            )
+            .order_by(ScopeShareLinkModel.created_at.desc(), ScopeShareLinkModel.id.desc())
+        )
+        if actor_id is not None:
+            statement = statement.where(ScopeShareLinkModel.created_by == actor_id)
+        rows = (await self._session.execute(statement)).all()
+        return tuple(
+            ScopeShareLinkProjection(link=_from_model(row[0]), scope_version_no=row[1])
+            for row in rows
+        )
+
+    async def decision_for_scope_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        scope_version_id: UUID,
+    ) -> ScopeDecisionProjection | None:
+        row = (
+            await self._session.execute(
+                select(ScopeVersionModel, ScopeApprovalModel, ScopeChangeRequestModel)
+                .outerjoin(
+                    ScopeApprovalModel,
+                    (ScopeApprovalModel.scope_version_id == ScopeVersionModel.id)
+                    & (ScopeApprovalModel.account_id == ScopeVersionModel.account_id)
+                    & (ScopeApprovalModel.project_id == ScopeVersionModel.project_id),
+                )
+                .outerjoin(
+                    ScopeChangeRequestModel,
+                    (ScopeChangeRequestModel.scope_version_id == ScopeVersionModel.id)
+                    & (ScopeChangeRequestModel.account_id == ScopeVersionModel.account_id)
+                    & (ScopeChangeRequestModel.project_id == ScopeVersionModel.project_id),
+                )
+                .join(
+                    ProjectModel,
+                    (ProjectModel.id == ScopeVersionModel.project_id)
+                    & (ProjectModel.account_id == ScopeVersionModel.account_id),
+                )
+                .where(
+                    ScopeVersionModel.id == scope_version_id,
+                    ScopeVersionModel.account_id == account_id,
+                    ScopeVersionModel.project_id == project_id,
+                    ProjectModel.deleted_at.is_(None),
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        version, approval, change_request = row
+        if approval is not None:
+            return ScopeDecisionProjection(
+                decision_type="approval",
+                scope_version_no=version.version_no,
+                decision_id=approval.id,
+                guest_name=approval.guest_name,
+                decided_at=approval.approved_at,
+            )
+        if change_request is not None:
+            return ScopeDecisionProjection(
+                decision_type="change_request",
+                scope_version_no=version.version_no,
+                decision_id=change_request.id,
+                guest_name=change_request.guest_name,
+                comment=change_request.comment,
+                decided_at=change_request.requested_at,
+            )
+        return ScopeDecisionProjection(
+            decision_type="none",
+            scope_version_no=version.version_no,
         )
 
 

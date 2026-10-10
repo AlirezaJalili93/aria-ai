@@ -64,7 +64,7 @@ M000 extensions
 | clarifications | id, account_id, project_id, gap_id, question_text, status, created_by_type, created_by, created_at, updated_at | status برابر open/answered/ignored؛ سؤال user-created دارای created_by است؛ فقط سؤال open قابل ویرایش است و متن normalized سؤال باز در هر Gap یکتا است |
 | clarification_resolutions | id, account_id, project_id, gap_id, clarification_id, resolution_type, answer_text, author_type, author_id, actor_id, created_at | هر Clarification حداکثر یک Resolution terminal دارد؛ actor داخلی احرازشده اجباری است؛ author فقط user/client و client بدون Profile مجاز است؛ تاریخچه با RESTRICT حفظ می‌شود |
 | scope_drafts | id, account_id, project_id, context_version, content, updated_by_type, updated_by, created_at, updated_at | strict `scope_content_schema_v1` JSONB؛ دوازده Section از نظر ساختاری اجباری ولی empty مجاز؛ `UNIQUE(project_id,context_version)`؛ Draft قدیمی پس از پیشروی Context تاریخی/read-only؛ readiness و revision persisted در K01 superseded/deferred و updated_at CAS canonical؛ K02 readiness به‌صورت computed policy و بدون ستون persistence؛ K03 فقط Draft جدید می‌سازد و Draft موجود را overwrite نمی‌کند |
-| scope_versions | id, account_id, project_id, version_no, context_version, status, snapshot_data, snapshot_hash, created_by, created_at | `UNIQUE(project_id,version_no)`؛ `scope_snapshot_canonicalization_v1` + SHA-256؛ payload/hash/lineage immutable و status فقط lifecycle projection کنترل‌شده است |
+| scope_versions | id, account_id, project_id, version_no, context_version, status, snapshot_data, snapshot_hash, created_by, revision_of_scope_version_id, change_request_id, created_at | `UNIQUE(project_id,version_no)`؛ `scope_snapshot_canonicalization_v1` + SHA-256؛ initial lineage هر دو NULL و revision lineage هر دو non-NULL؛ Change Request فقط یک‌بار مصرف می‌شود؛ payload/hash/lineage immutable و status فقط lifecycle projection کنترل‌شده است |
 | scope_share_links | id, account_id, project_id, scope_version_id, token_hash, expires_at, revoked_at, created_by, created_at | اتصال دقیق به ScopeVersion immutable؛ فقط hash سی‌ودوبایتی token ذخیره می‌شود؛ expiry اجباری و revocation terminal است؛ حذف فیزیکی ممنوع |
 | scope_approvals | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, explicit_consent, idempotency_key, request_hash, approved_at | هر ScopeVersion دقیقاً یک Approval نهایی immutable؛ snapshot hash ثبت‌شده ولی public-hidden؛ consent همواره true؛ guest idempotency capability-scoped؛ بدون raw token/email/IP/User-Agent؛ Project status بدون تغییر |
 | scope_change_requests | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, comment, idempotency_key, request_hash, requested_at | Change Request مستقل و immutable؛ برای هر ScopeVersion حداکثر یک رکورد؛ comment canonical و ۱..۴۰۰۰ کاراکتر؛ snapshot identity ثبت‌شده ولی public-hidden؛ Approval و Change Request با lock همان ScopeVersion mutually exclusive هستند؛ هیچ ScopeVersion، Draft، Project یا ShareLink خودکار تغییر نمی‌کند |
@@ -201,6 +201,11 @@ M000 extensions
   همان Job و input fingerprint را دارد و unique logical-attempt index مانع ایجاد concurrent آن
   می‌شود. جزئیات در
   [ADR-071](../adr/ADR-071-durable-technical-retry-checkpoint-integration.md) آمده است.
+- 0095 یک مدل persistence جدید معرفی نمی‌کند. `generation_ast_candidate_v1` خروجی غیرقابل‌اعتماد
+  Provider و `generation_ast_schema_v1` نتیجهٔ canonical پس از validation، Asset authorization و
+  Application enrichment هستند. Atomic finalizer فقط Port است؛ جدول Artifact/Preview یا نگهداری
+  AST تا قرارداد Generation Service اضافه نمی‌شود. جزئیات در
+  [ADR-082](../adr/ADR-082-generation-component-registry-and-ast.md) آمده است.
 
 ## Migration Guardrails
 

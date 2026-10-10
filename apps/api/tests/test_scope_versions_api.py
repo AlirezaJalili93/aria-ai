@@ -11,6 +11,7 @@ from app.modules.identity.application.ports import AuthenticatedIdentity, Invali
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.scope.application.scope_version_service import (
     CreateScopeVersionCommand,
+    ScopeRevisionRequired,
     ScopeVersionAccessNotFound,
     ScopeVersionCreateConflict,
     ScopeVersionIdempotencyConflict,
@@ -172,6 +173,7 @@ def test_create_maps_all_frozen_failure_contracts() -> None:
         (ScopeVersionCreateConflict(), 409, "VERSION_CONFLICT"),
         (ScopeVersionNotReady(), 422, "CRITICAL_GAPS_OPEN"),
         (ScopeVersionUnchanged(), 409, "SCOPE_VERSION_UNCHANGED"),
+        (ScopeRevisionRequired(), 409, "SCOPE_REVISION_REQUIRED"),
         (ScopeVersionIdempotencyConflict(), 409, "IDEMPOTENCY_CONFLICT"),
     )
     for error, expected_status, expected_code in cases:

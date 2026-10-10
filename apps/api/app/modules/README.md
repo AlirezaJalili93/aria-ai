@@ -51,4 +51,8 @@ one-time token disclosure, safe idempotency replay, public exact-version resolut
 body-token Approval and Change Request. Both decisions capture the exact snapshot hash, lock the
 same ScopeVersion and use dedicated capability-scoped idempotency without weakening authenticated
 records; only one terminal decision can commit. Infrastructure keeps raw tokens out of PostgreSQL.
-Public browser bootstrap, authenticated revision commands and Share UI remain deferred.
+ADR-080 adds exact-version authenticated Share/Decision read projections, bound-Version public
+decision status and a fragment-only volatile browser bootstrap. Full SCR-14..17 Share/Guest UI
+remains deferred to 0094. The authenticated Scope Revision boundary
+consumes one exact Change Request after an explicit K04 Draft edit, creates N+1 with immutable
+parent lineage and supersedes N atomically; it never merges the public comment or invokes AI.

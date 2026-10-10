@@ -50,6 +50,14 @@ class ScopeVersionUnchangedError(Exception):
     """API signal for a Scope freeze identical to the latest snapshot."""
 
 
+class ScopeRevisionRequiredError(Exception):
+    """API signal that a Change Request requires the explicit revision route."""
+
+
+class ScopeRevisionStaleError(Exception):
+    """API signal for an invalidated Scope Revision relationship."""
+
+
 class ScopeAlreadyApprovedError(Exception):
     """API signal for a second final Approval of the same Scope Version."""
 
@@ -352,6 +360,32 @@ async def scope_version_unchanged_handler(
         status_code=409,
         code="SCOPE_VERSION_UNCHANGED",
         message="The current Scope is unchanged from the latest version.",
+        retryable=False,
+    )
+
+
+async def scope_revision_required_handler(
+    request: Request, error: Exception
+) -> JSONResponse:
+    if not isinstance(error, ScopeRevisionRequiredError):
+        raise TypeError("Unexpected exception type for Scope Revision required handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_REVISION_REQUIRED",
+        message="The latest Scope Version requires the explicit revision command.",
+        retryable=False,
+    )
+
+
+async def scope_revision_stale_handler(request: Request, error: Exception) -> JSONResponse:
+    if not isinstance(error, ScopeRevisionStaleError):
+        raise TypeError("Unexpected exception type for Scope Revision stale handler")
+    del request, error
+    return _error_response(
+        status_code=409,
+        code="SCOPE_REVISION_STALE",
+        message="The Scope Revision command no longer matches current state.",
         retryable=False,
     )
 

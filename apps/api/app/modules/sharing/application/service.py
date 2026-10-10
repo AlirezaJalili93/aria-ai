@@ -6,12 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
+from typing import Literal
 from uuid import UUID, uuid4
 
 from aria_observability import StructuredEventLogger, enrich_trace_context
 
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.sharing.application.ports import (
+    ScopeDecisionProjection,
     ScopeShareLinkRepositoryError,
     ScopeShareLinkUnitOfWork,
     ScopeShareLinkUnitOfWorkFactory,
@@ -58,6 +60,19 @@ class CreateScopeShareLinkResult:
     replayed: bool
 
 
+ScopeShareLinkStatus = Literal["active", "expired", "revoked"]
+
+
+@dataclass(frozen=True, slots=True)
+class ScopeShareLinkListItem:
+    id: UUID
+    scope_version_no: int
+    status: ScopeShareLinkStatus
+    expires_at: datetime
+    created_at: datetime
+    can_revoke: bool
+
+
 class ScopeShareLinkService:
     def __init__(
         self,
@@ -95,13 +110,14 @@ class ScopeShareLinkService:
         )
         try:
             async with self._unit_of_work_factory() as unit_of_work:
-                scope_version_id = await unit_of_work.repository.scope_version_id(
+                target = await unit_of_work.repository.lock_scope_version_for_share_create(
                     account_id=context.account_id,
                     project_id=project_id,
                     version_no=command.version_no,
                 )
-                if scope_version_id is None:
+                if target is None or target.status == "superseded":
                     raise ScopeShareLinkAccessNotFound
+                scope_version_id = target.id
 
                 route_key = unit_of_work.repository.create_route_key(project_id)
                 reservation = await unit_of_work.idempotency.reserve(
@@ -267,6 +283,70 @@ class ScopeShareLinkService:
         )
         return result
 
+    async def list_for_version(
+        self,
+        context: TenantContext,
+        *,
+        project_id: UUID,
+        version_no: int,
+    ) -> tuple[ScopeShareLinkListItem, ...]:
+        _require_active_context(context)
+        if version_no < 1:
+            raise ScopeShareLinkValidationError("version_no must be at least one")
+        now = self._clock()
+        async with self._unit_of_work_factory() as unit_of_work:
+            scope_version_id = await unit_of_work.repository.scope_version_id(
+                account_id=context.account_id,
+                project_id=project_id,
+                version_no=version_no,
+            )
+            if scope_version_id is None:
+                raise ScopeShareLinkAccessNotFound
+            rows = await unit_of_work.repository.list_for_scope_version(
+                account_id=context.account_id,
+                project_id=project_id,
+                scope_version_id=scope_version_id,
+                actor_id=context.subject_id if context.role == "member" else None,
+            )
+        return tuple(
+            ScopeShareLinkListItem(
+                id=row.link.id,
+                scope_version_no=row.scope_version_no,
+                status=_share_link_status(row.link, now=now),
+                expires_at=row.link.expires_at,
+                created_at=row.link.created_at,
+                can_revoke=row.link.revoked_at is None,
+            )
+            for row in rows
+        )
+
+    async def decision_for_version(
+        self,
+        context: TenantContext,
+        *,
+        project_id: UUID,
+        version_no: int,
+    ) -> ScopeDecisionProjection:
+        _require_active_context(context)
+        if version_no < 1:
+            raise ScopeShareLinkValidationError("version_no must be at least one")
+        async with self._unit_of_work_factory() as unit_of_work:
+            scope_version_id = await unit_of_work.repository.scope_version_id(
+                account_id=context.account_id,
+                project_id=project_id,
+                version_no=version_no,
+            )
+            if scope_version_id is None:
+                raise ScopeShareLinkAccessNotFound
+            decision = await unit_of_work.repository.decision_for_scope_version(
+                account_id=context.account_id,
+                project_id=project_id,
+                scope_version_id=scope_version_id,
+            )
+            if decision is None:
+                raise ScopeShareLinkAccessNotFound
+            return decision
+
     def _emit_persistence_failure(
         self,
         *,
@@ -375,3 +455,11 @@ def _require_active_context(context: TenantContext) -> None:
         "member",
     }:
         raise ScopeShareLinkPermissionDenied
+
+
+def _share_link_status(link: ScopeShareLink, *, now: datetime) -> ScopeShareLinkStatus:
+    if link.revoked_at is not None:
+        return "revoked"
+    if link.expires_at <= now:
+        return "expired"
+    return "active"

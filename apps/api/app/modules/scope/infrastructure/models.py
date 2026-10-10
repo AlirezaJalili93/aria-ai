@@ -90,10 +90,38 @@ class ScopeVersionModel(Base):
             name="fk_scope_versions_project_tenant",
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["revision_of_scope_version_id", "account_id", "project_id"],
+            ["scope_versions.id", "scope_versions.account_id", "scope_versions.project_id"],
+            name="fk_scope_versions_revision_parent_tenant",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            [
+                "change_request_id",
+                "account_id",
+                "project_id",
+                "revision_of_scope_version_id",
+            ],
+            [
+                "scope_change_requests.id",
+                "scope_change_requests.account_id",
+                "scope_change_requests.project_id",
+                "scope_change_requests.scope_version_id",
+            ],
+            name="fk_scope_versions_revision_change_request",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(revision_of_scope_version_id IS NULL AND change_request_id IS NULL) OR "
+            "(revision_of_scope_version_id IS NOT NULL AND change_request_id IS NOT NULL)",
+            name="scope_version_revision_lineage_pair",
+        ),
         UniqueConstraint("project_id", "version_no", name="uq_scope_versions_project_version"),
         UniqueConstraint(
             "id", "account_id", "project_id", name="uq_scope_versions_id_account_project"
         ),
+        UniqueConstraint("change_request_id", name="uq_scope_versions_change_request"),
         UniqueConstraint(
             "id",
             "account_id",
@@ -108,6 +136,12 @@ class ScopeVersionModel(Base):
             text("version_no DESC"),
         ),
         Index("ix_scope_versions_account_created_at", "account_id", text("created_at DESC")),
+        Index(
+            "ix_scope_versions_revision_parent",
+            "account_id",
+            "project_id",
+            "revision_of_scope_version_id",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
@@ -128,3 +162,5 @@ class ScopeVersionModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    revision_of_scope_version_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    change_request_id: Mapped[UUID | None] = mapped_column(nullable=True)

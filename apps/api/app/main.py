@@ -36,6 +36,8 @@ from app.api.errors import (
     ScopeAlreadyApprovedError,
     ScopeChangesAlreadyRequestedError,
     ScopeDraftStaleError,
+    ScopeRevisionRequiredError,
+    ScopeRevisionStaleError,
     ScopeVersionUnchangedError,
     StorageApiError,
     UnsupportedFileTypeApiError,
@@ -65,6 +67,8 @@ from app.api.errors import (
     scope_already_approved_handler,
     scope_changes_already_requested_handler,
     scope_draft_stale_handler,
+    scope_revision_required_handler,
+    scope_revision_stale_handler,
     scope_version_unchanged_handler,
     storage_error_handler,
     unsupported_file_type_handler,
@@ -154,9 +158,13 @@ from app.modules.requirements.infrastructure.repository import (
     SqlAlchemyRequirementCrudUnitOfWorkFactory,
 )
 from app.modules.scope.application.scope_draft_service import ScopeDraftService
+from app.modules.scope.application.scope_revision_service import ScopeRevisionService
 from app.modules.scope.application.scope_version_service import ScopeVersionService
 from app.modules.scope.infrastructure.repository import (
     SqlAlchemyScopeDraftUnitOfWorkFactory,
+)
+from app.modules.scope.infrastructure.revision_repository import (
+    SqlAlchemyScopeRevisionUnitOfWorkFactory,
 )
 from app.modules.scope.infrastructure.version_repository import (
     SqlAlchemyScopeVersionUnitOfWorkFactory,
@@ -216,6 +224,7 @@ def create_app(
     clarification_service: ClarificationService | None = None,
     scope_draft_service: ScopeDraftService | None = None,
     scope_version_service: ScopeVersionService | None = None,
+    scope_revision_service: ScopeRevisionService | None = None,
     scope_share_link_service: ScopeShareLinkService | None = None,
     public_scope_share_resolver: PublicScopeShareResolver | None = None,
     public_scope_approval_service: PublicScopeApprovalService | None = None,
@@ -292,6 +301,8 @@ def create_app(
     app.add_exception_handler(DuplicateClarificationError, duplicate_clarification_handler)
     app.add_exception_handler(VersionConflictError, version_conflict_handler)
     app.add_exception_handler(ScopeDraftStaleError, scope_draft_stale_handler)
+    app.add_exception_handler(ScopeRevisionRequiredError, scope_revision_required_handler)
+    app.add_exception_handler(ScopeRevisionStaleError, scope_revision_stale_handler)
     app.add_exception_handler(ScopeAlreadyApprovedError, scope_already_approved_handler)
     app.add_exception_handler(
         ScopeChangesAlreadyRequestedError,
@@ -430,6 +441,14 @@ def create_app(
     app.state.scope_version_service = scope_version_service or (
         ScopeVersionService(
             SqlAlchemyScopeVersionUnitOfWorkFactory(database_runtime.session_factory),
+            resolved_event_logger,
+        )
+        if database_runtime is not None
+        else None
+    )
+    app.state.scope_revision_service = scope_revision_service or (
+        ScopeRevisionService(
+            SqlAlchemyScopeRevisionUnitOfWorkFactory(database_runtime.session_factory),
             resolved_event_logger,
         )
         if database_runtime is not None

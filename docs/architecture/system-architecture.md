@@ -151,15 +151,16 @@ audit عمومی `resource.access_denied` فقط از context مجاز همان 
 مطابق ADR-074 و ADR-075، Sharing یک Share Link را فقط به یک ScopeVersion immutable متصل می‌کند و
 فقط SHA-256 توکن تصادفی را پایدار نگه می‌دارد. Resolve عمومی صرفاً با `POST` و token داخل body، بدون
 JWT یا Tenant header انجام می‌شود؛ expiry/revocation هم‌زمان بررسی می‌شوند و پاسخ مستقل فقط
-`version_no` و snapshot allowlisted را با `Cache-Control: no-store` برمی‌گرداند. نقش‌های Data API
+`version_no`، وضعیت تصمیم همان Version و snapshot allowlisted را با `Cache-Control: no-store`
+برمی‌گرداند. نقش‌های Data API
 هیچ دسترسی مستقیم به Share Link یا ScopeVersion ندارند و token، hash و محتوای request در telemetry
 ثبت نمی‌شوند.
 
 مطابق ADR-076، Create/Revoke لینک اشتراک از API احراز‌شده و Tenant-scoped عبور می‌کند. Create
 دارای idempotency اتمیک و one-time token disclosure است: replay فقط شناسه و metadata امن را
 برمی‌گرداند و raw token را بازسازی نمی‌کند. Idempotency store فقط `scope_share_link_id` و outcome
-امن را نگه می‌دارد؛ Revoke نیز terminal و با body کاملاً خالی idempotent است. Share URL، browser
-bootstrap و Guest Session همچنان خارج از این مرز هستند.
+امن را نگه می‌دارد؛ Revoke نیز terminal و با body کاملاً خالی idempotent است. Guest Session
+همچنان خارج از این مرز است.
 
 مطابق ADR-077، Approval عمومی از `POST` body-token و Idempotency-Key مستقل مهمان استفاده می‌کند.
 یک transaction کوتاه Share Link معتبر و ScopeVersion دقیق را lock می‌کند، version/hash همان
@@ -173,11 +174,30 @@ identity دقیق ثبت می‌شود؛ سپس همان ScopeVersion در trans
 می‌رود. Approval و Change Request همان ScopeVersion را lock می‌کنند تا دقیقاً یکی از دو transition
 terminal commit شود. هیچ ScopeVersion/Draft جدیدی ساخته نمی‌شود و Project/ShareLink تغییر نمی‌کنند.
 
+مطابق ADR-079، Revision authenticated از مسیر public جدا است: کاربر ابتدا Draft را از K04 ویرایش
+می‌کند، سپس command صریح یک Change Request را مصرف کرده و N+1 را با lineage دقیق می‌سازد. ایجاد N+1
+و `N → superseded` یک transaction است. comment به Draft یا snapshot merge نمی‌شود و generic K05 در
+حضور latest Version با وضعیت `changes_requested` با `SCOPE_REVISION_REQUIRED` متوقف می‌شود.
+
+مطابق ADR-080، API احراز‌شده projectionهای allowlisted ShareLink و تصمیم نهایی را برای یک
+ScopeVersion دقیق فراهم می‌کند؛ Member فقط لینک‌های ساخته‌شده توسط خودش را می‌بیند و comment
+Change Request فقط در پاسخ tenant-authorized مجاز است، نه telemetry. ورودی مرور عمومی از
+`/scope-review#token=...` استفاده می‌کند؛ bootstrap پیش از هر telemetry fragment را با
+`history.replaceState` حذف می‌کند، token را فقط در حافظه volatile نگه می‌دارد و سپس resolve body
+را فراخوانی می‌کند. refresh عمداً capability را از دست می‌دهد و SCR-14..17 UI به 0094 موکول است.
+
 ## AI و Generation Guardrails
 
 - تمام Taskها از Provider-neutral Gateway عبور می‌کنند.
 - Raw model output مستقیم persist نمی‌شود: schema validation → business validation → provenance/unsupported check → bounded repair → explicit failure.
 - Generation از Schema-first Controlled Renderer استفاده می‌کند.
+- مطابق ADR-082، Provider فقط `generation_ast_candidate_v1` بدون شناسه یا state تولید می‌کند.
+  Application خروجی را با `component_registry_v1` و قواعد layout/responsive/path/Requirement
+  اعتبارسنجی می‌کند، Assetهای UUID را از `AssetRegistryPort` محدود به Account/Project مجاز می‌گیرد
+  و سپس `page_id`، `section_id` و `protected_state=unprotected` را می‌افزاید. تنها AST معتبر به
+  atomic finalizer port می‌رسد؛ Artifact persistence و Renderer runtime هنوز قرارداد جداگانه‌اند.
+- چهارده Component رجیستری بسته‌اند. Asset/alt-text به‌صورت جفت و media layoutهای Hero/About با
+  Asset اجباری‌اند. `SimpleForm` فقط preview-only است و هیچ network submission ندارد.
 - Arbitrary server code، shell execution، secret injection و نصب آزاد npm dependency ممنوع است.
 - Preview روی registrable domain جدا و بدون Core Cookie/Secret اجرا می‌شود.
 

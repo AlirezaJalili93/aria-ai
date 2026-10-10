@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from types import TracebackType
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
 
+from app.modules.scope.domain.scope_version import ScopeVersionStatus
 from app.modules.sharing.domain.scope_share_link import NewScopeShareLink, ScopeShareLink
 from app.shared.idempotency import IdempotencyRepository
 
@@ -33,7 +34,30 @@ class ResolvedPublicScope:
     share_link_id: UUID
     scope_version_id: UUID
     version_no: int
+    decision_status: ScopeVersionStatus
     snapshot_data: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ScopeShareCreateTarget:
+    id: UUID
+    status: ScopeVersionStatus
+
+
+@dataclass(frozen=True, slots=True)
+class ScopeShareLinkProjection:
+    link: ScopeShareLink
+    scope_version_no: int
+
+
+@dataclass(frozen=True, slots=True)
+class ScopeDecisionProjection:
+    decision_type: Literal["none", "approval", "change_request"]
+    scope_version_no: int
+    decision_id: UUID | None = None
+    guest_name: str | None = None
+    comment: str | None = None
+    decided_at: datetime | None = None
 
 
 class ScopeShareLinkRepository(Protocol):
@@ -46,6 +70,10 @@ class ScopeShareLinkRepository(Protocol):
     async def scope_version_id(
         self, *, account_id: UUID, project_id: UUID, version_no: int
     ) -> UUID | None: ...
+
+    async def lock_scope_version_for_share_create(
+        self, *, account_id: UUID, project_id: UUID, version_no: int
+    ) -> ScopeShareCreateTarget | None: ...
 
     async def scope_version_exists(
         self, *, account_id: UUID, project_id: UUID, scope_version_id: UUID
@@ -62,6 +90,23 @@ class ScopeShareLinkRepository(Protocol):
     async def resolve_public(
         self, *, token_hash: bytes, now: datetime
     ) -> ResolvedPublicScope | None: ...
+
+    async def list_for_scope_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        scope_version_id: UUID,
+        actor_id: UUID | None,
+    ) -> tuple[ScopeShareLinkProjection, ...]: ...
+
+    async def decision_for_scope_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        scope_version_id: UUID,
+    ) -> ScopeDecisionProjection | None: ...
 
 
 class ScopeShareLinkUnitOfWork(Protocol):

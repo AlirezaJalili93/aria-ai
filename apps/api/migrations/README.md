@@ -21,6 +21,7 @@ is never stored in this directory.
 → 0033_durable_technical_retry_checkpoint → 0034_scope_share_links
 → 0035_scope_approvals
 → 0036_scope_change_requests
+→ 0037_scope_revision_lineage
 ```
 
 M001 creates `accounts`, `profiles`, and `account_memberships` and enables RLS with no policy or Data
@@ -182,3 +183,9 @@ It preserves exact ScopeVersion/capability lineage and canonical bounded comment
 ScopeVersion at most one Change Request, revokes all Data API access and relies on the shared
 ScopeVersion row lock to serialize Approval versus Change Request. It creates no new ScopeVersion
 or Draft and does not mutate Project or ShareLink lifecycle. See ADR-078.
+
+`0037_scope_revision_lineage` adds paired immutable revision-parent and Change-Request references
+to Scope Versions. Composite restrictive foreign keys keep all lineage in one Tenant/Project,
+`UNIQUE(change_request_id)` makes each Change Request single-use, and the existing snapshot trigger
+now protects lineage. The authenticated command creates N+1 and supersedes N atomically; initial
+Versions keep both references NULL. See ADR-079.

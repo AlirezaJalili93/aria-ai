@@ -58,6 +58,8 @@ def _validate_version(
     status: str,
     snapshot_data: dict[str, Any],
     snapshot_hash: str,
+    revision_of_scope_version_id: UUID | None,
+    change_request_id: UUID | None,
     initial: bool,
 ) -> None:
     if isinstance(version_no, bool) or not isinstance(version_no, int) or version_no < 1:
@@ -72,6 +74,8 @@ def _validate_version(
         raise ScopeVersionValidationError("Unsupported Scope Version status")
     if initial and status != "awaiting_approval":
         raise ScopeVersionValidationError("K05 creates only awaiting_approval versions")
+    if (revision_of_scope_version_id is None) != (change_request_id is None):
+        raise ScopeVersionValidationError("Revision lineage must be complete or absent")
     if not isinstance(snapshot_hash, str) or not _SNAPSHOT_HASH_PATTERN.fullmatch(snapshot_hash):
         raise ScopeVersionValidationError("snapshot_hash format is invalid")
     expected = hash_scope_snapshot(snapshot_data)
@@ -90,6 +94,8 @@ class NewScopeVersion:
     snapshot_data: dict[str, Any]
     snapshot_hash: str
     created_by: UUID
+    revision_of_scope_version_id: UUID | None = None
+    change_request_id: UUID | None = None
 
     def __post_init__(self) -> None:
         _validate_version(
@@ -98,6 +104,8 @@ class NewScopeVersion:
             status=self.status,
             snapshot_data=self.snapshot_data,
             snapshot_hash=self.snapshot_hash,
+            revision_of_scope_version_id=self.revision_of_scope_version_id,
+            change_request_id=self.change_request_id,
             initial=True,
         )
 
@@ -114,6 +122,8 @@ class ScopeVersion:
     snapshot_hash: str
     created_by: UUID
     created_at: datetime
+    revision_of_scope_version_id: UUID | None = None
+    change_request_id: UUID | None = None
 
     def __post_init__(self) -> None:
         _validate_version(
@@ -122,6 +132,8 @@ class ScopeVersion:
             status=self.status,
             snapshot_data=self.snapshot_data,
             snapshot_hash=self.snapshot_hash,
+            revision_of_scope_version_id=self.revision_of_scope_version_id,
+            change_request_id=self.change_request_id,
             initial=False,
         )
         if self.created_at.tzinfo is None:

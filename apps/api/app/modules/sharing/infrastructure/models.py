@@ -227,6 +227,13 @@ class ScopeChangeRequestModel(Base):
             name="uq_scope_change_requests_scope_version",
         ),
         UniqueConstraint(
+            "id",
+            "account_id",
+            "project_id",
+            "scope_version_id",
+            name="uq_scope_change_requests_revision_lineage",
+        ),
+        UniqueConstraint(
             "share_link_id",
             "idempotency_key",
             name="uq_scope_change_requests_share_link_idempotency",

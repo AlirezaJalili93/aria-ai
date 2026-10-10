@@ -407,7 +407,9 @@ paths:
               schema: { $ref: "#/components/schemas/ScopeVersionEnvelope" }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
         "409":
-          description: VERSION_CONFLICT, IDEMPOTENCY_CONFLICT, or SCOPE_VERSION_UNCHANGED.
+          description: >-
+            VERSION_CONFLICT, IDEMPOTENCY_CONFLICT, SCOPE_VERSION_UNCHANGED, or
+            SCOPE_REVISION_REQUIRED.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -459,6 +461,57 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ScopeVersionDetailEnvelope" }
         "404": { $ref: "#/components/responses/ResourceNotFound" }
+  /projects/{project_id}/scope/versions/{version_no}/revisions:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+      - { $ref: "#/components/parameters/AccountContextHeader" }
+    post:
+      operationId: createScopeRevision
+      summary: Create one revised immutable Scope Version from the current edited Draft
+      description: >-
+        Consumes one exact Change Request once, snapshots the tenant-authorized current Draft,
+        creates N+1 with explicit lineage and supersedes N in one transaction. Exact replay
+        returns the same N+1 even after N is superseded.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKeyHeader" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateScopeRevisionRequest" }
+      responses:
+        "201":
+          description: Revised Scope Version created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeRevisionEnvelope" }
+        "200":
+          description: Exact successful Revision command replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeRevisionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "409":
+          description: >-
+            IDEMPOTENCY_CONFLICT, SCOPE_REVISION_STALE, VERSION_CONFLICT, or
+            SCOPE_VERSION_UNCHANGED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: CRITICAL_GAPS_OPEN or invalid request content.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
   /projects/{project_id}/scope/versions/{version_no}/share:
     post:
       operationId: createScopeShareLink
@@ -504,6 +557,70 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
         "422":
           description: Invalid exact request shape, expiry, version number or idempotency key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/scope/versions/{version_no}/shares:
+    get:
+      operationId: listScopeShareLinks
+      summary: List safe Share-Link projections for one exact immutable Scope Version
+      description: >-
+        Owner/Admin see all links for the exact tenant/project/version. Member sees only links they
+        created. can_revoke is server-computed presentation metadata; mutation authorization
+        remains independently enforced. Raw tokens, token hashes and creator internals are absent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version_no
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      responses:
+        "200":
+          description: Safe Share-Link collection for the exact Scope Version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeShareLinkProjectionCollection" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: Invalid version number.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+  /projects/{project_id}/scope/versions/{version_no}/decision:
+    get:
+      operationId: getScopeVersionDecision
+      summary: Get the final public decision recorded for one exact Scope Version
+      description: >-
+        Returns a discriminated none, approval, or change_request projection. A Change Request
+        comment is visible only to an authorized tenant member and remains prohibited from logs,
+        metrics, traces, and Analytics. Token and version hashes are absent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version_no
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - { $ref: "#/components/parameters/AccountContextHeader" }
+      responses:
+        "200":
+          description: Exact-version final decision projection.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScopeDecisionEnvelope" }
+        "404": { $ref: "#/components/responses/ResourceNotFound" }
+        "422":
+          description: Invalid version number.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorEnvelope" }
@@ -1211,10 +1328,87 @@ components:
     PublicScopeSnapshot:
       type: object
       additionalProperties: false
-      required: [version_no, snapshot_data]
+      required: [version_no, decision_status, snapshot_data]
       properties:
         version_no: { type: integer, minimum: 1 }
-        snapshot_data: { $ref: "#/components/schemas/ScopeContent" }
+        decision_status:
+          type: string
+          enum: [awaiting_approval, approved, changes_requested, superseded]
+        snapshot_data: { $ref: "#/components/schemas/PublicScopeContent" }
+    PublicScopePageSection:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string }
+    PublicScopePage:
+      type: object
+      additionalProperties: false
+      required: [page_name, sections]
+      properties:
+        page_name: { type: string }
+        sections:
+          type: array
+          items: { $ref: "#/components/schemas/PublicScopePageSection" }
+    PublicScopeRequirement:
+      type: object
+      additionalProperties: false
+      required: [text, priority]
+      properties:
+        text: { type: string }
+        priority: { type: string, enum: [must, should, could] }
+    PublicScopeContentRequirement:
+      type: object
+      additionalProperties: false
+      required: [description]
+      properties:
+        description: { type: string }
+    PublicScopeResolvedGap:
+      type: object
+      additionalProperties: false
+      required: [text, resolution_type]
+      properties:
+        text: { type: string }
+        resolution_type: { type: string }
+    PublicScopeRemainingGap:
+      type: object
+      additionalProperties: false
+      required: [text, severity]
+      properties:
+        text: { type: string }
+        severity: { type: string, enum: [critical, high, medium, low] }
+    PublicScopeSection:
+      type: object
+      additionalProperties: false
+      required: [section_id, value]
+      properties:
+        section_id: { $ref: "#/components/schemas/ScopeSectionId" }
+        value:
+          anyOf:
+            - { type: string }
+            - type: array
+              items: { type: string }
+            - type: array
+              items: { $ref: "#/components/schemas/PublicScopePage" }
+            - type: array
+              items: { $ref: "#/components/schemas/PublicScopeRequirement" }
+            - type: array
+              items: { $ref: "#/components/schemas/PublicScopeContentRequirement" }
+            - type: array
+              items: { $ref: "#/components/schemas/PublicScopeResolvedGap" }
+            - type: array
+              items: { $ref: "#/components/schemas/PublicScopeRemainingGap" }
+    PublicScopeContent:
+      type: object
+      additionalProperties: false
+      required: [schema_version, sections]
+      properties:
+        schema_version: { type: string, const: scope_content_schema_v1 }
+        sections:
+          type: array
+          minItems: 12
+          maxItems: 12
+          items: { $ref: "#/components/schemas/PublicScopeSection" }
     PublicScopeSnapshotEnvelope:
       type: object
       additionalProperties: false
@@ -1457,6 +1651,13 @@ components:
       required: [expected_draft_updated_at]
       properties:
         expected_draft_updated_at: { type: string, format: date-time }
+    CreateScopeRevisionRequest:
+      type: object
+      additionalProperties: false
+      required: [change_request_id, expected_draft_updated_at]
+      properties:
+        change_request_id: { type: string, format: uuid }
+        expected_draft_updated_at: { type: string, format: date-time }
     ScopeVersionStatus:
       type: string
       enum: [awaiting_approval, approved, changes_requested, superseded]
@@ -1494,6 +1695,20 @@ components:
       properties:
         data: { $ref: "#/components/schemas/ScopeVersionSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+    ScopeRevisionMeta:
+      type: object
+      additionalProperties: false
+      required: [request_id, replayed]
+      properties:
+        request_id: { type: string, format: uuid }
+        replayed: { type: boolean }
+    ScopeRevisionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeVersionSummary" }
+        meta: { $ref: "#/components/schemas/ScopeRevisionMeta" }
     ScopeVersionDetailEnvelope:
       type: object
       additionalProperties: false
@@ -1540,6 +1755,73 @@ components:
       properties:
         data: { $ref: "#/components/schemas/ScopeShareLink" }
         meta: { $ref: "#/components/schemas/ScopeShareResponseMeta" }
+    ScopeShareLinkProjection:
+      type: object
+      additionalProperties: false
+      required: [id, scope_version_no, status, expires_at, created_at, can_revoke]
+      properties:
+        id: { type: string, format: uuid }
+        scope_version_no: { type: integer, minimum: 1 }
+        status: { type: string, enum: [active, expired, revoked] }
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        can_revoke: { type: boolean }
+    ScopeShareLinkProjectionCollection:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/ScopeShareLinkProjection" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    NoScopeDecision:
+      type: object
+      additionalProperties: false
+      required: [decision_type, scope_version_no]
+      properties:
+        decision_type: { type: string, const: none }
+        scope_version_no: { type: integer, minimum: 1 }
+    ScopeApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [decision_type, scope_version_no, approval_id, guest_name, approved_at]
+      properties:
+        decision_type: { type: string, const: approval }
+        scope_version_no: { type: integer, minimum: 1 }
+        approval_id: { type: string, format: uuid }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        approved_at: { type: string, format: date-time }
+    ScopeChangeRequestDecision:
+      type: object
+      additionalProperties: false
+      required:
+        [decision_type, scope_version_no, change_request_id, guest_name, comment, requested_at]
+      properties:
+        decision_type: { type: string, const: change_request }
+        scope_version_no: { type: integer, minimum: 1 }
+        change_request_id: { type: string, format: uuid }
+        guest_name: { type: string, minLength: 2, maxLength: 100 }
+        comment: { type: string, minLength: 1, maxLength: 4000 }
+        requested_at: { type: string, format: date-time }
+    ScopeDecision:
+      oneOf:
+        - { $ref: "#/components/schemas/NoScopeDecision" }
+        - { $ref: "#/components/schemas/ScopeApprovalDecision" }
+        - { $ref: "#/components/schemas/ScopeChangeRequestDecision" }
+      discriminator:
+        propertyName: decision_type
+        mapping:
+          none: "#/components/schemas/NoScopeDecision"
+          approval: "#/components/schemas/ScopeApprovalDecision"
+          change_request: "#/components/schemas/ScopeChangeRequestDecision"
+    ScopeDecisionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data: { $ref: "#/components/schemas/ScopeDecision" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
     ContextItemType:
       type: string
       enum: [fact, assumption, decision, constraint, reference, unknown]

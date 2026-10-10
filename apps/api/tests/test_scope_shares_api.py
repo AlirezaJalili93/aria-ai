@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from io import StringIO
 from uuid import UUID, uuid4
 
+from aria_observability import create_event_logger
 from fastapi.testclient import TestClient
 
 from app.core.config import ApiSettings
 from app.main import create_app
 from app.modules.identity.application.ports import AuthenticatedIdentity, InvalidAccessToken
 from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.sharing.application.ports import ScopeDecisionProjection
 from app.modules.sharing.application.service import (
     CreateScopeShareLinkCommand,
     CreateScopeShareLinkResult,
     RevokeScopeShareLinkCommand,
     ScopeShareLinkAccessNotFound,
     ScopeShareLinkIdempotencyConflict,
+    ScopeShareLinkListItem,
     ScopeShareLinkPermissionDenied,
 )
 from app.modules.sharing.domain.scope_share_link import (
@@ -71,6 +75,8 @@ class StubScopeShareLinkService:
         self.revoke_error: Exception | None = None
         self.create_command: CreateScopeShareLinkCommand | None = None
         self.revoke_command: RevokeScopeShareLinkCommand | None = None
+        self.list_error: Exception | None = None
+        self.decision_error: Exception | None = None
         self.replayed = False
 
     async def create(self, context, *, project_id, command):
@@ -94,6 +100,38 @@ class StubScopeShareLinkService:
         if self.revoke_error is not None:
             raise self.revoke_error
         return _link()
+
+    async def list_for_version(self, context, *, project_id, version_no):
+        del context
+        assert project_id == PROJECT_ID
+        assert version_no == 3
+        if self.list_error is not None:
+            raise self.list_error
+        return (
+            ScopeShareLinkListItem(
+                id=LINK_ID,
+                scope_version_no=version_no,
+                status="active",
+                expires_at=_link().expires_at,
+                created_at=NOW,
+                can_revoke=True,
+            ),
+        )
+
+    async def decision_for_version(self, context, *, project_id, version_no):
+        del context
+        assert project_id == PROJECT_ID
+        assert version_no == 3
+        if self.decision_error is not None:
+            raise self.decision_error
+        return ScopeDecisionProjection(
+            decision_type="change_request",
+            scope_version_no=version_no,
+            decision_id=LINK_ID,
+            guest_name="مهمان مصنوعی",
+            comment="اصلاح بخش زمان‌بندی",
+            decided_at=NOW,
+        )
 
 
 def _fixture() -> tuple[TestClient, StubScopeShareLinkService]:
@@ -207,3 +245,93 @@ def test_revoke_maps_safe_not_found_permission_and_idempotency_conflict() -> Non
         response = client.post(path, headers=_headers(key=str(expected_status)), content=b"")
         assert response.status_code == expected_status
         assert response.json()["error"]["code"] == expected_code
+
+
+def test_authenticated_share_and_decision_projections_are_allowlisted() -> None:
+    client, _ = _fixture()
+    headers = _headers()
+    headers.pop("Idempotency-Key")
+
+    shares = client.get(
+        f"/api/v1/projects/{PROJECT_ID}/scope/versions/3/shares",
+        headers=headers,
+    )
+    decision = client.get(
+        f"/api/v1/projects/{PROJECT_ID}/scope/versions/3/decision",
+        headers=headers,
+    )
+
+    assert shares.status_code == 200
+    assert shares.json()["data"] == [
+        {
+            "id": str(LINK_ID),
+            "scope_version_no": 3,
+            "status": "active",
+            "expires_at": _link().expires_at.isoformat().replace("+00:00", "Z"),
+            "created_at": NOW.isoformat().replace("+00:00", "Z"),
+            "can_revoke": True,
+        }
+    ]
+    assert decision.status_code == 200
+    assert decision.json()["data"] == {
+        "decision_type": "change_request",
+        "scope_version_no": 3,
+        "change_request_id": str(LINK_ID),
+        "guest_name": "مهمان مصنوعی",
+        "comment": "اصلاح بخش زمان‌بندی",
+        "requested_at": NOW.isoformat().replace("+00:00", "Z"),
+    }
+    serialized = shares.text + decision.text
+    for forbidden in ("token", "token_hash", "version_hash", "created_by", str(ACCOUNT_ID)):
+        assert forbidden not in serialized
+
+
+def test_projection_routes_keep_safe_not_found_and_membership_errors() -> None:
+    client, service = _fixture()
+    headers = _headers()
+    headers.pop("Idempotency-Key")
+    paths = (
+        f"/api/v1/projects/{PROJECT_ID}/scope/versions/3/shares",
+        f"/api/v1/projects/{PROJECT_ID}/scope/versions/3/decision",
+    )
+    for error, expected_status, expected_code in (
+        (ScopeShareLinkAccessNotFound(), 404, "RESOURCE_NOT_FOUND"),
+        (ScopeShareLinkPermissionDenied(), 403, "MEMBERSHIP_REQUIRED"),
+    ):
+        service.list_error = error
+        service.decision_error = error
+        for path in paths:
+            response = client.get(path, headers=headers)
+            assert response.status_code == expected_status
+            assert response.json()["error"]["code"] == expected_code
+
+
+def test_authenticated_decision_comment_is_never_written_to_observability() -> None:
+    service = StubScopeShareLinkService()
+    stream = StringIO()
+    logger = create_event_logger(
+        service="aria-api",
+        environment="test",
+        app_version="0.1.0",
+        release_commit_sha=None,
+        level="INFO",
+        stream=stream,
+    )
+    app = create_app(
+        ApiSettings(app_env="test", app_version="0.1.0", log_level="INFO"),
+        access_token_verifier=StubTokenVerifier(),
+        tenant_context_resolver=StubTenantContextResolver(),
+        scope_share_link_service=service,  # type: ignore[arg-type]
+        event_logger=logger,
+    )
+    headers = _headers()
+    headers.pop("Idempotency-Key")
+
+    response = TestClient(app).get(
+        f"/api/v1/projects/{PROJECT_ID}/scope/versions/3/decision",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert "اصلاح بخش زمان‌بندی" in response.text
+    assert "اصلاح بخش زمان‌بندی" not in stream.getvalue()

@@ -7,7 +7,7 @@ from typing import Annotated, Literal, cast
 from uuid import UUID
 
 from aria_observability import current_trace_context
-from fastapi import APIRouter, Depends, Header, Query, Request, status
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from app.api.dependencies.tenant_context import require_tenant_context
@@ -16,13 +16,27 @@ from app.api.errors import (
     IdempotencyConflictError,
     MembershipRequiredError,
     ResourceNotFoundError,
+    ScopeRevisionRequiredError,
+    ScopeRevisionStaleError,
     ScopeVersionUnchangedError,
     ValidationFailedError,
     VersionConflictError,
 )
 from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.scope.application.scope_revision_service import (
+    CreateScopeRevisionCommand,
+    ScopeRevisionAccessNotFound,
+    ScopeRevisionIdempotencyConflict,
+    ScopeRevisionNotReady,
+    ScopeRevisionPermissionDenied,
+    ScopeRevisionService,
+    ScopeRevisionStale,
+    ScopeRevisionUnchanged,
+    ScopeRevisionVersionConflict,
+)
 from app.modules.scope.application.scope_version_service import (
     CreateScopeVersionCommand,
+    ScopeRevisionRequired,
     ScopeVersionAccessNotFound,
     ScopeVersionCreateConflict,
     ScopeVersionIdempotencyConflict,
@@ -39,6 +53,13 @@ ScopeVersionStatus = Literal["awaiting_approval", "approved", "changes_requested
 class CreateScopeVersionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    expected_draft_updated_at: datetime
+
+
+class CreateScopeRevisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    change_request_id: UUID
     expected_draft_updated_at: datetime
 
 
@@ -63,6 +84,10 @@ class ResponseMeta(BaseModel):
     request_id: UUID
 
 
+class RevisionResponseMeta(ResponseMeta):
+    replayed: bool
+
+
 class CollectionMeta(ResponseMeta):
     next_cursor: str | None
     has_more: bool
@@ -73,6 +98,13 @@ class ScopeVersionEnvelope(BaseModel):
 
     data: ScopeVersionSummaryResponse
     meta: ResponseMeta
+
+
+class ScopeRevisionEnvelope(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    data: ScopeVersionSummaryResponse
+    meta: RevisionResponseMeta
 
 
 class ScopeVersionDetailEnvelope(BaseModel):
@@ -91,6 +123,10 @@ class ScopeVersionCollectionEnvelope(BaseModel):
 
 def _service(request: Request) -> ScopeVersionService:
     return cast(ScopeVersionService, request.app.state.scope_version_service)
+
+
+def _revision_service(request: Request) -> ScopeRevisionService:
+    return cast(ScopeRevisionService, request.app.state.scope_revision_service)
 
 
 def create_scope_versions_router() -> APIRouter:
@@ -123,12 +159,62 @@ def create_scope_versions_router() -> APIRouter:
             raise CriticalGapsOpenError from None
         except ScopeVersionUnchanged:
             raise ScopeVersionUnchangedError from None
+        except ScopeRevisionRequired:
+            raise ScopeRevisionRequiredError from None
         except ScopeVersionIdempotencyConflict:
             raise IdempotencyConflictError from None
         except ScopeVersionValidationError:
             raise ValidationFailedError from None
         return ScopeVersionEnvelope(
             data=_summary(version), meta=ResponseMeta(request_id=_request_id())
+        )
+
+    @router.post(
+        "/{version_no}/revisions",
+        response_model=ScopeRevisionEnvelope,
+        status_code=status.HTTP_201_CREATED,
+    )
+    async def create_scope_revision(
+        project_id: UUID,
+        version_no: int,
+        body: CreateScopeRevisionRequest,
+        response: Response,
+        context: Annotated[TenantContext, Depends(require_tenant_context)],
+        service: Annotated[ScopeRevisionService, Depends(_revision_service)],
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> ScopeRevisionEnvelope:
+        try:
+            result = await service.create(
+                context,
+                project_id=project_id,
+                target_version_no=version_no,
+                command=CreateScopeRevisionCommand(
+                    change_request_id=body.change_request_id,
+                    expected_draft_updated_at=body.expected_draft_updated_at,
+                    idempotency_key=idempotency_key,
+                ),
+            )
+        except ScopeRevisionAccessNotFound:
+            raise ResourceNotFoundError from None
+        except ScopeRevisionPermissionDenied:
+            raise MembershipRequiredError from None
+        except ScopeRevisionIdempotencyConflict:
+            raise IdempotencyConflictError from None
+        except ScopeRevisionStale:
+            raise ScopeRevisionStaleError from None
+        except ScopeRevisionVersionConflict:
+            raise VersionConflictError from None
+        except ScopeRevisionNotReady:
+            raise CriticalGapsOpenError from None
+        except ScopeRevisionUnchanged:
+            raise ScopeVersionUnchangedError from None
+        except ScopeVersionValidationError:
+            raise ValidationFailedError from None
+        if result.replayed:
+            response.status_code = status.HTTP_200_OK
+        return ScopeRevisionEnvelope(
+            data=_summary(result.version),
+            meta=RevisionResponseMeta(request_id=_request_id(), replayed=result.replayed),
         )
 
     @router.get("", response_model=ScopeVersionCollectionEnvelope)

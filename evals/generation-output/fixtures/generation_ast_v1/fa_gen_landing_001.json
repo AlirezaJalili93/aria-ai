@@ -1,0 +1,115 @@
+{
+  "schema_version": "generation_ast_candidate_v1",
+  "project_type": "landing",
+  "theme": { "mode": "light", "token_profile": "aria_semantic_v1" },
+  "assets": [
+    "10000000-0000-4000-8000-000000000001",
+    "10000000-0000-4000-8000-000000000002"
+  ],
+  "pages": [
+    {
+      "title": "صفحه اصلی",
+      "path": "/",
+      "sections": [
+        {
+          "component_type": "Navbar",
+          "content": {
+            "brand_text": "آریا",
+            "links": [
+              { "label": "خانه", "target_path": "/" },
+              { "label": "تماس", "target_path": "/contact" }
+            ]
+          },
+          "layout_variant": "horizontal",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.nav_collapse_v1",
+          "source_requirement_ids": []
+        },
+        {
+          "component_type": "Hero",
+          "content": {
+            "heading": "شروع روشن برای پروژه شما",
+            "body": "یک خروجی ساختاریافته و قابل بررسی.",
+            "primary_action": { "label": "تماس با ما", "target_path": "/contact" },
+            "primary_media_asset_ref": "10000000-0000-4000-8000-000000000001",
+            "primary_media_alt_text": "نمایی از فرایند برنامه‌ریزی پروژه"
+          },
+          "layout_variant": "split_media_start",
+          "style_token_refs": { "surface": "background", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.split_v1",
+          "source_requirement_ids": ["20000000-0000-4000-8000-000000000001"]
+        },
+        {
+          "component_type": "FeatureGrid",
+          "content": {
+            "heading": "ویژگی‌ها",
+            "items": [
+              {
+                "title": "شفافیت",
+                "description": "ساختار مشخص برای تصمیم‌ها.",
+                "feature_media_asset_ref": "10000000-0000-4000-8000-000000000002",
+                "feature_media_alt_text": "نمودار ساختاریافته"
+              },
+              { "title": "پیگیری", "description": "ارتباط هر خروجی با نیاز تأییدشده." }
+            ]
+          },
+          "layout_variant": "grid_2",
+          "style_token_refs": { "surface": "surface_muted", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.grid_2_v1",
+          "source_requirement_ids": ["20000000-0000-4000-8000-000000000002"]
+        },
+        {
+          "component_type": "FAQ",
+          "content": {
+            "heading": "پرسش‌های پرتکرار",
+            "items": [
+              { "question": "فرایند چقدر زمان می‌برد؟", "answer": "زمان‌بندی پس از تأیید محدوده مشخص می‌شود." }
+            ]
+          },
+          "layout_variant": "stacked",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "text_measure" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": []
+        },
+        {
+          "component_type": "CTA",
+          "content": { "heading": "برای شروع آماده‌اید؟", "action": { "label": "ارسال درخواست", "target_path": "/contact" } },
+          "layout_variant": "centered",
+          "style_token_refs": { "surface": "surface_muted", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["20000000-0000-4000-8000-000000000003"]
+        },
+        {
+          "component_type": "Footer",
+          "content": { "brand_text": "آریا", "legal_text": "تمام حقوق محفوظ است." },
+          "layout_variant": "compact",
+          "style_token_refs": { "surface": "surface_muted", "text": "text_muted", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.inline_wrap_v1",
+          "source_requirement_ids": []
+        }
+      ]
+    },
+    {
+      "title": "تماس",
+      "path": "/contact",
+      "sections": [
+        {
+          "component_type": "SimpleForm",
+          "content": {
+            "heading": "درخواست مشاوره",
+            "fields": [
+              { "key": "name", "type": "text", "label": "نام", "required": true, "max_length": 80 },
+              { "key": "message", "type": "textarea", "label": "پیام", "required": true, "max_length": 1000 }
+            ],
+            "submit_label": "ثبت آزمایشی",
+            "submission_mode": "preview_only"
+          },
+          "layout_variant": "stacked",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "form_max" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["20000000-0000-4000-8000-000000000003"]
+        }
+      ]
+    }
+  ]
+}

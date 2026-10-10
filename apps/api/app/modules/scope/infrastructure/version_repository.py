@@ -150,6 +150,7 @@ class SqlAlchemyScopeVersionRepository:
                 for model in gap_models
             ),
             latest_snapshot_hash=latest.snapshot_hash if latest is not None else None,
+            latest_status=latest.status if latest is not None else None,
             next_version_no=(latest.version_no + 1) if latest is not None else 1,
         )
 
@@ -164,6 +165,8 @@ class SqlAlchemyScopeVersionRepository:
             snapshot_data=version.snapshot_data,
             snapshot_hash=version.snapshot_hash,
             created_by=version.created_by,
+            revision_of_scope_version_id=version.revision_of_scope_version_id,
+            change_request_id=version.change_request_id,
         )
         self._session.add(model)
         try:
@@ -310,6 +313,8 @@ def _from_model(model: ScopeVersionModel) -> ScopeVersion:
             snapshot_hash=model.snapshot_hash,
             created_by=model.created_by,
             created_at=model.created_at,
+        revision_of_scope_version_id=model.revision_of_scope_version_id,
+        change_request_id=model.change_request_id,
         )
     except ScopeVersionValidationError:
         raise ScopeVersionRepositoryError from None

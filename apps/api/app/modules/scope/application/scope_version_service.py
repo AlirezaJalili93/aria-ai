@@ -46,6 +46,10 @@ class ScopeVersionUnchanged(Exception):
     """The current Scope snapshot is identical to the latest version."""
 
 
+class ScopeRevisionRequired(Exception):
+    """A Change Request requires the explicit revision command."""
+
+
 class ScopeVersionIdempotencyConflict(Exception):
     """An idempotency key was reused for a different freeze request."""
 
@@ -124,6 +128,8 @@ class ScopeVersionService:
                 )
                 if target is None or target.draft is None:
                     raise ScopeVersionAccessNotFound
+                if target.latest_status == "changes_requested":
+                    raise ScopeRevisionRequired
                 draft = target.draft
                 if draft.context_version != target.project_current_context_version:
                     raise ScopeVersionAccessNotFound

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
@@ -16,6 +17,7 @@ from sqlalchemy.exc import DBAPIError
 
 from app.infrastructure.db.runtime import DatabaseRuntime
 from app.modules.identity.application.tenant_context import TenantContext
+from app.modules.scope.domain.scope_draft import SECTION_IDS
 from app.modules.sharing.application.ports import (
     IssuedScopeShareToken,
     ScopeShareLinkRepositoryError,
@@ -122,16 +124,45 @@ async def _seed() -> tuple[UUID, UUID, UUID, UUID, UUID, UUID, UUID]:
         "INSERT INTO scope_versions "
         "(id, account_id, project_id, version_no, context_version, status, snapshot_data, "
         "snapshot_hash, created_by) VALUES "
-        "(:id, :account, :project, 1, 1, 'awaiting_approval', '{}'::jsonb, :hash, :creator)",
+        "(:id, :account, :project, 1, 1, 'awaiting_approval', CAST(:snapshot AS jsonb), "
+        ":hash, :creator)",
         {
             "id": version_a,
             "account": account_a,
             "project": project_a,
             "hash": "sha256:" + "a" * 64,
             "creator": user_a,
+            "snapshot": json.dumps(_scope_content()),
         },
     )
     return user_a, user_b, account_a, account_b, project_a, project_b, version_a
+
+
+def _scope_content() -> dict[str, object]:
+    return {
+        "schema_version": "scope_content_schema_v1",
+        "sections": [
+            {
+                "section_id": section_id,
+                "value": [] if section_id not in {"summary", "visual_direction"} else "",
+                "trace": {"context_item_ids": [], "requirement_ids": [], "gap_ids": []},
+            }
+            for section_id in SECTION_IDS
+        ],
+    }
+
+
+def _public_scope_content() -> dict[str, object]:
+    return {
+        "schema_version": "scope_content_schema_v1",
+        "sections": [
+            {
+                "section_id": section_id,
+                "value": [] if section_id not in {"summary", "visual_direction"} else "",
+            }
+            for section_id in SECTION_IDS
+        ],
+    }
 
 
 def _context(user_id: UUID, account_id: UUID, *, role="member") -> TenantContext:
@@ -330,6 +361,15 @@ def test_public_resolution_is_exact_version_and_fails_closed_for_all_inactive_st
                         idempotency_key="public-resolution",
                     ),
                 )
+                inaccessible = await service.create(
+                    _context(user_a, account_a),
+                    project_id=project_a,
+                    command=CreateScopeShareLinkCommand(
+                        version_no=1,
+                        expires_at=datetime.now(UTC) + timedelta(days=1),
+                        idempotency_key="inaccessible-create",
+                    ),
+                )
                 await _execute(
                     "INSERT INTO scope_versions "
                     "(id, account_id, project_id, version_no, context_version, status, "
@@ -344,11 +384,27 @@ def test_public_resolution_is_exact_version_and_fails_closed_for_all_inactive_st
                         "creator": user_a,
                     },
                 )
+                await _execute(
+                    "UPDATE scope_versions SET status='superseded' WHERE id=:id",
+                    {"id": version_a},
+                )
+
+                with pytest.raises(ScopeShareLinkAccessNotFound):
+                    await service.create(
+                        _context(user_a, account_a),
+                        project_id=project_a,
+                        command=CreateScopeShareLinkCommand(
+                            version_no=1,
+                            expires_at=datetime.now(UTC) + timedelta(days=1),
+                            idempotency_key="superseded-create",
+                        ),
+                    )
 
                 resolved = await resolver.resolve(token=created.public_token)
                 assert resolved.scope_version_id == version_a
                 assert resolved.version_no == 1
-                assert resolved.snapshot_data == {}
+                assert resolved.decision_status == "superseded"
+                assert resolved.snapshot_data == _public_scope_content()
 
                 unknown = issuer.issue().public_token
                 with pytest.raises(PublicScopeShareNotFound):
@@ -372,15 +428,6 @@ def test_public_resolution_is_exact_version_and_fails_closed_for_all_inactive_st
                 with pytest.raises(PublicScopeShareNotFound):
                     await resolver.resolve(token=created.public_token)
 
-                inaccessible = await service.create(
-                    _context(user_a, account_a),
-                    project_id=project_a,
-                    command=CreateScopeShareLinkCommand(
-                        version_no=1,
-                        expires_at=datetime.now(UTC) + timedelta(days=1),
-                        idempotency_key="inaccessible-create",
-                    ),
-                )
                 await _execute(
                     "UPDATE projects SET deleted_at=now() WHERE id=:project_id",
                     {"project_id": project_a},
@@ -560,3 +607,95 @@ def test_link_constraint_failure_rolls_back_idempotency_reservation() -> None:
         ).scalar_one()
     ) == 0
     assert int(asyncio.run(_execute("SELECT count(*) FROM scope_share_links")).scalar_one()) == 1
+
+
+def test_authenticated_projections_are_tenant_version_and_creator_scoped() -> None:
+    assert TEST_DATABASE_URL is not None
+    user_a, user_b, account_a, _, project_a, _, version_a = asyncio.run(_seed())
+
+    async def scenario() -> None:
+        runtime = DatabaseRuntime(TEST_DATABASE_URL)
+        projection_now = datetime.now(UTC)
+        service = ScopeShareLinkService(
+            SqlAlchemyScopeShareLinkUnitOfWorkFactory(runtime.session_factory),
+            SecureScopeShareTokenIssuer(),
+            FakeLogger(),  # type: ignore[arg-type]
+        )
+        try:
+            with bind_trace_context(
+                TraceContext(request_id=str(uuid4()), correlation_id=str(uuid4()))
+            ):
+                first = await service.create(
+                    _context(user_a, account_a),
+                    project_id=project_a,
+                    command=CreateScopeShareLinkCommand(
+                        version_no=1,
+                        expires_at=projection_now + timedelta(days=10),
+                        idempotency_key="projection-a",
+                    ),
+                )
+                await service.create(
+                    _context(user_b, account_a),
+                    project_id=project_a,
+                    command=CreateScopeShareLinkCommand(
+                        version_no=1,
+                        expires_at=projection_now + timedelta(days=1),
+                        idempotency_key="projection-b",
+                    ),
+                )
+                projection_service = ScopeShareLinkService(
+                    SqlAlchemyScopeShareLinkUnitOfWorkFactory(runtime.session_factory),
+                    SecureScopeShareTokenIssuer(),
+                    FakeLogger(),  # type: ignore[arg-type]
+                    clock=lambda: projection_now + timedelta(days=2),
+                )
+                member_rows = await projection_service.list_for_version(
+                    _context(user_a, account_a),
+                    project_id=project_a,
+                    version_no=1,
+                )
+                admin_rows = await projection_service.list_for_version(
+                    _context(user_a, account_a, role="admin"),
+                    project_id=project_a,
+                    version_no=1,
+                )
+                assert [row.id for row in member_rows] == [first.link.id]
+                assert len(admin_rows) == 2
+                assert {row.status for row in admin_rows} == {"active", "expired"}
+
+                no_decision = await projection_service.decision_for_version(
+                    _context(user_a, account_a),
+                    project_id=project_a,
+                    version_no=1,
+                )
+                assert no_decision.decision_type == "none"
+
+                change_request_id = uuid4()
+                await _execute(
+                    "INSERT INTO scope_change_requests "
+                    "(id, account_id, project_id, scope_version_id, share_link_id, version_no, "
+                    "version_hash, guest_name, comment, idempotency_key, request_hash) VALUES "
+                    "(:id, :account, :project, :version, :share, 1, :version_hash, "
+                    "'مهمان مصنوعی', 'اصلاح زمان‌بندی', 'projection-change', :request_hash)",
+                    {
+                        "id": change_request_id,
+                        "account": account_a,
+                        "project": project_a,
+                        "version": version_a,
+                        "share": first.link.id,
+                        "version_hash": "sha256:" + "a" * 64,
+                        "request_hash": "c" * 64,
+                    },
+                )
+                decision = await projection_service.decision_for_version(
+                    _context(user_a, account_a),
+                    project_id=project_a,
+                    version_no=1,
+                )
+                assert decision.decision_type == "change_request"
+                assert decision.decision_id == change_request_id
+                assert decision.comment == "اصلاح زمان‌بندی"
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())

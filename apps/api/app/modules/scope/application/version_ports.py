@@ -29,6 +29,7 @@ class ScopeVersionFreezeTarget:
     draft: ScopeDraft | None
     gaps: tuple[ScopeReadinessGap, ...]
     latest_snapshot_hash: str | None
+    latest_status: str | None
     next_version_no: int
 
 
