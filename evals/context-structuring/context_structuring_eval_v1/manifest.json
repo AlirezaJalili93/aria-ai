@@ -1,0 +1,21 @@
+{
+  "eval_set_id": "context_structuring_eval_v1",
+  "version": "1",
+  "fixture_schema_version": "1",
+  "report_schema_version": "1",
+  "metric_version": "1",
+  "threshold_version": "1",
+  "human_review_rubric_version": "1",
+  "expected_fixture_count": 20,
+  "fixture_ids": [
+    "fa_ctx_001", "fa_ctx_002", "fa_ctx_003", "fa_ctx_004", "fa_ctx_005",
+    "fa_ctx_006", "fa_ctx_007", "fa_ctx_008", "fa_ctx_009", "fa_ctx_010",
+    "fa_ctx_011", "fa_ctx_012", "fa_ctx_013", "fa_ctx_014", "fa_ctx_015",
+    "fa_ctx_016", "fa_ctx_017", "fa_ctx_018", "fa_ctx_019", "fa_ctx_020"
+  ],
+  "provider_boundary": {
+    "contract_provider": "fake_deterministic",
+    "model_quality_provider": "real_provider_deferred",
+    "real_provider_selection": "G02/G03_deferred"
+  }
+}

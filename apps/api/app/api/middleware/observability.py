@@ -1,6 +1,8 @@
+from contextlib import suppress
 from time import perf_counter
 
 from aria_observability import (
+    OperationalMetrics,
     StructuredEventLogger,
     bind_trace_context,
     resolve_http_trace_context,
@@ -12,9 +14,15 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 class ObservabilityMiddleware:
     """Pure ASGI request telemetry that preserves downstream context enrichment."""
 
-    def __init__(self, app: ASGIApp, event_logger: StructuredEventLogger) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        event_logger: StructuredEventLogger,
+        operational_metrics: OperationalMetrics,
+    ) -> None:
         self._app = app
         self._event_logger = event_logger
+        self._operational_metrics = operational_metrics
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -53,6 +61,7 @@ class ObservabilityMiddleware:
                     component="http.middleware",
                     operation="request",
                 )
+                self._record_request_metric(scope, status_code=500, started_at=started_at)
                 raise
 
             self._event_logger.emit(
@@ -60,6 +69,20 @@ class ObservabilityMiddleware:
                 route=_route_template(scope),
                 duration_ms=(perf_counter() - started_at) * 1000,
                 status=response_status,
+            )
+            self._record_request_metric(
+                scope, status_code=response_status, started_at=started_at
+            )
+
+    def _record_request_metric(
+        self, scope: Scope, *, status_code: int, started_at: float
+    ) -> None:
+        with suppress(Exception):
+            self._operational_metrics.record_http_request(
+                route=_route_template(scope),
+                method=str(scope.get("method", "")),
+                status_code=status_code,
+                duration_ms=(perf_counter() - started_at) * 1000,
             )
 
 

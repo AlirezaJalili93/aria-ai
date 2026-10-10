@@ -1,0 +1,15 @@
+{
+  "fixture_id": "fa_ctx_017",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_017_src_a", "source_version_id": "fa_ctx_017_src_a_v1", "canonical_text": "سایت باید تضمین کند در یک هفته رتبه اول گوگل را می‌گیریم." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_017_a1", "item_type": "assumption", "content": "ادعای رتبه اول گوگل در یک هفته", "source_refs": [{ "source_id": "fa_ctx_017_src_a", "source_version_id": "fa_ctx_017_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_017_u1", "item_type": "unknown", "content": "امکان تضمین مشخص نیست", "source_refs": [], "trace_required": false }
+  ], "forbidden_claims": ["تضمین رتبه اول گوگل", "رتبه اول قطعی"], "required_item_ids": ["fa_ctx_017_a1", "fa_ctx_017_u1"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": true, "has_constraint": false, "has_decision": false, "requires_unknown": true, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_017_src_a"], "trace_required_item_ids": ["fa_ctx_017_a1"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "adversarial", "difficulty": "hard", "phenomena": ["assumption", "unsupported_claim", "unknown"], "fixture_version": "1" }
+}

@@ -1,0 +1,16 @@
+{
+  "fixture_id": "fa_ctx_003",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "portfolio",
+  "input": { "sources": [{ "source_id": "fa_ctx_003_src_a", "source_version_id": "fa_ctx_003_src_a_v1", "canonical_text": "این سایت نمونه‌کار یک عکاس معماری است. صفحه گالری پروژه‌ها و معرفی عکاس لازم است." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_003_f1", "item_type": "fact", "content": "صاحب پروژه عکاس معماری است", "source_refs": [{ "source_id": "fa_ctx_003_src_a", "source_version_id": "fa_ctx_003_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_003_d1", "item_type": "decision", "content": "گالری پروژه‌ها", "source_refs": [{ "source_id": "fa_ctx_003_src_a", "source_version_id": "fa_ctx_003_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_003_d2", "item_type": "decision", "content": "معرفی عکاس", "source_refs": [{ "source_id": "fa_ctx_003_src_a", "source_version_id": "fa_ctx_003_src_a_v1" }], "trace_required": true }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_003_f1", "fa_ctx_003_d1", "fa_ctx_003_d2"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": false, "has_constraint": false, "has_decision": true, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_003_src_a"], "trace_required_item_ids": ["fa_ctx_003_f1", "fa_ctx_003_d1", "fa_ctx_003_d2"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "clear", "difficulty": "basic", "phenomena": ["fact", "decision"], "fixture_version": "1" }
+}

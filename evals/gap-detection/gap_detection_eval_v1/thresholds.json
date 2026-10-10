@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "metrics": {
+    "gap_recall": { "direction": "higher", "release_blocker_below": 0.8, "minimum_acceptable": 0.9, "target": 0.95 },
+    "critical_gap_recall": { "direction": "higher", "release_blocker_below": 1, "minimum_acceptable": 1, "target": 1 },
+    "false_gap_rate": { "direction": "lower", "release_blocker_above": 0.2, "minimum_acceptable": 0.1, "target": 0.05 },
+    "critical_gap_precision": { "direction": "higher", "release_blocker_below": 0.9, "minimum_acceptable": 0.95, "target": 1 },
+    "semantic_validity_score": { "direction": "higher", "release_blocker_below": 3.5, "minimum_acceptable": 4, "target": 4.5 }
+  }
+}

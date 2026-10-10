@@ -1,0 +1,15 @@
+{
+  "fixture_id": "fa_ctx_004",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_004_src_a", "source_version_id": "fa_ctx_004_src_a_v1", "canonical_text": "یه سایت خیلی شیک و مدرن برای کارم می‌خوام." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_004_f1", "item_type": "fact", "content": "کاربر سایت می‌خواهد", "source_refs": [{ "source_id": "fa_ctx_004_src_a", "source_version_id": "fa_ctx_004_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_004_u1", "item_type": "unknown", "content": "نوع پروژه، مخاطب و هدف مشخص نیست", "source_refs": [], "trace_required": false }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_004_f1", "fa_ctx_004_u1"] },
+  "expected_labels": { "clarity": "ambiguous", "has_assumption": false, "has_constraint": false, "has_decision": false, "requires_unknown": true, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_004_src_a"], "trace_required_item_ids": ["fa_ctx_004_f1"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "ambiguous", "difficulty": "intermediate", "phenomena": ["unknown"], "fixture_version": "1" }
+}
