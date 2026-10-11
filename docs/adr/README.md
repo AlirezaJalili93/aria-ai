@@ -81,5 +81,7 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-080 — Scope Review Projections and Secure Browser Bootstrap](ADR-080-scope-review-projections-and-browser-bootstrap.md)
 - [ADR-081 — Scope Sharing and Guest Decision UI](ADR-081-scope-sharing-and-guest-decision-ui.md)
 - [ADR-082 — Generation Component Registry and Controlled AST v1](ADR-082-generation-component-registry-and-ast.md)
+- [ADR-083 — Controlled Generation Renderer Proof](ADR-083-controlled-generation-renderer-proof.md)
+- [ADR-084 — Controlled Generation Exportability Proof](ADR-084-controlled-generation-exportability-proof.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)

@@ -76,3 +76,5 @@ docs/development/NNNN-kebab-case/
 - [0084 — AI-01 Durable Checkpoint Integration](./0084-ai01-durable-checkpoint-integration/development.md)
 - [0085 — Durable Technical-Retry Checkpoint Integration](./0085-durable-technical-retry-checkpoint-integration/development.md)
 - [0086 — Controlled Real-Provider Quality Evaluation](./0086-controlled-real-provider-quality-evaluation/development.md)
+- [0096 — Controlled Generation Renderer](./0096-controlled-generation-renderer/development.md)
+- [0097 — Controlled Generation Exportability](./0097-controlled-generation-exportability/development.md)

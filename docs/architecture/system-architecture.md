@@ -195,7 +195,16 @@ Change Request فقط در پاسخ tenant-authorized مجاز است، نه tel
   Application خروجی را با `component_registry_v1` و قواعد layout/responsive/path/Requirement
   اعتبارسنجی می‌کند، Assetهای UUID را از `AssetRegistryPort` محدود به Account/Project مجاز می‌گیرد
   و سپس `page_id`، `section_id` و `protected_state=unprotected` را می‌افزاید. تنها AST معتبر به
-  atomic finalizer port می‌رسد؛ Artifact persistence و Renderer runtime هنوز قرارداد جداگانه‌اند.
+  atomic finalizer port می‌رسد؛ Artifact persistence هنوز قرارداد جداگانه است.
+- مطابق ADR-083، `packages/generation-renderer` فقط AST canonical را به mapping ثابت چهارده‌گانه
+  می‌دهد و markup قطعی React می‌سازد. Asset فقط از resolver محلی/allowlisted به `src` می‌رسد؛
+  Candidate، remote Asset، HTML/CSS/JS آزاد و navigation خارج از Pageهای همان AST fail-closed است.
+  هر Page مستقل با یک `main` و یک `h1` قابل‌دسترسی رندر می‌شود و `SimpleForm` حتی بدون JavaScript
+  هیچ سطح ارسال شبکه ندارد. این proof هنوز Preview Runtime یا ArtifactVersion نیست.
+- مطابق ADR-084، Exportability proof سه Candidate موقت Next.js را خارج از Monorepo می‌سازد.
+  Renderer و Design Tokens فقط از tarball محلی و lockfile مستقل نصب می‌شوند؛ هر Candidate audit،
+  static build، static serve و Page navigation را پاس می‌کند و سپس کامل حذف می‌شود. این proof نه
+  قالب نهایی Export است، نه ArtifactVersion/ExportJob می‌سازد و نه مجوز Preview/Hosted Runtime است.
 - چهارده Component رجیستری بسته‌اند. Asset/alt-text به‌صورت جفت و media layoutهای Hero/About با
   Asset اجباری‌اند. `SimpleForm` فقط preview-only است و هیچ network submission ندارد.
 - Arbitrary server code، shell execution، secret injection و نصب آزاد npm dependency ممنوع است.
