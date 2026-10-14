@@ -68,6 +68,8 @@ M000 extensions
 | scope_share_links | id, account_id, project_id, scope_version_id, token_hash, expires_at, revoked_at, created_by, created_at | اتصال دقیق به ScopeVersion immutable؛ فقط hash سی‌ودوبایتی token ذخیره می‌شود؛ expiry اجباری و revocation terminal است؛ حذف فیزیکی ممنوع |
 | scope_approvals | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, explicit_consent, idempotency_key, request_hash, approved_at | هر ScopeVersion دقیقاً یک Approval نهایی immutable؛ snapshot hash ثبت‌شده ولی public-hidden؛ consent همواره true؛ guest idempotency capability-scoped؛ بدون raw token/email/IP/User-Agent؛ Project status بدون تغییر |
 | scope_change_requests | id, account_id, project_id, scope_version_id, share_link_id, version_no, version_hash, guest_name, comment, idempotency_key, request_hash, requested_at | Change Request مستقل و immutable؛ برای هر ScopeVersion حداکثر یک رکورد؛ comment canonical و ۱..۴۰۰۰ کاراکتر؛ snapshot identity ثبت‌شده ولی public-hidden؛ Approval و Change Request با lock همان ScopeVersion mutually exclusive هستند؛ هیچ ScopeVersion، Draft، Project یا ShareLink خودکار تغییر نمی‌کند |
+| artifacts | id, account_id, project_id, artifact_type, current_version_id, status, created_at, updated_at | برای هر Project حداکثر یک `website` Artifact؛ در اولین Generation ساخته می‌شود؛ current فقط Version آماده و متعلق به همان Artifact/Tenant/Project است؛ lifecycle mutable ولی حذف فیزیکی ممنوع |
+| artifact_versions | id, account_id, project_id, artifact_id, scope_version_id, version_no, parent_version_id, storage_ref, schema_name/version, artifact_hash, trigger_type, status, created_by, generation_job_id, created_at | history immutable؛ v1 بدون parent و initial، revisionها با parent همان Artifact؛ Manifest خصوصی + SHA-256 دقیق و بدون AST JSONB تکراری؛ Job یکتا و replay-safe؛ ready immutable و حذف فیزیکی ممنوع |
 
 ## Async و Metering
 
@@ -206,6 +208,17 @@ M000 extensions
   Application enrichment هستند. Atomic finalizer فقط Port است؛ جدول Artifact/Preview یا نگهداری
   AST تا قرارداد Generation Service اضافه نمی‌شود. جزئیات در
   [ADR-082](../adr/ADR-082-generation-component-registry-and-ast.md) آمده است.
+- 0099 طبق [ADR-086](../adr/ADR-086-artifact-version-foundation.md) Artifact lifecycle و تاریخچهٔ
+  immutable ArtifactVersion را اضافه می‌کند. Allocation روی ScopeVersion دقیق و approved، Job و
+  Outbox را در یک Transaction ثبت می‌کند؛ finalization پس از verify شدن Manifest خصوصی، Version،
+  current pointer و Job success را اتمیک می‌کند. Failed finalization current قبلی را حفظ می‌کند و
+  recovery همان Job/Version را بدون Provider یا Renderer invocation دوباره ادامه می‌دهد.
+- 0100 طبق [ADR-087](../adr/ADR-087-synthetic-artifact-generation-runtime.md) جفت nullable ولی
+  اتمیک `checkpoint_ref/checkpoint_hash` را به ArtifactVersion اضافه می‌کند و partial unique index
+  فقط یک Version در وضعیت `queued|generating|validating` را برای هر Artifact مجاز می‌داند. Runtime
+  فقط با helperهای محدود `aria_internal` همان Job/Outbox را claim و finalize می‌کند؛ فایل‌ها در
+  Object Storage منبع حقیقت‌اند و Manifest hash روی bytes canonical محاسبه می‌شود. مدل credential
+  مشترک Worker تغییر نکرده و `WORKER-CROSS-TENANT-001` باز است.
 
 ## Migration Guardrails
 

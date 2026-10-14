@@ -78,3 +78,7 @@ docs/development/NNNN-kebab-case/
 - [0086 — Controlled Real-Provider Quality Evaluation](./0086-controlled-real-provider-quality-evaluation/development.md)
 - [0096 — Controlled Generation Renderer](./0096-controlled-generation-renderer/development.md)
 - [0097 — Controlled Generation Exportability](./0097-controlled-generation-exportability/development.md)
+- [0098 — Generated Runtime Security Review](./0098-generated-runtime-security-review/development.md)
+- [0099 — ArtifactVersion Foundation](./0099-artifact-version-foundation/development.md)
+- [0100 — Synthetic Artifact Generation Worker Runtime](./0100-synthetic-artifact-generation-runtime/development.md)
+- [0101 — Preview Isolation Architecture](./0101-preview-isolation-architecture/development.md)

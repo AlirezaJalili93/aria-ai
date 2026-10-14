@@ -14,6 +14,8 @@ from app.infrastructure.db.models import Base
 from app.infrastructure.db.readiness import normalize_async_database_url
 from app.modules.context.infrastructure import models as context_models
 from app.modules.gaps.infrastructure import models as gap_models
+from app.modules.generation.infrastructure import models as generation_models
+from app.modules.generation.infrastructure import preview_models
 from app.modules.identity.infrastructure import models as identity_models
 from app.modules.jobs.infrastructure import models as job_models
 from app.modules.projects.infrastructure import models as project_models
@@ -23,6 +25,8 @@ from app.modules.sharing.infrastructure import models as sharing_models
 
 del context_models
 del gap_models
+del generation_models
+del preview_models
 del idempotency_models
 del identity_models
 del job_models

@@ -75,7 +75,13 @@ async def _insert_event(
 
 async def _truncate(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
-        await connection.execute(text("TRUNCATE public.outbox_events"))
+        await connection.execute(
+            text(
+                "TRUNCATE aria_internal.preview_execution_claims, "
+                "aria_internal.artifact_generation_claims, "
+                "public.outbox_events"
+            )
+        )
 
 
 def test_concurrent_relays_never_claim_the_same_event_and_ignore_domain_events() -> None:

@@ -30,6 +30,9 @@ GAP_DETECTION_TASK_NAME = "aria.gaps.detect.v1"
 SCOPE_GENERATION_EVENT_TYPE = "scope.generation_requested.v1"
 SCOPE_GENERATION_JOB_TYPE = "scope_generation"
 SCOPE_GENERATION_TASK_NAME = "aria.scope.generate.v1"
+ARTIFACT_GENERATION_EVENT_TYPE = "artifact.generation_requested.v1"
+ARTIFACT_GENERATION_JOB_TYPE = "artifact_generation"
+ARTIFACT_GENERATION_TASK_NAME = "aria.artifact.generate.v1"
 
 
 class CeleryOutboxPublisher:
@@ -55,6 +58,9 @@ class CeleryOutboxPublisher:
         elif event.event_type == SCOPE_GENERATION_EVENT_TYPE:
             task_name = SCOPE_GENERATION_TASK_NAME
             message = _job_message(event, expected_job_type=SCOPE_GENERATION_JOB_TYPE)
+        elif event.event_type == ARTIFACT_GENERATION_EVENT_TYPE:
+            task_name = ARTIFACT_GENERATION_TASK_NAME
+            message = _job_message(event, expected_job_type=ARTIFACT_GENERATION_JOB_TYPE)
         else:
             raise UnknownOutboxEventError
         try:

@@ -205,6 +205,23 @@ Change Request فقط در پاسخ tenant-authorized مجاز است، نه tel
   Renderer و Design Tokens فقط از tarball محلی و lockfile مستقل نصب می‌شوند؛ هر Candidate audit،
   static build، static serve و Page navigation را پاس می‌کند و سپس کامل حذف می‌شود. این proof نه
   قالب نهایی Export است، نه ArtifactVersion/ExportJob می‌سازد و نه مجوز Preview/Hosted Runtime است.
+- مطابق ADR-085، Generated Runtime Security Review همان Candidateهای 0097 و یک corpus مصنوعی
+  adversarial نسخه‌دار را در Chrome با profile تازه اجرا می‌کند. Runtime فقط resourceهای static
+  همان origin، مسیرهای دقیق AST و Assetهای fixture allowlisted را می‌پذیرد؛ external network، API،
+  credential، write، WebSocket، submission و اجرای markup تزریق‌شده fail-closed هستند. این Gate
+  فقط Static Artifact Security و Synthetic Runtime Behavior را ارزیابی می‌کند؛ Production Preview
+  CSP، iframe sandbox، domain isolation و Hosted activation همچنان در F3 تصمیم‌گیری می‌شوند.
+- مطابق ADR-086، PostgreSQL یک Artifact از نوع `website` برای هر Project و تاریخچهٔ immutable
+  ArtifactVersion نگه می‌دارد. Allocation نسخه، Job و Outbox اتمیک است؛ Storage فقط از Port خصوصی
+  و Manifest نسخه‌دار/هش‌شده وارد می‌شود. پس از verification، Version ready، current pointer و Job
+  success در یک Transaction نهایی می‌شوند. Execution واقعی Renderer/Storage، Preview و Export در
+  0099 فعال نشده‌اند.
+- مطابق ADR-087، Runtime مصنوعی 0100 یک command داخلی را از Outbox/Celery با envelope فقط‌شناسه‌ای
+  دریافت می‌کند، helper محدود PostgreSQL همان Job/Outbox را با advisory ownership claim می‌کند،
+  Renderer ثابت 0096 را در process محدود اجرا می‌کند و bundle را با create-or-verify در Storage
+  خصوصی منتشر می‌کند. Checkpoint معتبر بدون render دوباره بازیابی می‌شود و Manifest آخرین object
+  است؛ finalization Version/current pointer/Job را اتمیک می‌کند. این مسیر Hosted نیست و ریسک
+  credential مشترک `aria_worker` با شناسه `WORKER-CROSS-TENANT-001` باز می‌ماند.
 - چهارده Component رجیستری بسته‌اند. Asset/alt-text به‌صورت جفت و media layoutهای Hero/About با
   Asset اجباری‌اند. `SimpleForm` فقط preview-only است و هیچ network submission ندارد.
 - Arbitrary server code، shell execution، secret injection و نصب آزاد npm dependency ممنوع است.
