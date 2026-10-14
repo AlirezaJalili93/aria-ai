@@ -34,7 +34,7 @@
     "test:generation-exportability": "node --test scripts/test/generation-exportability-contract.test.js",
     "proof:generation-exportability": "node scripts/generation-exportability/run-clean-room.mjs",
     "test:generated-runtime-security": "node --test scripts/test/generated-runtime-security-contract.test.js",
-    "test:preview-isolation": "node --test scripts/test/preview-isolation-contract.test.js scripts/test/preview-publication-review.test.js",
+    "test:preview-isolation": "node --test scripts/test/preview-isolation-contract.test.js scripts/test/preview-publication-review.test.js scripts/test/preview-browser-proof.test.js",
     "proof:preview-isolation": "node scripts/preview-isolation/run-local-proof.mjs",
     "test:artifact-generation-runtime": "node --test scripts/test/artifact-generation-runtime-contract.test.js",
     "proof:generated-runtime-security": "node scripts/generated-runtime-security/run-security-review.mjs",

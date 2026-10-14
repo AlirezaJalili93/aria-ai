@@ -1,12 +1,35 @@
 # ADR-089 — Local Preview Publication and Version-bound Capability
 
-**Status:** Partially accepted — Local/Synthetic database authority approved; full delivery gate pending
+**Status:** Accepted — frozen Local/Synthetic scope only; Production/Hosted access contract deferred
 
 **Date:** 2026-10-12
 
 **Planned increment:** `0102-local-preview-publication-and-capability`
 
-**Implementation:** Local/Synthetic SQL gate authorized; no completed publishing/browser increment.
+**Implementation:** Local/Synthetic publishing/browser gate PASS; no Hosted/customer activation.
+
+## Current scoped acceptance — 2026-10-14
+
+The owner-approved Local/Synthetic contract is implemented and its full detailed matrix is mapped
+to executed tests in the [final report](../development/0102-local-preview-publication-and-capability/test-report.md).
+Fresh final joined matrix: 12 PASS, including actual aria_worker, real Relay/Redis/Celery, three
+real-bundle Browser cases and two distinct Publications/capabilities sharing one unchanged ready
+Representation. Concurrent second Publish commits one outcome; independent revocation and token-
+negative private files/outcomes/logs pass. Final npm regression, lint/types and independent unchanged
+0101 Browser proof pass. Final architecture validation passes all 23 checks; its completion gate
+is unchanged. Owned services/profiles/temp data are removed and prior user services are preserved.
+
+Earlier Proposed/PENDING/NOT EXECUTED sections below are retained chronological review history;
+they are superseded only for this scoped Local/Synthetic implementation, not Production authority.
+Exact reviewed SQL remains unchanged. Full PG regression: 837 API/1 skip, 425 Worker/17 skips;
+joined skips are executed separately. Failures and subset execution are disclosed in the report.
+No whole-process broker-crash, full human UX/WCAG, shared-Worker compromise, customer/private asset,
+paid Provider, management HTTP/JWT or Hosted security acceptance is claimed. General bootstrap is
+unchanged. `WORKER-CROSS-TENANT-001` remains OPEN.
+
+Subsequent owner "پوش کن", 2026-10-14, authorizes committing/pushing this Local/Synthetic
+completion checkpoint only. Earlier no-push restrictions describe their original stage; no
+Hosted/customer/Provider activation, new database authority or subsequent development is authorized.
 
 ## Sources and precedence
 
@@ -792,6 +815,74 @@ findings are design evidence, not executed 0102 tests. Final documentation verif
 below after the current run.
 
 ## Controlled queue adapter continuation — 2026-10-13
+
+### Real-bundle Browser proof — 2026-10-14
+
+The test-only `-BrowserGate` extension passes a fresh 12-case joined gate, including three
+Browser cases across landing/corporate/portfolio and eight real built/transformed pages. The
+versioned corporate in-memory path recipe exercises a two-level page without editing fixture v1.
+Browser input uses captured pipes, not argument/environment/config files. Independent registrable
+test sites, exact allow-scripts sandbox, no-referrer/opaque origin, native local form validation,
+Core isolation, unauthorized-embed denial, controlled CSS/SVG/System Font loading, zero font/
+external/download effects and absent CORS pass. Normal lazy-image scroll/decode preserves source.
+Independent unchanged 0101 JavaScript/hash-CSP isolation regression also passes.
+
+Four prior failed harness runs and their observer/readiness corrections remain in the linked
+report. No policy, privilege, Renderer/source bytes, fixture v1, bootstrap or SDK/dependency changed.
+No raw diagnostics/trace/screenshot/URL is persisted. Browser profiles/history and owned service/
+temporary data are cleaned. Modern guidance informs test hygiene, not a new product behavior.
+Full 0102 remains PENDING for matrix audit, including same-Representation/two-capability real-file
+reuse proof. Hosted/customer/Production activation, paid Provider, full tenant-isolation claims
+and commit/push are not authorized by this subgate.
+
+### Controlled HTTP proof continuation — 2026-10-14
+
+The existing explicit GET/HEAD loopback route is composed through a temporary Infrastructure
+adapter; no management HTTP endpoint, service deployment or automatic bootstrap is added. Raw
+request-target is captured before standard HTTP path normalization. Every valid file request still
+uses the existing capability resolver, exact bound Manifest and file checksum guard. Parser/Host/
+route failures expose no request data; request/error logs and server tracebacks are suppressed at
+their source. No CORS, session, cookie, proxy, directory listing or anonymous storage path exists.
+
+The adapter uses Python 3.12 standard-library HTTP parsing only for disposable synthetic proof,
+never Production serving. Inherited parser defaults are implementation details, not approved
+business limits. Short SQL authorization is separate from private file IO. The new deterministic
+joined check must allow an already-authorized read to finish after revoke, but deny a new read
+after that commit. Full Browser acceptance remains separate and PENDING until executed.
+The earlier JWT/HTTP NOT EVALUATED label does not authorize or require a management JWT endpoint:
+management remains internal/explicit and the read route is bearer-capability scoped.
+
+Executed subgate evidence: **40 focused HTTP/access cases** and a fresh **12-case** PostgreSQL/
+Redis/Celery/Worker joined rerun PASS. Six command-backed cases read verified HTML/CSS/SVG over
+real loopback HTTP and prove revoke commits during an already-authorized blocked file read;
+that read can finish, while the following read is denied. Final general regression passes with
+API 592/246 skipped and Worker 375/67 skipped; the joined skipped cases were separately executed.
+Worker lint/strict types pass; owned containers/temp data are removed, reviewed SQL unchanged.
+This is not Browser, Production transport, shared-credential compromise remediation or Hosted
+acceptance. No commit/push or customer/Provider activation is inferred.
+
+### Subsequent joined subgate — 2026-10-14
+
+The subsequent command-backed extension executes 12 joined cases: six fixture baselines plus
+six cases using the existing Publish/Issue/Revoke Application commands and PostgreSQL membership
+resolution in an isolated API test process. Real relay/broker/aria_worker/copy remains unchanged.
+Replay, conflict, active guard, ready-only issuance, one-time response, access and revocation PASS.
+The test subject is trusted fixture identity, not verified JWT; access uses the existing service,
+not an HTTP listener. No production API/bootstrap, SQL/grant/RLS, capability contract or Hosted
+authorization changes. Seven bridge unit cases PASS. General regression passes with disclosed
+integration skips; full 0102 still awaits JWT/HTTP/browser evidence. Initial inherited-virtual-env
+diagnostic failures and the fresh 12-case rerun are retained in the linked development report.
+
+After checkpoint Push, the owner-directed Local/Synthetic continuation joins real PostgreSQL
+relay, Redis/Celery, actual aria_worker and the existing private-copy runtime in six tests across
+all three project types. Same-ID explicit copy recovery and duplicate delivery/no recopy PASS.
+Initial failed harness runs identified an incorrect Transformer instantiation; only the test
+wiring was fixed, using the existing approved signature. No runtime/SQL/grant/RLS/dependency change.
+
+Preview allocation remains explicitly fixture-only; source rendering is a test preparation step.
+This is not authenticated-command, HTTP/browser, crash/redelivery or Hosted acceptance. Both
+service containers are disposable and removed after every run. Shared-Worker compromise risk and
+full 0102 PENDING status remain unchanged. New verification work stays local after the checkpoint.
 
 The owner continued after the verified preready cancellation subgate. The existing frozen
 `preview.publication_requested.v1` / `preview_publication` / `aria.preview.publish.v1` identifiers

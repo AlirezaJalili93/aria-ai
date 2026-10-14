@@ -35,7 +35,7 @@ def _repository_root() -> Path:
 
 def _environment(**overrides: str) -> dict[str, str]:
     values = {
-        "DATABASE_URL": "postgresql://owner:secret@127.0.0.1:5432/aria_0086_eval",
+        "DATABASE_URL": "postgresql://owner@127.0.0.1:5432/aria_0086_eval",
         "OPENAI_API_KEY": "openai-secret-not-used",
         "GEMINI_API_KEY": "gemini-secret-not-used",
         "ARIA_EVAL_RUN_ID": "eval-0086-command-test",
@@ -69,20 +69,30 @@ def test_command_settings_fail_closed_for_missing_runtime_inputs(
         ControlledEvaluationCommandSettings.from_environment(_environment(**{field: ""}))
 
 
-def test_settings_repr_never_exposes_credentials_or_database_url() -> None:
-    settings = ControlledEvaluationCommandSettings.from_environment(_environment())
+@pytest.mark.parametrize(
+    "database_marker",
+    [
+        "postgresql://owner@127.0.0.1:5432/aria_0086_eval",
+        "synthetic-database-credential-not-used",
+    ],
+)
+def test_settings_repr_never_exposes_credentials_or_database_url(database_marker: str) -> None:
+    # Opaque credential marker never reaches an engine; URL fixtures need no password.
+    settings = ControlledEvaluationCommandSettings.from_environment(
+        _environment(DATABASE_URL=database_marker)
+    )
 
     rendered = repr(settings)
 
     assert "openai-secret-not-used" not in rendered
     assert "gemini-secret-not-used" not in rendered
-    assert "owner:secret" not in rendered
+    assert database_marker not in rendered
     assert PAID_EVALUATION_CONFIRMATION not in rendered
 
 
 def test_command_builds_deterministic_synthetic_metadata_for_exact_matrix() -> None:
     composition = compose_controlled_provider_evaluation(
-        database_url="postgresql://owner:secret@127.0.0.1:1/unused",
+        database_url="postgresql://owner@127.0.0.1:1/unused",
         openai_api_key="openai-secret-not-used",
         gemini_api_key="gemini-secret-not-used",
     )

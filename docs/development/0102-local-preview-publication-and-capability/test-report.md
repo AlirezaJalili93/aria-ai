@@ -1,15 +1,41 @@
 # Test Report: 0102 Local Preview Publication and Capability
 
-- Date: 2026-10-13
+- Date: 2026-10-14
 - [Development record](./development.md)
+
+## Current Result — 2026-10-14
+
+**Local/Synthetic acceptance PASS.** Final full joined/Browser matrix **12 passed in 293.22s**;
+the complete ADR-089 acceptance audit is below. Historical failure/PENDING notes retain their
+original stage and are superseded only by this scoped final evidence. No Hosted, Production,
+customer, real-Provider, full human UX/WCAG or shared-credential security acceptance is claimed.
+
+### Checkpoint publication — 2026-10-14
+
+Owner "پوش کن" separately authorizes commit/push of these completion files only. The existing
+Local/Synthetic evidence is unchanged; npm/validate/secret/diff checks are rerun before publication.
+Historical HEAD/no-push statements below describe the preceding development checkpoint, not a
+new activation permission. No Hosted/customer/real-Provider or database operation is included.
+
+Final pre-publication verification passed on 2026-10-14: `npm test` (API **592 passed / 246
+skipped; Worker **376 passed / 67 skipped; Node/Renderer/Web suites PASS), `npm run validate`
+(23/23), `npm run scan:secrets` (1,233 publishable text files), and `git diff --check` (line-ending
+warnings only). Skips remain excluded from PASS counts.
+
+Initial pre-push secret scan FAIL: two existing 0086 unit-test credentialed-URL patterns containing
+literal dummy passwords. No live secret was found. REQ-10218/TC-10220 removes only those dummy
+passwords, preserves both full-URL and opaque credential-marker repr-negative coverage, and does
+not change the scanner, runtime, Provider behavior or activate any evaluation. Focused/full checks
+are rerun; the initial failure is retained here rather than reported PASS.
 
 ## Environment
 
 Local Windows, Python 3.12 and Node. Scoped DB tests used fresh disposable PostgreSQL 16-alpine,
 loopback-only random ports and actual aria_worker login (not DB-owner helper execution or SET ROLE).
-The reproducible authority harness applied the full Alembic chain through 0040. Test containers
+The latest authority harness applied the full Alembic chain through reviewed 0040/0041. Test containers
 were deleted afterward; existing databases were untouched. General `npm test` omits DB env and
-its skipped integrations are reported separately. No 0102 Browser/Hosted acceptance was performed.
+its skipped integrations are reported separately. Current Local/Synthetic Browser subgate evidence
+is below; no Hosted/customer/Production acceptance was performed.
 
 ## Test Cases
 
@@ -25,10 +51,223 @@ its skipped integrations are reported separately. No 0102 Browser/Hosted accepta
 | TC-10208 | Atomicity, concurrency and controlled recovery | PASS |
 | TC-10209 | Reviewed SQL equivalence, role ownership/grants/RLS/locked graph | Static + actual Worker authority subgate PASS |
 | TC-10210 | Empty-only rollback, shared Role preservation, legacy downgrade compatibility | PASS; nonempty rejection/data preservation and full PG regression verified |
+| TC-10211 | Fifth helper's owned-session/live-lock/code allowlist, ACL and atomic failure boundary | Actual aria_worker PostgreSQL PASS |
+| TC-10212 | Permanent source failure, failed failure-commit recovery, same-ID copy preparation | Real-bundle Worker PostgreSQL and bounded runtime cases PASS |
 | TC-10213 | Preready active Job cancellation, terminal result preservation, binding, replay, atomic rollback and Worker finalization race | Focused PostgreSQL PASS; complete regression completion recorded below |
 | TC-10214 | Controlled-only queue mapping, app-local Task, exact envelope, no implicit retry, safe outcomes and real Redis delivery | 40-case adapter/transport subgate PASS; complete PostgreSQL-to-browser E2E NOT EVALUATED |
+| TC-10215 | Fixture-allocated real Relay/PostgreSQL/Redis/Worker copy, same-ID recovery and duplicate delivery for three project types | 6 executed cases PASS; authenticated command/HTTP/browser NOT EVALUATED |
+| TC-10216 | Real Application Publish/Issue/Revoke, DB membership, idempotency, one-time response and capability access/revocation joined to relay/Worker | 6 command-backed joined + 7 bridge unit cases PASS; JWT/HTTP/browser NOT EVALUATED |
+| TC-10217 | Controlled loopback HTTP GET/HEAD, exact raw target/Host, per-resource capability, no diagnostics and revoke/read ordering | 19 HTTP + 21 access cases and actual-role 12-case joined rerun PASS; Browser NOT EVALUATED |
+| TC-10218 | Real 0100 derivatives in disposable browser: three types, root/one/two-level pages, native form, frozen isolation and safe cleanup | 12-case joined rerun including three Browser cases PASS; independent 0101 Browser PASS; not full 0102 acceptance |
+| TC-10219 | Concurrent same-key second Publish, two capabilities/one ready Representation, all-file equality, no stored token and independent revocation | Final six command-backed joined cases PASS, including three Browser cases |
+| TC-10220 | Pre-push legacy test-fixture hygiene without hiding or disabling secret detection | Focused repr/composition and full secret/regression verification recorded below |
 
 ## Execution Results
+
+### Two-publication verification and final regressions — 2026-10-14
+
+- First extended full Browser matrix: **11 passed / 1 failed in 360.62s**. The landing Browser
+  failed only `zero_unexpected_network`; no raw URL was captured, so its exact destination is
+  deliberately not claimed as known. All other cases passed, including real-file reuse and
+  independent revoke. This failed run is not converted into a full PASS.
+- Closed-counter diagnostic rerun: **3 passed / 9 deselected in 184.49s**, three Browser cases
+  only; the failure did not reproduce. The runner explicitly reports full matrix NOT EVALUATED
+  when `-BrowserCasesOnly` is selected. No raw destination/content diagnostic was introduced.
+- Review also found interception could block the exact harness-created `data:text/plain,synthetic`
+  download probe itself. The armed local non-network probe now reaches native Sandbox enforcement;
+  all other non-approved requests remain denied/count as unexpected. Three static contracts verify
+  exact armed-only classification, malformed/foreign denial and privacy. This is test hygiene,
+  not a source-profile/data-URL permission or proof of the earlier failure's exact cause.
+- Fresh `run-preview-authority-controlled.ps1 -FullRegression`: **65 API + 12 Worker focused
+  cases PASS**, then **837 API passed / 1 skipped; 425 Worker passed / 17 skipped**. The 17 Worker
+  skips include 12 joined/Browser and 3 Redis-only tests not supplied by this PG-only runner,
+  plus the earlier two disclosed skips. Joined cases are separately executed; skips are never
+  passes. The newly owned PostgreSQL container/temp data were removed.
+- Initial general `npm test`: API 592/246 skipped; Worker 360/67 skipped/**15 errors** due to
+  Windows access denial at the pre-existing default pytest Temp root. No test was weakened or
+  that existing folder deleted. Full rerun with an owned workspace-local Temp: **PASS**, API
+  **592/246 skipped**, Worker **375/67 skipped**; all Node/Renderer/Web suites PASS. A final rerun
+  after the last test-only observer change remains pending below.
+- An intermediate scoped lint run failed one line-length check; only that test line was wrapped.
+  API/Worker lint and established types now PASS (207 API / 98 Worker source files); Python
+  build/compile PASS. Additional legacy global strict diagnostics remain historical, not hidden.
+- Independent unchanged 0101 Browser proof: **PASS**, same-origin compatibility=false (expected),
+  approved cross-origin/System Font compatibility=true, cleanup=completed. Eighteen static
+  Browser/privacy/fixed-SQL contracts PASS. Both immutable SQL review hashes remain unchanged.
+- Final full `run-preview-joined-controlled.ps1 -BrowserGate`: **12 PASS in 293.22s**, six
+  command-backed reuse/recovery cases plus six fixture baselines, including the three real-bundle
+  Browser cases. All Manifest files are identical through two independently issued capabilities;
+  second same-key commands race to one outcome, second real Worker finalization reuses unchanged
+  files/Manifest, and each revoke is independently effective. Original source files remain intact.
+- Final `npm test` after the last observer change, with owned workspace Temp: **PASS**, API
+  **592 passed / 246 skipped**, Worker **376 passed / 67 skipped**, all Node/Renderer/Web suites
+  PASS. Owned Temp/service/profile cleanup completed; existing four service containers retained.
+  Final `npm run validate`: **23/23 PASS** after record finalization; the development-record
+  convention was not bypassed or weakened. Diff check PASS with line-ending warnings only;
+  owned `.tmp` is empty, all owned profiles/services removed, four earlier containers preserved.
+  HEAD remains `a3e3a84`; no commit/push, Hosted/customer or paid-provider execution.
+
+### Final acceptance-matrix audit — 2026-10-14
+
+This maps every ADR-089 detailed acceptance row to executable evidence. Layered failure/rollback
+tests are identified as such; they are not a claim of broker-driven process-crash E2E. Historical
+PENDING/FAIL entries below retain their original time/scope and are not silently reclassified.
+
+| ADR-089 gate | Executable evidence | Current classification |
+|---|---|---|
+| Same identity/versions produce identical bytes and Manifest | Worker `test_preview_manifest.py`, `test_preview_delivery.py`; TC-10219 real-file reuse | PASS |
+| Source preserved through publication/read/revoke | `test_preview_real_bundle.py`, `test_preview_publication_runtime_postgres.py`, joined snapshot comparison | PASS |
+| Root/one/two-level pages retain capability prefix | `test_preview_delivery.py`; Browser `preview_nested_corporate_v1`, eight pages | PASS |
+| Two capabilities reuse one Representation/files | TC-10219: concurrent Application Publish, actual Relay/Worker, all Manifest files, independent revoke | PASS |
+| Unsupported absolute/protocol-relative/unknown/CSS-escaped fetch | `test_preview_delivery.py` rejection corpus; known canonical root links alone are explicitly remapped | Unit PASS |
+| Direct CSS/SVG requires capability | `test_preview_access.py`, `test_preview_http.py`, joined HTTP | PASS |
+| Raw/encoded traversal, query/Host/version aliases | `test_preview_delivery.py`, `test_preview_http.py`, `test_preview_access.py` | Unit/HTTP PASS |
+| Private Manifest/checkpoints not served | Closed route/Manifest allowlist tests in delivery/access/HTTP suites | PASS |
+| Exact import removal/system font/no resource fetch | Real-bundle transform, closed CSS/SVG profile and Browser font/network observations | PASS |
+| Concurrent same-key Publish/Issue | TC-10219 concurrent two-process Publish; `test_concurrent_issue_same_key_discloses_exactly_one_token` on real PostgreSQL | PASS |
+| One active Job per preparing Representation | `test_active_job_uniqueness_is_database_enforced`; command active-conflict/replay checks | PASS |
+| Copy/finalization failure, recovery/restart retain IDs | Real copy-failure recovery; SQL finalization rollback and backend-death reclaim; adapter ambiguous-commit invalidation and runtime unit failures | Layered PASS; no new process-kill/broker-crash claim |
+| Revoke versus finalization/read | Actual SQL both race orders; command-backed held-IO/read ordering and independent second-capability revoke | PASS |
+| Cross-tenant/tampered graph denied | Authority/failure helper 42501 tests, composite FK, Member ownership and command safe-404 | PASS scoped helper/command path; shared Worker compromise OUT OF SCOPE |
+| Real bundles for three Project Types | Original 0100 builder -> validators/transform -> private copy -> HTTP -> disposable Browser | PASS |
+| Independent 0101 isolation unchanged | Existing `run-local-proof.mjs` regression; no 0101 source modification | PASS |
+| No diagnostic/content/token leakage; cleanup | Captured-pipe bridge, bounded HTTP/parser errors, closed Browser evidence, token-negative private files/command outcomes/operational stream; owned-resource cleanup | PASS |
+
+The supported 0100 HTML/CSS/SVG source is script-free. Existing 0101 separately proves permitted
+JS isolation; 0102 does not silently accept a Next.js/JS-bearing publication. Internal management
+commands use a trusted synthetic identity plus real DB membership, not a new management JWT/HTTP
+API. Full human UX/WCAG, Production/Hosted, customer assets and shared-Worker credential redesign
+are excluded, not reported as passing or used to broaden this increment.
+
+### Real-bundle Browser continuation — 2026-10-14
+
+| Command / evidence | Actual result | Interpretation |
+|---|---|---|
+| First fresh Browser-enabled gate | 3 failed / 9 passed, stage=pages | Test debugger failed to attach recursively to related child targets; no Browser PASS claimed |
+| Second fresh gate after recursive attach | 3 failed / 9 passed | Strict checks failed for pages, embedding observation and Core-effect classification; runtime policy unchanged |
+| Third fresh gate after observer corrections | 3 failed / 9 passed | All isolation/header/network/download checks pass; pages assertion still fails |
+| Fourth fresh closed-label run | 3 failed / 9 passed, page_checks=images only | No URL/content diagnostic; lazy/async images were inspected before native viewport/decode readiness |
+| Final `run-preview-joined-controlled.ps1 -BrowserGate` | **12 passed in 196.37s** | Three real-bundle Browser cases plus the nine retained pipeline/recovery cases under actual aria_worker; all owned services/profiles removed |
+| All three types, eight pages including corporate /services/design | PASS | Original v1 fixture files unchanged; explicitly versioned in-memory test recipe supplies nested coverage before original builder |
+| Normal scrolling/native decode and local SimpleForm/trusted Enter | PASS | Real CSS/SVG loading and native validation; no loading-attribute/source rewrite or network submission |
+| Opaque sandbox/parent DOM-cookie-storage/Core API/form/popup/top-nav/inline code | PASS | Exactly allow-scripts, no new sandbox grants; allowed-origin negative requests are not blocked by the test interceptor |
+| Download, external network, font resources, CORS | ZERO / ZERO / ZERO / ABSENT | Download observations confined to owned disposable profile; System Font/frozen CORP policy retained |
+| Unauthorized Embed | DENIED | After navigating the separate attacker site, security observation plus inaccessible Preview main proves denial; no console text captured |
+| Independent unchanged `0101` Browser regression | PASS; same-origin compatible=false, approved cross-origin compatible=true | Independent JS/hash-CSP proof retained; only bounded outcome fields emitted; profile cleanup completed |
+| Static Browser/privacy + existing Preview/SQL contracts | 17 passed | No generic runtime activation, extra HTTP headers, new SDK/dependency, mutation endpoint or security-policy relaxation |
+| Worker lint/strict types | PASS / PASS (98 source files) | Production modules/SQL unchanged in this test-only continuation |
+| Final `npm test` | PASS: API 592 passed / 246 skipped; Worker 375 passed / 67 skipped; Node/Renderer/Web PASS | Twelve joined integrations explicitly executed above; remaining skips not counted as passes |
+| Final `npm run validate` | FAIL only on PENDING 0102; other 22 checks PASS | Same-Representation/two-capability real-file proof and final matrix audit remain open; no completion gate weakened |
+| Diff/runner parse/review SQL hash/owned cleanup | PASS / PASS / unchanged / PASS | No task Browser profile/service remains; existing local services and prior work preserved |
+
+Four failed runs were not skipped or reclassified as PASS. Corrections affect only harness
+attachment/observation: font is measured at the Renderer root, actual downloads are distinct
+from permitted iframe navigation, embedding uses bounded security observations without raw text,
+URL references compare with the configured Preview origin rather than the opaque security origin,
+and lazy images are actually scrolled/decode-awaited. Browser input/creation capability exists only
+in captured pipes and volatile wrapper state; temporary browser history/profile is destroyed under
+the already accepted Local/Synthetic residual-risk contract. No trace, screenshot, raw output,
+request URL or fixture body is saved as an evidence artifact. No customer/Hosted/paid activity.
+
+Full 0102 remains PENDING for the final matrix audit and real-file reuse under two distinct
+capabilities sharing one Representation. This Browser pass does not claim that missing invariant,
+full human UX/WCAG or Production transport/security acceptance. Final general regression/validate
+and cleanup are recorded above after execution.
+
+### Controlled HTTP continuation — 2026-10-14
+
+Contract-first collection failed because the HTTP adapter was not yet implemented. The initial
+unprivileged invocation was blocked by uv cache permissions and was not treated as test evidence.
+After implementation, the first run had **17 passed / 1 failed**: malformed HTTP version used
+the standard parser's HTTP/0.9 response suppression, producing an empty response rather than a
+safe 404. The bounded parser-error path was corrected without returning parser text or request data.
+Initial strict types also found one missing raw-requestline byte annotation; that scoped annotation
+was added. Fresh HTTP plus existing access tests pass **40 cases** (19 HTTP + 21 access), with
+Worker lint and strict types PASS (**98 source files**). The prior seven API bridge tests pass.
+
+The adapter is an explicitly constructed, temporary `127.0.0.1` listener using an ephemeral OS
+port and Python standard-library HTTP parsing. It never serves directories or normalizes a raw
+target into authority. Duplicate Host, wrong Host/version, absolute-form, leading double slash,
+encoded/traversal/query/private-Manifest targets are denied. GET/HEAD preserve the existing response
+headers; other methods cannot invoke read authorization or mutate state. Parser/request/error
+diagnostics are disabled before formatting, not redacted after token-bearing URL construction.
+Factory failure and normal completion close the bound socket and owned threads. Standard HTTP
+parser defaults and test-client wait bounds are not new product limits or Production hardening.
+
+ADR-089 permits internal Publish/Issue/Revoke plus controlled public capability reads, not a
+management HTTP/JWT endpoint. Earlier NOT EVALUATED labels are disclosure, **not an additional
+JWT feature requirement**. Full 0102 completion still requires the real-bundle Browser Gate and
+all frozen acceptance assertions; customer/private-asset/Hosted/Production transport is unchanged.
+
+| Final command / evidence | Actual result | Interpretation |
+|---|---|---|
+| `run-preview-joined-controlled.ps1` on fresh PostgreSQL 16/Redis | 12 passed in 203.99s | Six fixture baseline + six command-backed cases; the latter now use actual loopback HTTP and physical aria_worker resolver |
+| HTTP GET/HEAD for HTML/CSS/SVG | PASS | Existing per-resource capability/Manifest/file checks; HEAD empty, no-store/no-CORS preserved |
+| Deterministic revoke during authorized file IO | PASS | Authorized in-flight HTTP read finishes after revoke; new read denied; no DB transaction held while IO waits |
+| Final `npm test` | PASS: API 592 passed / 246 skipped; Worker 375 passed / 67 skipped; Node/Renderer/Web PASS | Twelve joined skips executed independently; others remain disclosed |
+| Worker lint / strict types | PASS / PASS (98 source files) | Only the controlled Infrastructure adapter and scoped tests added; general bootstrap unchanged |
+| API process bridge regression | 7 passed | Existing closed command input, bounded diagnostic and one-time response boundary retained |
+| Owned services/temp cleanup + reviewed SQL hashes | PASS + unchanged | Only task-created PostgreSQL/Redis/temp resources removed; existing local services preserved |
+| Final `npm run validate` | FAIL solely on PENDING 0102; other 22 checks PASS | Browser/full acceptance remains open; architecture and local documentation links intact |
+| Final diff check / controlled runner parse | PASS / PASS | Evidence labels only changed after the actual joined run; no extra execution claim |
+
+The runner's pre-existing JWT_HTTP_BROWSER label was emitted by this executed run. It is now
+clarified to HTTP-subgate PASS, Browser NOT EVALUATED, management HTTP/JWT OUT OF SCOPE; that
+post-run wording change is not a second execution or a new authentication claim. Final validate/
+diff verification is recorded above; full 0102 stays PENDING.
+
+### Command-backed integration continuation — 2026-10-14
+
+| Command / evidence | Actual result | Interpretation |
+|---|---|---|
+| Initial extended joined run | 6 passed / 6 failed | API subprocess inherited Worker VIRTUAL_ENV; uv diagnostic rejected by the existing zero-diagnostic guard |
+| Fresh `run-preview-joined-controlled.ps1` after scoped environment correction | 12 passed | Six retained fixture cases plus six real Application command cases; three project types, copy success/recovery, actual aria_worker and real Redis/Celery |
+| Publish command replay/conflict/active guard | PASS | Same Publication/Job on replay, no duplicate logical state; different payload and new active command rejected |
+| Ready-only Issue, one-time disclosure and replay | PASS | Before-ready denial; after ready token in captured creation-response pipe only, replay token absent; no raw token in idempotency outcome |
+| GET/HEAD Application access and Revoke/replay | PASS | Per-read valid capability and exact bound files; subsequent read denied after the existing Revoke command |
+| `test_controlled_preview_commands_bridge.py` | 7 passed | Closed input shape, owned loopback DB constraint, bounded unexpected error, captured response transport; no JWT verification claim |
+| Established API mypy including bridge / Worker mypy | PASS: 208 / 97 source files | Existing configuration unchanged; scoped test additions only |
+| Additional global `mypy --strict` diagnostic | FAIL: 21 errors in 16 existing files | Extra legacy diagnostic, not required-gate PASS; no unrelated refactor or configuration weakening |
+| API/Worker + explicit bridge Ruff | PASS | No lint exclusion or gate bypass |
+| Final `npm test`, no integration env | PASS: API 592 passed / 246 skipped; Worker 356 passed / 67 skipped; Node/Renderer/Web PASS | Twelve joined skips explicitly executed above; other skipped suites not claimed |
+| Owned cleanup / historical SQL hashes | PASS / unchanged | Exact PostgreSQL/Redis/temp resources removed; existing services preserved; no new SQL authority |
+| Final `npm run validate` | FAIL solely on PENDING 0102; other 22 checks PASS | Required completion gate retained; local Markdown links and architecture boundaries PASS |
+| Final `git diff --check` / PowerShell runner parse | PASS / PASS | Runner label clarification only; no new execution or security-policy claim |
+
+The bridge supplies a trusted synthetic subject to the existing identity boundary and resolves
+membership from DB, never from a caller-supplied role. It runs only against the harness-owned
+`aria_0102_joined` database. Raw creation capability travels in a captured response pipe and volatile
+memory, not process arguments/environment, files, logs or reports. Source rendering and actor setup
+remain explicit synthetic fixtures. This subgate proves Application command integration, not
+JWT/HTTP authentication, a Preview HTTP listener, browser isolation or Hosted acceptance.
+The runner's outcome labels were subsequently clarified to separate Application PASS from
+JWT/HTTP/Browser NOT EVALUATED; only evidence wording changed after this 12-case execution.
+No product runtime, migration, grant, RLS, dependency, commit or push changed in this continuation.
+0102 overall remains PENDING; final architecture validation is recorded below after execution.
+
+### Joined delivery continuation after Push — 2026-10-14
+
+| Command / evidence | Actual result | Interpretation |
+|---|---|---|
+| No-env collection | 6 skipped | Required services absent; not PASS evidence |
+| First joined execution | 6 failed | Harness wiring defect, no ready/finished state falsely accepted |
+| Second bounded diagnostic run | 6 failed, stage=preview_runtime / class=TypeError | No raw exception/storage key/content diagnostic printed; no privilege widening |
+| Corrected full fresh joined gate | 6 passed | Correct existing Transformer binding reused; real relay/broker/Celery task/Worker/private-copy pipeline |
+| All three project types, success + first-copy failure | PASS | First failure remains recoverable; explicit same-ID delivery succeeds; duplicate delivery yields already_completed with no new copy |
+| Physical runtime principal | aria_worker | Relay/source runtime/Preview runtime use actual worker login, not DB owner or SET ROLE |
+| Source/identity/claim preservation | PASS | Same source bytes, one Preview Job/Publication, event published, no issued token, zero remaining execution claims |
+| Bounded relay diagnostics | PASS | No source hash/ref or synthetic storage error marker in captured operational log |
+| Container/temp cleanup | PASS | Owned PostgreSQL/Redis/temp data removed; existing local services unchanged |
+| Final `npm test` | PASS: API 585 passed / 246 skipped; Worker 356 passed / 61 skipped; Node/Renderer/Web PASS | Six new joined skips explicitly executed above; remaining skipped integrations disclosed |
+| Worker lint/typecheck | PASS / PASS (97 source files) | Only test/harness/doc continuation; no production source change |
+| Final `npm run validate` | FAIL solely on PENDING 0102, other 22 checks PASS | Authenticated command/HTTP/browser acceptance still incomplete |
+
+Allocation of Preview metadata is fixture-only, matching the earlier SQL-backed Worker test.
+Source rendering is explicit test preparation, not an automatic chaining contract. This run
+does not prove authenticated command/idempotency integration, HTTP delivery, browser isolation,
+hard-kill broker redelivery or Hosted acceptance. Production code/SQL/grants/RLS are unchanged.
+New work is local after the verified `a3e3a84` checkpoint Push. Final npm/validate evidence follows
+the last regression run above; 0102 overall status stays PENDING.
 
 ### Pre-push checkpoint verification — 2026-10-14
 
@@ -195,19 +434,26 @@ DROP OWNED, populated-table removal, broad Worker grant or change to runtime SQL
 
 ### Not executed / not claimed
 
-- No claim of zero skips or external/Hosted integration acceptance; 1 API + 2 Worker skips remain.
-- Full revoke-vs-HTTP-file delivery ordering; only SQL/in-flight finalization is covered so far.
-- Source-profile Browser loading and 0102 capability-bound isolation gate.
-- Concrete PostgreSQL/Outbox/Worker queue composition; adapter and real Redis transport now pass.
-- Capability-aware HTTP file reads and full source-profile Browser gate; local copy/storage
-  preparation subgate alone now passed under actual Worker login.
+- No claim of zero skips or external/Hosted integration acceptance. Latest PG-only regression
+  has 1 API + 17 Worker skips; the 12 joined cases are separately executed, as detailed above.
+- No claim of broker-driven whole-process crash E2E; restart/finalization evidence is the
+  explicitly identified layered SQL/backend-death, adapter and runtime/copy recovery coverage.
+- Full human UX/WCAG or Hosted/customer/Production access/security assessment.
+- Management HTTP/JWT endpoint: outside the internal-command scope of ADR-089, not claimed.
+  DB-membership-backed Application commands, both fixture/command-allocated queue compositions
+  and controlled capability-aware HTTP reads now pass; current source-profile Browser subgate
+  also passes independently; the final Local/Synthetic matrix is complete above.
 - Hosted/customer content, real Provider, security architecture redesign, commit or push.
 
 The complete [historical SQL review snapshot](./migration-review.sql) stays outside the Alembic
 chain as a review artifact. Its original NOT APPLIED comment is historical: approved executable
 statements were applied via active 0040 solely to disposable local test databases. See the current
-[authority review/evidence](./database-security-review.md). Full 0102 remains PENDING.
+[authority review/evidence](./database-security-review.md). Local/Synthetic 0102 PASS does not
+authorize Hosted/customer/Production operation or close the shared-Worker residual risk.
 
 ## Final Status
 
-**Final status:** PENDING
+TC-10219 PASS extends the real command/relay/Worker harness, not the fixture-only allocation path.
+All required Local/Synthetic acceptance rows have executed evidence; historical failures remain.
+
+**Final status:** PASS

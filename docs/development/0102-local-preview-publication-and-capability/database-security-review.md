@@ -122,6 +122,11 @@ unauthorized. **0102 final status remains PENDING.**
 
 ## Preready revocation continuation — 2026-10-13
 
+**Current 2026-10-14 clarification:** PENDING statements above are historical SQL-only subgate
+notes. The [final Local/Synthetic report](./test-report.md) now records full scoped acceptance,
+including real-file two-Publication reuse and Browser evidence. Exact SQL/roles/grants/RLS are
+unchanged. This does not close WORKER-CROSS-TENANT-001 or grant Production/Hosted/customer access.
+
 The four-helper sections above describe the original 0040 authority boundary. The separately
 approved fifth failure helper is reviewed in [its immutable SQL source](./failure-helper-review.sql)
 and verified through 0041; current execution results are in the [test report](./test-report.md).
