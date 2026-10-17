@@ -6,9 +6,11 @@
 
 **Planned increment:** `0103-controlled-preview-workspace`
 
-**Review revision:** v0.5 — R1 authorized disposable proof PASS in desktop Chrome/Edge; Freeze WAIT
+**Review revision:** v0.9 — S1/S2/R2 and P2/P3 approved for Local/Synthetic; full Freeze WAIT; implementation NO-GO
 
-The owner approved T1..T7 and the six D6 One-shot semantics below. P1 design is conditionally
+The owner approved T1..T7, the six D6 One-shot semantics and the minimum consumption-retention
+invariant and identity-only response direction recorded in v0.7 below, plus S1/S2/R2 with the
+refinements and subsequent explicit P2/P3 approvals recorded in v0.9. P1 design is conditionally
 accepted for Local/Synthetic only; the exact transport/profile, other D clauses, detailed state/
 polling proposals and wireframe are not Frozen. Contract refinement only is authorized. No runtime
 code, endpoint, migration, Hosted activation, commit or push is authorized by this draft revision.
@@ -24,7 +26,8 @@ other D clauses or wireframe.
 Define a concrete next slice for `FE-F3-05` (browser preview container) and `FE-F3-06`
 (mobile/desktop viewport switch). The owner asked to continue development from the canonical
 documents, then to continue the proposed contract definition. This authorizes preparing this
-proposal. Except for the explicitly approved T1..T7 and D6 semantics, decisions below remain proposals.
+proposal. Except for the explicitly approved T1..T7, D6 semantics, v0.7 retention/identity-only
+decisions and v0.9 S1/S2/R2/P2/P3 owner decisions, unapproved details below remain proposals.
 
 0102 passed its approved Local/Synthetic publication, access and browser matrix. It deliberately
 excluded management HTTP/JWT and product activation. Source inspection on 2026-10-17 found
@@ -753,6 +756,10 @@ development record before implementation.
 | REQ-10310 | Owner T4..T6 and approved D6; detailed UI still proposed | Per-Workspace state and authenticated Core revalidation before continued interaction, only after transport approval | TC-10310 / TC-103T09..10: real BFCache restore, denied/unavailable revalidation unusable, zero automatic token/bootstrap; no stale-paint prevention claim |
 | REQ-10311 | Owner pending review's concurrency criteria; ADR-089 DB guards | Existing Publication/issuance transactions, without cross-tab token transport | TC-10311: same/different keys across two Browser contexts, one first disclosure, no replacement token, independent Publication revocation |
 | REQ-10312 | Owner approved T1..T7/D6; P1 design conditionally accepted, exact transport unapproved | Transport design only; no implementation, API or Migration | TC-10312 / TC-103T01..12: body-only transport, no URL/Storage bearer, exact binding/consumption/expiry/revocation, isolation and restoration; every new transport test NOT RUN |
+| REQ-10313 | Owner's explicit ADR-090 v0.6 retention review, recorded in v0.7 | Contract design only: durable consumed state through at least expiry, independent idempotency TTL, replay-safe cleanup; no schema or cleanup implementation | TC-103R01..06 below: all NOT RUN; no Runtime/DB acceptance claimed |
+| REQ-10314 | Owner's explicit identity-only response selection in v0.7 | Contract design only: uncompressed final UTF-8 HTML response body; numeric cap and request encoding remain pending; no proxy/runtime changes | TC-103S02..04: proposed boundary cases, NOT RUN |
+| REQ-10315 | Historical v0.8 design proposal; approval/refinements superseded by REQ-10316 / v0.9 | Review document only: original size proposal and rationale; no executable implementation | TC-103S01..08: planned boundary checks, NOT RUN |
+| REQ-10316 | Owner's explicit v0.8 S1/S2/R2 approval and subsequent P2/P3 answers, recorded in v0.9 | ADR only: approved caps/error mapping/no-purge scope, exact parser and precedence; immutable prepared bytes before atomic consumption; no Runtime/SQL | TC-103S01..08, TC-103P01..06 and TC-103R01..06: NOT RUN; no acceptance claimed |
 
 Additional final gates: real-role revoke/issue races, immutable source byte preservation,
 one-time capability disposal on unmount, cancellation of pending metadata requests, 375/768/1024
@@ -915,3 +922,436 @@ passed). `npm run validate` 23/23 PASS; final secret scan PASS on 1,235 publisha
 diff/whitespace checks PASS with line-ending warnings only. Pre-cleanup scanning correctly found the
 temporary TLS private key; cleanup, not a scan exception, resolved it. Details and preparation
 failures are in the linked report. No 0103 implementation or full-browser-matrix PASS is claimed.
+
+### v0.6 design continuation after authorized checkpoint push — 2026-10-17
+
+The owner's explicit "push, then continue" authorized publication of the existing documentation
+checkpoint. Commit `f269132f5aa302db651e2c0b378dda8d26e14dd9` was pushed to the existing
+`codex/s1-d02-text-context-api` branch; remote SHA matched. This does not approve R1 Freeze, another
+browser experiment, Runtime/API/Migration work or the remaining D clauses. This continuation is
+local design only; no additional commit/push or implementation is inferred.
+
+#### Remaining size contract: findings, not new limits
+
+Source inspection of [the canonical AST schema](../../packages/contracts/generation-ast-v1.schema.json)
+confirms 12 maximum Pages, 30 Sections per Page and 100 Asset references. Those are existing
+structural limits from [ADR-082](ADR-082-generation-component-registry-and-ast.md), **not** a
+compressed/expanded HTML-response byte budget. HTML escaping, repeated media, template markup and
+fixed script/CSS can change the derivative size. Do not equate AST JSON size or the tiny R1 response
+with a maximum P1 packet, and do not infer a numeric limit from the browser proof.
+
+[ADR-089](ADR-089-local-preview-publication-and-capability.md) explicitly declines to invent
+numerical body/retention defaults. No approved P1 packet byte ceiling or compression policy was
+found in the reviewed source boundary. The experimental R1 request guard is not inherited.
+
+The following additional design choices require explicit approval before coding:
+
+| Decision | Required contract |
+|---|---|
+| Bootstrap request bound | Maximum serialized body bytes and whether request Content-Encoding is rejected; exact handling of equivalent percent-encoded form values/padding |
+| Packet expanded bound | Maximum final UTF-8 HTML bytes after all pages/styles/media/fixed script are embedded; count actual bytes, not characters |
+| Packet wire bound | Maximum compressed/wire bytes and allowed response encoding, or explicitly identity-only delivery; a proxy must not silently change this choice |
+| Failure boundary | Prepare/read/verify/reject oversized packets before capability consumption and before any Preview bytes; no truncate-and-serve or partial valid artifact |
+| Error semantics | Freeze bounded request-size vs packet-preparation failure codes; do not silently reuse unrelated codes or expose content/hash/storage details |
+
+No packet builder, benchmark, compression library or new response mode was created or executed in
+this continuation. Numeric caps remain PENDING, rather than choosing a default unsupported by an
+approved source. An identity-only proposal would remove response decompression from this profile,
+but even that encoding decision is not approved by association with P1.
+
+#### Consumption retention: replay-resurrection risk
+
+The existing management-command idempotency retention is 24 hours (D3), while capability expiry is
+explicit and has no approved maximum duration (D4). These are different boundaries. Applying that
+24-hour TTL to a new consumption row would be unsafe if the capability remains valid longer:
+
+```text
+capability consumed -> consumption row deleted by short TTL
+-> same still-valid capability presented again
+-> missing row mistaken for unconsumed -> second disclosure
+```
+
+The minimum rule proposed in v0.6 was subsequently approved by the owner. The v0.7 section below
+is authoritative for that invariant; numeric purge policy, schema and cleanup execution remain
+unapproved. The existing permanent one-issuance guard from ADR-089 is independent of management
+idempotency TTL and remains unchanged.
+
+### v0.7 owner-approved consumption-retention invariant — 2026-10-17
+
+**Source:** owner's explicit review titled "ADR-090 v0.6 — Capability Consumption Retention" in
+this conversation. This records that decision locally; it does not claim a new Canonical Drive
+review or change. Only Size/Retention contract completion and acceptance-scenario design are
+authorized. No Runtime, API, Migration, additional browser experiment, commit or push is authorized.
+
+#### Approved safety rules
+
+1. Each Capability permits at most one successful Bootstrap consumption. Consumption is a server
+   transaction boundary, not proof that a client received the complete response; D6 lost-response
+   semantics remain unchanged.
+2. The consumption record **or an equivalent durable consumed state** MUST remain at least through
+   the Capability's `expires_at`. A separate row is not mandated by this decision.
+3. The management-command Idempotency TTL of 24 hours MUST NOT automatically delete or reset that
+   consumed state. Expiring an idempotency record must not make a consumed Capability reusable.
+4. Cleanup is permitted only when it cannot restore validity, authorize another consumption,
+   reactivate the Publication, extend expiry or enable issuance of the same Capability again.
+5. Concurrent consumption MUST be atomic: checking for an existing marker before inserting one is
+   insufficient. At most one contender may commit consumption and proceed to packet disclosure.
+
+Even after `expires_at`, cleanup is not automatically safe. The authoritative validation path
+MUST reject expired Capabilities independently of the removed consumption record. Deleting the
+record must not reopen issuance or consumption. Existing revocation and one-issuance guards stay
+independent. No early-deletion exception for revoked Capabilities is introduced.
+
+#### Separate time semantics; physical schema not authorized
+
+| Contract time | Meaning | Approval boundary |
+|---|---|---|
+| `expires_at` | Explicit validity boundary; at or after this server time no new Bootstrap is authorized | Existing Capability contract; minimum safe consumed-state retention boundary, not an exact deletion time |
+| `consumed_at` | Time of the first atomically committed consumption; not response receipt or UI render time | Semantic contract term; does not authorize a new DB column or a response field |
+| `purge_after` | Earliest time at which cleanup may be considered, still subject to replay-safety checks | Proposed policy term with `purge_after >= expires_at`; no numeric value, default, deadline or scheduler approved |
+
+The relation `purge_after >= expires_at` expresses the approved minimum, not permission to purge
+at equality. Reaching `purge_after` alone never authorizes deletion. The final policy still needs
+explicit review of audit needs, data-retention requirements, storage cost and cleanup authority.
+Do not invent a fixed extension, maximum lifetime, automatic deletion job or manual cleanup command.
+No schema, SQL, broad delete grant or storage/object GC is authorized by these semantic names.
+Payload bytes, raw token and token-bearing response never belong in consumption records or logs.
+
+#### Retention acceptance matrix — planned only, all NOT RUN
+
+These supplement, rather than replace or pass, TC-103T01..12. They require a future explicitly
+approved implementation and controlled DB test environment. Time must be controlled in the tests;
+no 24-hour wall-clock wait or invented production retention duration is required.
+
+| Case | Scenario | Required observation | Execution |
+|---|---|---|---|
+| TC-103R01 | Consume a Capability whose explicit expiry is more than 24 hours away; advance beyond management Idempotency TTL but remain before expiry; replay | Idempotency expiry cannot remove equivalent durable consumed state; replay discloses no packet and creates no second consumption | NOT RUN |
+| TC-103R02 | Two concurrent valid Bootstrap requests for the same Capability | At most one consumption commits and may disclose the packet; loser cannot bypass the durable guard; no check-then-insert race | NOT RUN |
+| TC-103R03 | Present the Capability at and after `expires_at`, both with retained state and after otherwise eligible cleanup | Independent server-time expiry validation denies every request; absence of a marker cannot be interpreted as a usable Capability | NOT RUN |
+| TC-103R04 | Evaluate cleanup before expiry or under a proposed `purge_after` earlier than expiry | No consumed-state removal; the minimum retention invariant remains intact; no unapproved default or idempotency TTL controls this decision | NOT RUN |
+| TC-103R05 | Exercise cleanup after expiry only when replay-safety preconditions are met, then replay and attempt reuse of the same issuance | No token resurrection, second disclosure, expiry extension, Publication reactivation or new issuance of the same Capability; independent guards remain effective | NOT RUN |
+| TC-103R06 | Fail the consumption transaction, and separately interrupt the response after committed consumption | Rollback leaves no committed consumption/disclosure; post-commit loss leaves durable consumption through the safety boundary and does not enable retry disclosure | NOT RUN |
+
+#### Remaining decisions and release boundary
+
+**Subsequent explicit owner decision:** in response to the focused Size-contract question, the
+owner selected "without compression; identity-only" for Local/Synthetic P1 response delivery.
+This closes response compression direction only, not the numeric size contract or implementation
+gate. The earlier v0.6 encoding question is historical and superseded for the response direction.
+
+Under this direction the complete final UTF-8 HTML response body is delivered without response
+compression; its encoded payload-byte count equals its expanded HTML UTF-8 byte count. A future
+implementation must not silently enable gzip/Brotli or intermediary body transformation. HTTP/TLS
+headers and transfer framing are not HTML payload bytes. Request Content-Encoding and canonical
+form handling remain separate review items; identity-only response approval does not settle them.
+No server/proxy configuration, packet builder or encoding implementation is changed here.
+
+Size acceptance must also be specified before implementation. The following design cases use
+**unapproved** byte limits, not numeric defaults. Their exact
+success/error expectations remain subject to the Size contract review; all are NOT RUN.
+
+| Case | Proposed boundary coverage | Unresolved input |
+|---|---|---|
+| TC-103S01 | Serialized request at the approved byte cap and one byte above; count the received encoded body, not decoded token characters | Request cap, encoding/percent-encoding policy and bounded error response |
+| TC-103S02 | Final embedded UTF-8 HTML at its cap and one byte above, including Persian/multibyte text, escaped content, media and fixed template bytes | Expanded-response cap and exact derivative profile |
+| TC-103S03 | Identity-only response-body bytes equal final HTML UTF-8 bytes; check the approved cap and one byte above; no silent compressed response or intermediary transformation | Numeric unified response-body cap and exact enforcement/error behavior; transfer framing is not part of the HTML payload-byte cap |
+| TC-103S04 | Oversized/invalid packet preparation fails before consumption commit and before Preview bytes; no truncated packet or token/content-bearing diagnostic | Exact bounded preparation/size errors and reviewed delivery implementation |
+
+No benchmark, builder, compression path or executable Size test was added. These are acceptance
+design questions, not evidence that the caps or proposed behavior have passed review or execution.
+
+| Decision / gate | Status |
+|---|---|
+| Minimum retention through `expires_at`, atomic at-most-once consumption, TTL separation | APPROVED |
+| Replay-safe cleanup even after expiry | REQUIRED; executable proof NOT RUN |
+| Numeric `purge_after` policy, deletion deadline, cleanup mechanism/authority | PENDING; no default assumed |
+| Local/Synthetic P1 response encoding | Identity-only APPROVED by explicit owner answer; no response compression |
+| Serialized request cap/policy, unified final UTF-8 response-body cap and error contract | PENDING; no numeric limits inferred from encoding approval |
+| R1 final owner review, remaining browser families and full TC-103T01..12 | WAIT / NOT RUN except limited historical R1 evidence |
+| TC-103R01..06 | NOT RUN |
+| TC-103S01..04 | Proposed acceptance design; limits/encoding/error semantics PENDING; NOT RUN |
+| Full ADR-090 Freeze | WAIT |
+| 0103 implementation, Hosted Preview / Customer Content | NO-GO |
+| Commit / Push | NOT AUTHORIZED |
+
+No implementation or completed 0103 increment is claimed. The approved invariant closes only the
+minimum-retention ambiguity; it does not close the size, final purge-policy or remaining transport
+review gates.
+
+v0.7 verification: `npm test` passed its Node/Renderer/Web stages (including 6/6 development-record
+tests and 47/47 Web tests), then exited unsuccessfully before API tests because the default global
+`uv` cache was not writable. No ACL change or elevated test execution was used. Re-running the
+remaining `npm run test:api` and `npm run test:worker` with `UV_CACHE_DIR` set to the existing
+workspace-local cache passed: API **592 passed / 246 skipped / 2 warnings**; Worker **376 passed /
+67 skipped / 1 warning**. Warnings concern Starlette/httpx deprecation and non-writable pytest
+node-id caches; they were not suppressed. This is a failed initial aggregate command plus passing
+remaining-stage reruns, not an uninterrupted `npm test` PASS. Skipped service tests and all new
+0103 transport/retention/size cases remain unexecuted. No gate is weakened or increment completed.
+
+### v0.8 Size proposal and scoped retention disposition — 2026-10-17
+
+**Status: PROPOSED / OWNER REVIEW REQUIRED.** The owner's "continue" authorizes further contract
+design, not adoption of the numbers, HTTP refinements or retention-scope proposal below. The
+approved identity-only response and minimum consumed-state retention remain unchanged. Sources:
+owner's v0.6 retention review and identity-only answer; ADR-089 token construction/no-invented-limit
+boundary; ADR-082 and the canonical AST schema for structural limits. No new Drive review claimed.
+
+#### S1 — Explicit proposed budgets, not measured capacity
+
+| Budget | Proposed inclusive maximum | Counted material | Approval |
+|---|---|---|---|
+| Serialized Bootstrap request body | 1 KiB = 1,024 bytes | Actual received form-body bytes before form decoding; no decompression allowance | PENDING |
+| Final Preview response body | 8 MiB = 8,388,608 bytes | Complete final UTF-8 HTML including all pages, embedded media/styles and fixed script | PENDING |
+| Expanded versus delivered response body | Same byte count and same 8 MiB proposed cap | Identity-only payload; HTTP/TLS headers and transfer framing excluded | Encoding approved; numeric cap PENDING |
+
+Rationale is deliberately separated from evidence. ADR-089 specifies 32 random bytes, encoded as
+43 unpadded Base64URL characters. Ordinary `token=` plus that value is 49 ASCII/UTF-8 bytes. A
+read-only arithmetic check confirmed this length; it did not create or use a real token, generate
+a packet, run a browser or establish maximum memory/performance. The proposed 1 KiB guard leaves
+headroom for form serialization without permitting additional fields. It is a reviewable guard,
+not a limit inherited from the R1 experiment or an allowance for padding/extra business input.
+
+The 8 MiB proposal is an initial Local/Synthetic **delivery budget**, not a claim that every AST
+valid under the 12-Page/30-Section limits fits. Existing Renderer fixture media is 606 bytes, but
+that single asset is not representative capacity evidence. No P1 packet builder or benchmark
+exists. A schema-valid source may exceed the approved delivery budget; the proposed behavior is
+explicit preparation failure, never dropping pages/media, truncating content, changing the AST or
+raising the cap automatically. Future three-type packet evidence is required before acceptance.
+Eight MiB bounds one output body, not total process memory, concurrent viewers or intermediate
+buffers. No concurrency, memory or runtime-timeout budget is silently approved here.
+
+#### S2 — Request and failure-contract proposal
+
+All entries in this subsection require owner approval; they do not amend the current Runtime.
+
+- Preserve the P1 exact Host/Origin guard before capability lookup. Reject compressed request
+  bodies; propose accepting only an absent `Content-Encoding` header, with no decompression step.
+  Response identity-only approval alone does not authorize this new request restriction.
+- Preserve exactly one scalar `token` field and the proposed form media type. Parse form encoding
+  once; well-formed percent-encoded aliases may decode to the same canonical token. Do not double
+  decode, trim, accept padding, coerce arrays or silently ignore duplicate/extra fields. This
+  decoding choice is proposed, not inferred from the 1 KiB headroom.
+- Apply the body-byte cap while reading, including when Content-Length is absent; do not rely only
+  on the declared length. Proposed size denial: `413 REQUEST_TOO_LARGE`. Unsupported request
+  Content-Encoding: proposed `415 UNSUPPORTED_MEDIA_TYPE`. Existing proposed structural errors
+  remain `422 VALIDATION_FAILED`; malformed/unknown/expired/revoked/consumed capability remains
+  safe `404 RESOURCE_NOT_FOUND` after the request guards. These are review candidates, not new
+  registered error constants or an approved ordering for malformed HTTP framing.
+- Enforce the response cap during Worker preparation and again on the verified private packet
+  before consumption. A body read must not trust Manifest size alone or allocate an arbitrarily
+  oversized object before checking its actual byte count. No DB transaction spans packet IO.
+- Proposed internal permanent preparation reason: `PREVIEW_PACKET_TOO_LARGE`. It contains no
+  content, token, hashes, paths or storage references. Bootstrap must not expose that internal
+  distinction: an unusable packet yields the same safe `404 RESOURCE_NOT_FOUND`, without packet
+  bytes or consumption. A valid capability is not consumed merely because its packet fails size
+  verification. No new failure helper, Job transition or SQL is authorized by naming this reason.
+- Count UTF-8 bytes after all serialization/escaping/embedding, not characters, AST JSON bytes or
+  the sum of original asset lengths. Prepare and validate the whole packet before the final
+  consumption transaction. No partial Preview response precedes commit; post-commit response
+  interruption still burns the one use under D6. Errors remain no-store and never reflect input.
+
+#### S3 — Additional acceptance design, not executable tests
+
+TC-103S01..04 remain planned and unexecuted. If the owner accepts these caps, their exact boundary
+inputs become 1,024/1,025 request bytes and 8,388,608/8,388,609 final-response bytes. Exactly at the
+cap is size-eligible only: it does not bypass shape, provenance, authorization or CSP validation.
+
+| Additional case | Proposed observation | Execution |
+|---|---|---|
+| TC-103S05 | Absent or misleading Content-Length cannot bypass bounded actual-body reading; reject any request Content-Encoding without decompressing | NOT RUN; proposal |
+| TC-103S06 | Persian/other multibyte text, escaping and embedded media counted in final UTF-8 bytes; schema-valid oversized source fails with zero consumption and no truncation | NOT RUN; proposal |
+| TC-103S07 | Form decoding once accepts equivalent canonical token values; malformed encoding, duplicates, extra fields and double-encoded values cannot bypass the request/capability guards | NOT RUN; proposal |
+| TC-103S08 | Response identity-only remains enforced even if the client advertises compression; no intermediary transformation or size-failure detail/content leaks | NOT RUN; proposal |
+
+#### R2 — Proposed no-purge scope for 0103, not a new duration
+
+For owner review: keep consumed state durable in 0103 with **no per-Capability purge/TTL operation
+in this increment**. Numeric `purge_after`, deletion deadlines, cleanup command/scheduler and
+cleanup authority would remain a separate unapproved policy, not a runtime default. This proposal
+does not call indefinite retention a Production policy, and does not authorize destroying a test
+database, deleting any row or adding a nullable/defaulted `purge_after` field.
+
+Under this proposed scope, future cleanup must still satisfy the already approved replay-safety
+invariant; TC-103R03/R05 cover that condition but do not authorize a production cleanup path.
+The owner must explicitly accept deferring cleanup before it can cease to be a 0103 contract
+blocker. Until then the final purge-policy disposition remains PENDING.
+
+**Review needed:** S1 numeric caps; S2 parsing/encoding/error contract; R2 no-purge scope versus a
+separately defined cleanup policy. Approval of those items alone would not freeze the remaining
+P1 profile/CSP/SQL, R1 policy, D clauses or wireframe. Full ADR-090 remains WAIT; 0103 Runtime/API/
+Migration, Hosted/customer use and commit/push remain NO-GO / NOT AUTHORIZED.
+
+v0.8 verification: the full `npm test` command completed with exit 0 using the existing
+workspace-local `UV_CACHE_DIR`; no privilege/ACL change or test suppression. Node/Renderer/Web
+stages passed; API **592 passed / 246 skipped / 2 warnings**; Worker **376 passed / 67 skipped /
+1 warning**. The prior v0.7 failed initial invocation remains historical evidence, not erased by
+this rerun. The same Starlette/httpx and pytest-cache warnings remain disclosed. `npm run validate`
+passed **23/23**; Secret Scan passed on **1,235** publishable text files; diff whitespace checks
+passed with Git line-ending warnings only. No new Size/Retention/transport case or browser matrix
+was executed; service skips are not a full PostgreSQL gate. Only this ADR changed; no completed
+increment, new DB field, Runtime/Migration, external document write, commit or push is claimed.
+
+### v0.9 owner S1/S2/R2 approval and precise contract closure — 2026-10-17
+
+**Source:** owner's explicit "ADR-090 v0.8 — S1 / S2 / R2" review in this conversation. The owner
+approved these three decisions for Local/Synthetic, with the refinements below. This supersedes
+the v0.8 PENDING labels for numeric caps, the stated error mapping and the no-purge scope only;
+prior sections remain review history. It does not approve a complete P1 transport, Runtime/API,
+Migration, commit/push, Hosted use or customer content. No independent Drive/source approval claimed.
+
+#### Approved S1 — exact bytes and frozen delivery budget
+
+| Contract constant / policy | Approved value | Measurement |
+|---|---|---|
+| `MAX_BOOTSTRAP_REQUEST_BYTES` | 1,024 bytes inclusive | Actual body bytes before form parsing/decoding; not characters or trusted Content-Length alone |
+| `MAX_BOOTSTRAP_RESPONSE_BYTES` | 8,388,608 bytes inclusive | Complete final UTF-8 HTML body, including every page and embedded resource |
+| Response encoding | identity-only | Count and deliver the same body bytes, without compression or body transformation |
+
+No truncation, automatic Page/Asset removal, source mutation or silent cap increase is permitted.
+The complete derivative must be prepared, validated and size-approved **before** consumption.
+After measurement, no serializer, middleware, template or proxy may mutate the response body.
+Headers and transport framing do not count as HTML body bytes. A response exactly at the limit is
+only size-eligible, not automatically valid or authorized. These are initial contractual budgets,
+not benchmark-proven capacity. Browser memory, Mobile performance and processing cost require
+separate Browser Proof observations; the 8 MiB body cap is not a browser/process-memory cap.
+
+#### Approved S2 — public mapping and consumption boundary
+
+| Condition | HTTP | Outward code | Consumption |
+|---|---|---|---|
+| Actual request body exceeds 1,024 bytes | 413 | `REQUEST_TOO_LARGE` | None |
+| Any request Content-Encoding header | 415 | `UNSUPPORTED_MEDIA_TYPE` | None |
+| Invalid request structure | 422 | `VALIDATION_FAILED` | None |
+| Packet undeliverable because it exceeds the body cap | 404 | `RESOURCE_NOT_FOUND` | None |
+| Packet size failure, internal reason only | Not public | `PREVIEW_PACKET_TOO_LARGE` | None |
+
+The packet failure response must not expose byte counts, ArtifactVersion identity, Publication
+state, capability metadata, hashes or content. The same internal reason is metadata-only in any
+future safe diagnostic path. Its name grants no new helper, Job transition, label or log payload.
+
+All packet preparation failures are pre-consumption failures. In the proposed final sequence,
+the existing Worker prepares the derivative; Bootstrap reads/verifies its bounded bytes and exact
+identity before entering the short transaction. Under lock it revalidates authorization, expiry,
+revocation, prior consumption and the pinned packet identity; consumption commits atomically at
+most once. No transaction spans storage reads. After commit it may only send those already
+verified bytes, without another preparation/transformation step. Failure sending those bytes is
+distinct: committed consumption remains, lost/truncated response is not recoverable automatically,
+and there is no second disclosure, new token or automatic Bootstrap. D6 remains unchanged.
+
+#### Approved R2 — no consumption cleanup in 0103
+
+Consumed state stays durable. No automatic TTL, purge, cleanup endpoint/command or implicit cleanup
+through management Idempotency expiry is introduced. Deleting or expiring a 24-hour Idempotency
+record must neither delete nor reset consumed state, including through any future FK/cascade.
+No cleanup operation is authorized without an independent contract and explicit authority.
+
+The approved 0103 disposition is **no consumption purge**, not a new numeric retention duration or
+Production indefinite-retention policy. Future cleanup still requires `purge_after >= expires_at`
+and independent rejection of expired Capabilities without resurrecting issuance/consumption.
+No numeric `purge_after`, DB column, deletion deadline or cleanup mechanism is selected. That
+future policy is deferred, rather than asking for another numeric retention decision for 0103.
+
+#### P2 — Exact parsing; APPROVED FOR LOCAL/SYNTHETIC CONTRACT
+
+The owner asked to close precise Content-Type/decoding semantics, then explicitly answered
+"Approve P2" to the focused parsing question. These choices are approved by that answer, not
+inferred from S2 approval alone. Technical references reviewed
+2026-10-17: [WHATWG form parsing](https://url.spec.whatwg.org/#urlencoded-parsing) and
+[MIME parsing](https://mimesniff.spec.whatwg.org/#parsing-a-mime-type). The Modern Web Guidance forms
+review supports explicit POST and server validation, but is not product authority. Its generic
+analytics, extra CSRF fields, AJAX and fallback suggestions are not adopted into this closed form.
+The installed skill reported a newer version; no skill, dependency or repository package was updated.
+
+1. Accept one syntactically valid Content-Type field with MIME essence
+   `application/x-www-form-urlencoded` (ASCII case-insensitive). Accept either no parameter or
+   exactly one `charset=UTF-8` parameter, with a valid quoted equivalent allowed. Reject missing,
+   duplicate or malformed fields, duplicate/unknown parameters and other charsets/media types as
+   `422 VALIDATION_FAILED`; never fall back to JSON, multipart or text/plain. This closed parameter
+   policy is an approved application restriction, not a claim that MIME itself forbids other parameters.
+2. Use form semantics on the already size-checked bytes: `&` separates pairs, the first `=`
+   separates name/value, `+` represents space, and percent-decoding occurs once. Keep the pair list
+   until duplicate checks; never collapse it into a first/last-value map. Empty segments follow the
+   standard parser's skip behavior, not an undocumented new delimiter rule. Semicolon is not an
+   alternative separator. No extra unquoting, trim, Unicode normalization or token repair follows.
+3. Approved strict overlay: reject malformed raw `%xx` sequences or invalid UTF-8 in the once-decoded
+   name/value bytes as `422 VALIDATION_FAILED`, rather than permissive literal/replacement-character
+   recovery. Validate raw escape syntax before decoding, not by interpreting residual `%` in the
+   decoded token as another escape. This is stricter than the URL Standard's error recovery, not a
+   misstatement of that standard. A percent-decoded plus is not subject to another plus-to-space pass.
+4. After decoding, require exactly one pair whose name is exactly `token`. Detect duplicates after
+   name decoding, including `token` plus `%74oken`. No arrays, coercion, ignored fields or hidden
+   `_charset_` input. A well-formed encoded alias resolving to the same canonical token has the
+   same hash identity. Value validation is separate: empty, whitespace, `+`-derived space, padding,
+   noncanonical Base64URL and a residual `%` are malformed capabilities and yield safe 404, not a
+   second decoding pass. Values remain case-sensitive and use ADR-089's canonical 32-byte format.
+
+No form parser, header handler or validation code is changed by P2 approval. Malformed HTTP framing
+and server/proxy header-size limits are not assigned new endpoint error semantics by this contract.
+
+#### P3 — Deterministic error precedence; APPROVED FOR LOCAL/SYNTHETIC CONTRACT
+
+The owner explicitly answered "Approve P3" to the focused precedence question. For an otherwise
+well-formed HTTP POST on the proposed fixed route, use the following ordered
+short-circuit policy. The first failed stage determines the public result. No later stage executes.
+That answer selects these ties; S1/S2/R2 approval alone did not select them.
+
+| Order | Check | Contract failure outcome | Forbidden before it succeeds |
+|---|---|---|---|
+| 0 | Existing exact configured Host and Core Origin guard | Existing proposed bounded 403; no null/missing/foreign exception | Capability/packet lookup or consumption |
+| 1 | Actual body-byte budget, bounded reading even without trustworthy Content-Length | 413 `REQUEST_TOO_LARGE` | Decoding/decompression, form parsing, capability/packet lookup |
+| 2 | Content-Encoding is absent, even if present with empty/identity value | 415 `UNSUPPORTED_MEDIA_TYPE` | Decompression, form/capability/packet processing |
+| 3 | P2 Content-Type, strict form decoding and exactly one token field | 422 `VALIDATION_FAILED` | Capability/packet lookup or consumption |
+| 4 | Canonical token format, hash resolution, exact bound graph and preliminary validity | Uniform 404 `RESOURCE_NOT_FOUND` | Packet disclosure or consumption |
+| 5 | Read bounded complete prepared packet; verify exact identity/hash/size/bytes | Uniform 404 `RESOURCE_NOT_FOUND`; oversized reason internal only | Consumption or Preview bytes |
+| 6 | Under final lock, revalidate bound identities, expiry/revocation and unused state; atomically consume | Invalid/revoked/expired/consumed state remains safe 404; failed commit cannot consume or disclose | Preview bytes before successful commit |
+| 7 | Send only the already validated identity-only body | Post-commit delivery interruption retains consumption; no replay | Preparation, mutation, reissue or automatic retry |
+
+For example, oversized plus encoded is 413; encoded plus malformed form is 415;
+malformed form plus a valid or invalid token is 422. Every such pre-lookup result must be identical
+for valid, invalid, consumed and expired tokens embedded in otherwise identical request shapes.
+No packet existence, cap or Publication-state detail reaches the public response. This does not
+promise constant-time processing or eliminate all network/timing side channels. Exact remaining
+DB/storage operational-error mapping still belongs to the unapproved complete P1 transport review.
+
+#### Added acceptance design — all NOT RUN
+
+| Case | Required future observation |
+|---|---|
+| TC-103P01 | P2 no-parameter/UTF-8 variants accepted; wrong/missing/duplicate MIME fields and parameters denied without capability lookup |
+| TC-103P02 | Encoded duplicate token names rejected; once-decoded aliases retain one hash identity; double-encoded value is never decoded again |
+| TC-103P03 | Plus/percent-space/padding/empty value share malformed-capability 404; malformed raw escapes/invalid UTF-8 follow the approved strict 422 policy; never trim, re-decode or repair |
+| TC-103P04 | Multi-failure combinations follow P3 precedence identically across valid/invalid/expired/consumed token populations; zero lookup at stages 0..3 |
+| TC-103P05 | Packet bytes measured/hash-verified before consumption are exactly the delivered body; no late serializer/proxy transformation; preparation failure never burns Capability |
+| TC-103P06 | Failed consumption commit discloses no Preview bytes; network interruption after committed consumption cannot recover/reissue; atomic concurrent guard remains effective |
+
+TC-103S01..08 and TC-103R01..06 remain unexecuted. Browser memory/Mobile/processing observations
+remain required without inventing thresholds. The original twelve transport Browser tests are
+not replaced or passed by these design rows or the historical limited R1 proof.
+
+| Current decision / gate | Status |
+|---|---|
+| S1 caps, identity-only exact-body measurement/no mutation | APPROVED with owner refinements |
+| S2 mapping, no information disclosure, prepare-before-consume distinction | APPROVED with owner refinements |
+| R2 no consumption TTL/purge; Idempotency independent | APPROVED |
+| P2 exact MIME/strict parser choices and P3 tie precedence | APPROVED by explicit subsequent owner answers; contract only |
+| Complete P1 profile/CSP/SQL, remaining D clauses and wireframe | WAIT |
+| R1 proof | Limited historical Chrome/Edge feasibility evidence; no new run or blanket browser acceptance |
+| Twelve full Browser cases, new P/S/R cases, remaining browser families | NOT RUN |
+| Full ADR-090 Freeze | WAIT |
+| 0103 implementation / Runtime / Migration / Hosted / customer content | NO-GO |
+| Commit / Push | NOT AUTHORIZED |
+
+Subsequent owner approval source: the two focused questions were answered "Approve P2" and
+"Approve P3" in this conversation on 2026-10-17. No numeric cap or retention decision is reopened.
+These answers close parsing/precedence review only, not the complete P1 profile/CSP/SQL, the
+remaining D clauses/wireframe or any Browser/DB acceptance. The next design work remains those
+unfrozen contracts; no new experiment or implementation authorization is inferred.
+
+v0.9 verification: full `npm test` completed with exit 0 using the existing workspace-local uv
+cache, without privilege changes or suppression. API **592 passed / 246 skipped / 2 warnings**;
+Worker **376 passed / 67 skipped / 1 warning**; preceding Node/Renderer/Web stages passed, including
+47 Web tests. Existing Starlette/httpx deprecation and pytest cache-permission warnings remain.
+`npm run validate` **23/23 PASS**, Secret Scan **1,235 files PASS**, and diff whitespace checks PASS
+(Git line-ending warning only). No executable 0103 P/S/R case, full PostgreSQL gate or additional
+browser proof ran. Only this ADR changed; no Runtime/API/Migration, package/skill update, external
+document write, commit or push. These checks do not change full Freeze WAIT or implementation NO-GO.
