@@ -31,9 +31,12 @@ screenshots, or development records.
 - `DATABASE_URL`
 - `QUEUE_BROKER_URL`
 - `STORAGE_ENDPOINT`
+- `STORAGE_REGION`
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`
+- `TXT_UPLOAD_ENABLED=false` until the S1-L04 Upload Security Suite passes
+- `CONTEXT_STRUCTURING_ENABLED=false`; 0072 explicitly prohibits Hosted AI activation
 - `AUTH_PROVIDER_URL`
 - `AUTH_JWKS_URL`
 - `AUTH_AUDIENCE=authenticated`
@@ -46,7 +49,11 @@ screenshots, or development records.
 - `LOG_LEVEL=INFO`
 - `DATABASE_URL`
 - `QUEUE_BROKER_URL`
+- `QUEUE_NAME`
+- `QUEUE_VISIBILITY_TIMEOUT_SECONDS`
+- `WORKER_CONCURRENCY`
 - `STORAGE_ENDPOINT`
+- `STORAGE_REGION`
 - `STORAGE_BUCKET=aria-staging-project-content`
 - `STORAGE_ACCESS_KEY`
 - `STORAGE_SECRET_KEY`
@@ -59,6 +66,11 @@ provider-neutral release identity, and the native value takes precedence over a 
 `RELEASE_COMMIT_SHA` value.
 
 ## Hosted verification gate
+
+The 0070 Relay capability is present in the existing Worker artifact as `python -m app.main relay`,
+but no hosted Relay service/process is activated by repository configuration. Activation is a
+separate decision after the complete local recovery gate in ADR-057 passes. The current hosted
+Worker command and service topology therefore remain unchanged.
 
 1. Bind both services to the same GitHub branch and verify the deployed SHA.
 2. Keep the Worker private and generate a public Railway domain only for the API.

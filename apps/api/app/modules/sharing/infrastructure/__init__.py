@@ -1,0 +1,1 @@
+"""Scope sharing infrastructure adapters."""

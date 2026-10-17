@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/context-structuring-report-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eval_set_id", "report_version", "provider_mode", "fixture_count", "metrics", "threshold_assessments", "contract_gate", "model_quality_gate", "fixtures"],
+  "properties": {
+    "eval_set_id": { "const": "context_structuring_eval_v1" },
+    "report_version": { "const": "1" },
+    "provider_mode": { "enum": ["fake_deterministic", "real_provider"] },
+    "fixture_count": { "type": "integer", "minimum": 0 },
+    "metrics": { "type": "object" },
+    "threshold_assessments": {
+      "type": "object",
+      "additionalProperties": { "enum": ["target", "minimum_acceptable", "below_minimum", "above_minimum", "release_blocker", "not_run"] }
+    },
+    "contract_gate": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "enum": ["pass", "fail"] } },
+      "additionalProperties": false
+    },
+    "model_quality_gate": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "const": "not_run" },
+        "reason": { "const": "real_provider_and_human_review_required" }
+      },
+      "additionalProperties": false
+    },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fixture_id", "outcome", "failure_categories"],
+        "properties": {
+          "fixture_id": { "type": "string" },
+          "outcome": { "enum": ["success", "fail"] },
+          "failure_categories": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

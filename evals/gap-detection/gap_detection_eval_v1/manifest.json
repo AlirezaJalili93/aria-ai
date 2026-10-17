@@ -1,0 +1,52 @@
+{
+  "eval_set_id": "gap_detection_eval_v1",
+  "version": "1",
+  "fixture_schema_version": "1",
+  "report_schema_version": "1",
+  "metric_version": "1",
+  "threshold_version": "1",
+  "human_review_rubric_version": "1",
+  "expected_fixture_count": 20,
+  "fixture_ids": [
+    "fa_gap_001",
+    "fa_gap_002",
+    "fa_gap_003",
+    "fa_gap_004",
+    "fa_gap_005",
+    "fa_gap_006",
+    "fa_gap_007",
+    "fa_gap_008",
+    "fa_gap_009",
+    "fa_gap_010",
+    "fa_gap_011",
+    "fa_gap_012",
+    "fa_gap_013",
+    "fa_gap_014",
+    "fa_gap_015",
+    "fa_gap_016",
+    "fa_gap_017",
+    "fa_gap_018",
+    "fa_gap_019",
+    "fa_gap_020"
+  ],
+  "gap_types": [
+    "missing_information",
+    "ambiguity",
+    "conflict",
+    "unsupported_assumption",
+    "decision_required",
+    "scope_risk"
+  ],
+  "project_types": [
+    "landing",
+    "corporate",
+    "portfolio"
+  ],
+  "critical_rule_pack_version": "critical_gap_rule_pack_v1",
+  "provider_boundary": {
+    "contract_provider": "fake_deterministic",
+    "model_quality_provider": "real_provider_deferred",
+    "real_provider_selection": "G02/G03_deferred"
+  },
+  "immutability": "gold_change_requires_new_eval_set_version"
+}

@@ -1,0 +1,101 @@
+{
+  "fixture_id": "fa_req_010",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_010_ctx_1",
+        "item_type": "decision",
+        "content": "صفحه پرسش‌های متداول وجود داشته باشد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_010_src_a",
+            "source_version_id": "fa_req_010_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_010_ctx_2",
+        "item_type": "decision",
+        "content": "مطالعات موردی مشتریان نمایش داده شوند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_010_src_a",
+            "source_version_id": "fa_req_010_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_010_req_1",
+        "title": "پرسش‌های متداول",
+        "description": "سایت باید بخشی برای پرسش‌ها و پاسخ‌های متداول داشته باشد.",
+        "category": "content",
+        "priority": "should",
+        "source_refs": [
+          {
+            "source_id": "fa_req_010_src_a",
+            "source_version_id": "fa_req_010_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": false
+      },
+      {
+        "gold_requirement_id": "fa_req_010_req_2",
+        "title": "مطالعات موردی",
+        "description": "سایت باید مطالعات موردی مشتریان را نمایش دهد.",
+        "category": "content",
+        "priority": "should",
+        "source_refs": [
+          {
+            "source_id": "fa_req_010_src_a",
+            "source_version_id": "fa_req_010_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": false
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_010_cand_1",
+        "gold_requirement_id": "fa_req_010_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": false
+      },
+      {
+        "candidate_id": "fa_req_010_cand_2",
+        "gold_requirement_id": "fa_req_010_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": false
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_010_cand_1",
+      "fa_req_010_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "faq",
+      "case_study",
+      "content"
+    ],
+    "fixture_version": "1"
+  }
+}

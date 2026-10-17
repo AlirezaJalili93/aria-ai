@@ -10,11 +10,14 @@ from app.modules.context.domain.context_source import (
     CONTEXT_SOURCE_PARSE_STATUSES,
     CONTEXT_SOURCE_STATUSES,
     CONTEXT_SOURCE_TYPES,
+    TEXT_CONTEXT_MAX_CHARACTERS,
     ContextSource,
     ContextSourceValidationError,
     ContextSourceVersion,
     NewContextSource,
     NewContextSourceVersion,
+    text_context_checksum,
+    validate_text_context,
 )
 
 
@@ -97,3 +100,24 @@ def test_persisted_timestamps_must_be_timezone_aware() -> None:
     ContextSourceVersion(**asdict(version), created_at=now)
     with pytest.raises(ContextSourceValidationError):
         ContextSourceVersion(**asdict(version), created_at=now.replace(tzinfo=None))
+
+
+def test_text_context_preserves_exact_unicode_and_hashes_persisted_utf8_bytes() -> None:
+    raw_text = "  متن فارسی\r\nبا فاصلهٔ پایانی  \n"
+    assert validate_text_context(raw_text) == raw_text
+    assert (
+        text_context_checksum(raw_text)
+        == "13142762d1ca6edb485f1bca41d72a6e4bc790138b41d2a1b0c84709f4e3d4ec"
+    )
+
+
+@pytest.mark.parametrize("value", ["", " \t\r\n", "text\x00", "text\x1f", "text\x7f"])
+def test_text_context_rejects_blank_and_disallowed_control_characters(value: str) -> None:
+    with pytest.raises(ContextSourceValidationError):
+        validate_text_context(value)
+
+
+def test_text_context_enforces_the_approved_unicode_character_limit() -> None:
+    assert validate_text_context("آ" * TEXT_CONTEXT_MAX_CHARACTERS)
+    with pytest.raises(ContextSourceValidationError):
+        validate_text_context("آ" * (TEXT_CONTEXT_MAX_CHARACTERS + 1))

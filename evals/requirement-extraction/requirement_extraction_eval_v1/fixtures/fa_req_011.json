@@ -1,0 +1,101 @@
+{
+  "fixture_id": "fa_req_011",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_011_ctx_1",
+        "item_type": "decision",
+        "content": "کاربر هزینه جلسه را آنلاین پرداخت کند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_011_src_a",
+            "source_version_id": "fa_req_011_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_011_ctx_2",
+        "item_type": "constraint",
+        "content": "پس از پرداخت رسید نمایش داده شود.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_011_src_a",
+            "source_version_id": "fa_req_011_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_011_req_1",
+        "title": "پرداخت آنلاین هزینه جلسه",
+        "description": "کاربر باید بتواند هزینه جلسه را آنلاین پرداخت کند.",
+        "category": "functional",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_011_src_a",
+            "source_version_id": "fa_req_011_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_011_req_2",
+        "title": "نمایش رسید پرداخت",
+        "description": "سیستم باید پس از پرداخت موفق رسید را نمایش دهد.",
+        "category": "technical",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_011_src_a",
+            "source_version_id": "fa_req_011_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_011_cand_1",
+        "gold_requirement_id": "fa_req_011_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_011_cand_2",
+        "gold_requirement_id": "fa_req_011_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_011_cand_1",
+      "fa_req_011_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "payment",
+      "technical",
+      "functional"
+    ],
+    "fixture_version": "1"
+  }
+}

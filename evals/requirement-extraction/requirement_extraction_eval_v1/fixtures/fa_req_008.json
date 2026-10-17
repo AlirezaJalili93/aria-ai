@@ -1,0 +1,96 @@
+{
+  "fixture_id": "fa_req_008",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_008_ctx_1",
+        "item_type": "decision",
+        "content": "فرم درخواست مشاوره در سایت قرار گیرد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_008_src_a",
+            "source_version_id": "fa_req_008_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_008_ctx_2",
+        "item_type": "decision",
+        "content": "کاربر بتواند درخواست مشاوره را از طریق فرم ارسال کند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_008_src_b",
+            "source_version_id": "fa_req_008_src_b_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_008_req_1",
+        "title": "فرم درخواست مشاوره",
+        "description": "سایت باید فرم واحدی برای ثبت درخواست مشاوره ارائه کند.",
+        "category": "functional",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_008_src_a",
+            "source_version_id": "fa_req_008_src_a_v1"
+          },
+          {
+            "source_id": "fa_req_008_src_b",
+            "source_version_id": "fa_req_008_src_b_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_008_cand_1",
+        "gold_requirement_id": "fa_req_008_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_008_cand_duplicate",
+        "gold_requirement_id": "fa_req_008_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_008_cand_1"
+    ],
+    "semantic_duplicate_groups": [
+      {
+        "group_id": "fa_req_008_dup_1",
+        "candidate_ids": [
+          "fa_req_008_cand_1",
+          "fa_req_008_cand_duplicate"
+        ]
+      }
+    ]
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "duplicate_potential",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "duplicate_potential",
+      "multi_source"
+    ],
+    "fixture_version": "1"
+  }
+}

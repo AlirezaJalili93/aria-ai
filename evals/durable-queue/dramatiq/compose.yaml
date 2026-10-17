@@ -1,0 +1,51 @@
+name: aria-dramatiq-queue-eval
+
+services:
+  redis:
+    image: redis:7-alpine
+    environment:
+      QUEUE_EVAL_REDIS_PASSWORD: ${QUEUE_EVAL_REDIS_PASSWORD:?required}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$${QUEUE_EVAL_REDIS_PASSWORD}"
+    ports:
+      - "127.0.0.1:16380:6379"
+    volumes:
+      - queue-eval-redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${QUEUE_EVAL_REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+
+  queue-eval-worker:
+    build:
+      context: .
+    environment: &candidate-environment
+      QUEUE_EVAL_REDIS_PASSWORD: ${QUEUE_EVAL_REDIS_PASSWORD:?required}
+      QUEUE_EVAL_HEARTBEAT_TIMEOUT_MS: "5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    command:
+      - dramatiq
+      - queue_eval.app
+      - --processes
+      - "1"
+      - --threads
+      - "1"
+    stop_grace_period: 2s
+
+  probe:
+    build:
+      context: .
+    environment: *candidate-environment
+    entrypoint: ["python", "-m", "queue_eval.cli"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles: [tools]
+
+volumes:
+  queue-eval-redis-data:

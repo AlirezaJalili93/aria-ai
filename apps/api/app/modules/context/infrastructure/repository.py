@@ -4,7 +4,7 @@ from types import TracebackType
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -183,6 +183,59 @@ class SqlAlchemyContextSourceRepository:
             .limit(1)
         )
         return _version_from_model(model) if model is not None else None
+
+    async def get_version(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        source_id: UUID,
+        version_id: UUID,
+    ) -> ContextSourceVersion | None:
+        model = await self._session.scalar(
+            select(ContextSourceVersionModel).where(
+                ContextSourceVersionModel.id == version_id,
+                ContextSourceVersionModel.account_id == account_id,
+                ContextSourceVersionModel.project_id == project_id,
+                ContextSourceVersionModel.source_id == source_id,
+            )
+        )
+        return _version_from_model(model) if model is not None else None
+
+    async def reset_failed_for_retry(
+        self,
+        *,
+        account_id: UUID,
+        project_id: UUID,
+        source_id: UUID,
+        version_id: UUID,
+    ) -> bool:
+        version = await self._session.scalar(
+            update(ContextSourceVersionModel)
+            .where(
+                ContextSourceVersionModel.id == version_id,
+                ContextSourceVersionModel.account_id == account_id,
+                ContextSourceVersionModel.project_id == project_id,
+                ContextSourceVersionModel.source_id == source_id,
+                ContextSourceVersionModel.parse_status == "failed",
+            )
+            .values(parse_status="pending")
+            .returning(ContextSourceVersionModel.id)
+        )
+        if version is None:
+            return False
+        source = await self._session.scalar(
+            update(ContextSourceModel)
+            .where(
+                ContextSourceModel.id == source_id,
+                ContextSourceModel.account_id == account_id,
+                ContextSourceModel.project_id == project_id,
+                ContextSourceModel.status == "failed",
+            )
+            .values(status="uploaded", updated_at=func.now())
+            .returning(ContextSourceModel.id)
+        )
+        return source is not None
 
 
 class SqlAlchemyContextSourceUnitOfWork:

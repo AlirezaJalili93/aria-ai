@@ -8,7 +8,7 @@ from datetime import datetime
 from time import perf_counter
 from uuid import UUID, uuid4
 
-from aria_observability import StructuredEventLogger, enrich_trace_context
+from aria_observability import StructuredEventLogger, emit_product_analytics, enrich_trace_context
 
 from app.modules.identity.application.tenant_context import TenantContext
 from app.modules.projects.application.ports import ProjectRepositoryError, ProjectUnitOfWorkFactory
@@ -120,13 +120,18 @@ class ProjectApplicationService:
             duration_ms=(perf_counter() - started_at) * 1000,
             status="succeeded",
         )
-        self._event_logger.emit(
-            "project_created",
-            actor_id=str(context.subject_id),
-            event_category="product_analytics",
-            project_type=persisted.project_type,
-            role=context.role,
-            status="succeeded",
+        emit_product_analytics(
+            self._event_logger,
+            event_name="project_created",
+            logical_id=persisted.id,
+            account_id=persisted.account_id,
+            project_id=persisted.id,
+            actor_id=context.subject_id,
+            properties={
+                "project_type": persisted.project_type,
+                "role": context.role,
+                "source_surface": "system",
+            },
         )
         return persisted
 

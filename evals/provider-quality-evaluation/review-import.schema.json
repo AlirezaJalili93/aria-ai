@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/provider-quality-human-review-v1.json",
+  "title": "Controlled provider quality human-review import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["review_version", "execution_manifest_hash", "cases"],
+  "properties": {
+    "review_version": { "const": "provider-quality-human-review-v1" },
+    "execution_manifest_hash": { "type": "string", "minLength": 1 },
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/caseReview" }
+    }
+  },
+  "$defs": {
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "semantic_correctness": { "$ref": "#/$defs/score" },
+        "persian_quality": { "$ref": "#/$defs/score" },
+        "no_hallucination": { "$ref": "#/$defs/score" },
+        "attribution_provenance": { "$ref": "#/$defs/score" },
+        "usefulness": { "$ref": "#/$defs/score" },
+        "client_intent_preservation": { "$ref": "#/$defs/score" },
+        "clarity_score": { "$ref": "#/$defs/score" },
+        "actionability_score": { "$ref": "#/$defs/score" },
+        "semantic_validity_score": { "$ref": "#/$defs/score" }
+      }
+    },
+    "score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewer_id", "scores"],
+      "properties": {
+        "reviewer_id": { "type": "string", "minLength": 1 },
+        "scores": { "$ref": "#/$defs/scores" }
+      }
+    },
+    "scoredReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "reviewers", "adjudication"],
+      "properties": {
+        "candidate_id": { "type": "string", "minLength": 1 },
+        "reviewers": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/reviewer" }
+        },
+        "adjudication": {
+          "anyOf": [
+            { "$ref": "#/$defs/scores" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "fixtureReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewers", "adjudication"],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/reviewer" }
+        },
+        "adjudication": {
+          "anyOf": [
+            { "$ref": "#/$defs/scores" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "alignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_id", "matched_gold_id", "semantically_unsupported", "duplicate_group_id"],
+      "properties": {
+        "candidate_id": { "type": "string", "minLength": 1 },
+        "matched_gold_id": { "type": ["string", "null"], "minLength": 1 },
+        "semantically_unsupported": { "type": "boolean" },
+        "duplicate_group_id": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "caseReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "fixture_id", "eval_suite_version", "alignments", "fixture_review", "candidate_reviews"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "fixture_id": { "type": "string", "pattern": "^fa_(ctx|req|gap)_\\d{3}$" },
+        "eval_suite_version": {
+          "enum": ["context_structuring_eval_v1", "requirement_extraction_eval_v1", "gap_detection_eval_v1"]
+        },
+        "alignments": { "type": "array", "items": { "$ref": "#/$defs/alignment" } },
+        "fixture_review": {
+          "anyOf": [
+            { "$ref": "#/$defs/fixtureReview" },
+            { "type": "null" }
+          ]
+        },
+        "candidate_reviews": { "type": "array", "items": { "$ref": "#/$defs/scoredReview" } }
+      }
+    }
+  }
+}
