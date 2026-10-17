@@ -87,6 +87,7 @@ Drive source supersedes them when they conflict with Architecture v2.
 - [ADR-086 — Artifact and Immutable ArtifactVersion Foundation](ADR-086-artifact-version-foundation.md)
 - [ADR-087 — Synthetic Artifact Generation Worker Runtime](ADR-087-synthetic-artifact-generation-runtime.md)
 - [ADR-088 — Local Preview Isolation Architecture](ADR-088-preview-isolation-architecture.md)
-- [ADR-089 — Local Preview Publication and Version-bound Capability (Proposed)](ADR-089-local-preview-publication-and-capability.md)
+- [ADR-089 — Local Preview Publication and Version-bound Capability (Accepted: Local/Synthetic)](ADR-089-local-preview-publication-and-capability.md)
+- [ADR-090 — Controlled Preview Workspace and Authenticated Access Contract (WAIT: Transport Review)](ADR-090-controlled-preview-workspace-contract.md)
 - [ADR-014 — Text Context Ingestion Command](ADR-014-text-context-ingestion.md)
 - [ADR-015 — Durable Queue Framework](ADR-015-durable-queue-framework.md)
