@@ -6,11 +6,12 @@
 
 **Planned increment:** `0103-controlled-preview-workspace`
 
-**Review revision:** v0.9 — S1/S2/R2 and P2/P3 approved for Local/Synthetic; full Freeze WAIT; implementation NO-GO
+**Review revision:** v0.12 — P5 logical model approved; separate proposed SQL source ready for review; P4/full Freeze WAIT; SQL execution/Migration/implementation NO-GO
 
 The owner approved T1..T7, the six D6 One-shot semantics and the minimum consumption-retention
 invariant and identity-only response direction recorded in v0.7 below, plus S1/S2/R2 with the
-refinements and subsequent explicit P2/P3 approvals recorded in v0.9. P1 design is conditionally
+refinements and subsequent explicit P2/P3 approvals recorded in v0.9, and the P5 logical model and
+Capability-bound authentication decision recorded in v0.12. P1 design is conditionally
 accepted for Local/Synthetic only; the exact transport/profile, other D clauses, detailed state/
 polling proposals and wireframe are not Frozen. Contract refinement only is authorized. No runtime
 code, endpoint, migration, Hosted activation, commit or push is authorized by this draft revision.
@@ -27,7 +28,8 @@ Define a concrete next slice for `FE-F3-05` (browser preview container) and `FE-
 (mobile/desktop viewport switch). The owner asked to continue development from the canonical
 documents, then to continue the proposed contract definition. This authorizes preparing this
 proposal. Except for the explicitly approved T1..T7, D6 semantics, v0.7 retention/identity-only
-decisions and v0.9 S1/S2/R2/P2/P3 owner decisions, unapproved details below remain proposals.
+decisions, v0.9 S1/S2/R2/P2/P3 and v0.12 P5 logical-model/authentication decisions, unapproved
+details below remain proposals.
 
 0102 passed its approved Local/Synthetic publication, access and browser matrix. It deliberately
 excluded management HTTP/JWT and product activation. Source inspection on 2026-10-17 found
@@ -757,9 +759,12 @@ development record before implementation.
 | REQ-10311 | Owner pending review's concurrency criteria; ADR-089 DB guards | Existing Publication/issuance transactions, without cross-tab token transport | TC-10311: same/different keys across two Browser contexts, one first disclosure, no replacement token, independent Publication revocation |
 | REQ-10312 | Owner approved T1..T7/D6; P1 design conditionally accepted, exact transport unapproved | Transport design only; no implementation, API or Migration | TC-10312 / TC-103T01..12: body-only transport, no URL/Storage bearer, exact binding/consumption/expiry/revocation, isolation and restoration; every new transport test NOT RUN |
 | REQ-10313 | Owner's explicit ADR-090 v0.6 retention review, recorded in v0.7 | Contract design only: durable consumed state through at least expiry, independent idempotency TTL, replay-safe cleanup; no schema or cleanup implementation | TC-103R01..06 below: all NOT RUN; no Runtime/DB acceptance claimed |
-| REQ-10314 | Owner's explicit identity-only response selection in v0.7 | Contract design only: uncompressed final UTF-8 HTML response body; numeric cap and request encoding remain pending; no proxy/runtime changes | TC-103S02..04: proposed boundary cases, NOT RUN |
+| REQ-10314 | Owner's explicit identity-only response selection in v0.7; numeric/request refinements approved in REQ-10316 | Contract design only: uncompressed final UTF-8 HTML response body; no proxy/runtime changes | TC-103S02..04: planned boundary cases, NOT RUN |
 | REQ-10315 | Historical v0.8 design proposal; approval/refinements superseded by REQ-10316 / v0.9 | Review document only: original size proposal and rationale; no executable implementation | TC-103S01..08: planned boundary checks, NOT RUN |
 | REQ-10316 | Owner's explicit v0.8 S1/S2/R2 approval and subsequent P2/P3 answers, recorded in v0.9 | ADR only: approved caps/error mapping/no-purge scope, exact parser and precedence; immutable prepared bytes before atomic consumption; no Runtime/SQL | TC-103S01..08, TC-103P01..06 and TC-103R01..06: NOT RUN; no acceptance claimed |
+| REQ-10317 | Owner's push-then-design continuation; ADR-088/089 invariants and P1 conditional design; P4 NOT APPROVED | Contract only: proposed versioned packet transformation, fixed navigation script, exact-source SVG and hash-only CSP; no source/profile/Worker/schema implementation | TC-103D01..08 below: all NOT RUN; no Browser acceptance claimed |
+| REQ-10318 | Owner's design continuation and explicit Option A selection; actual Alembic 0040/0041 and ADR-089 authority boundary | Additive closed-profile design approved; exact consumption schema/helper DDL still requires review; no Migration/Runtime change | TC-103M01..06 below: proposed future compatibility checks, NOT RUN |
+| REQ-10319 | Owner's explicit P5 logical-model/SQL-design approval and Capability-bound authentication clarification | [P5 SQL review source](ADR-090-p5-sql-contract.md): proposed DDL, FK/PK/RLS, fixed Preflight/Consume, lock/commit/ACL boundaries; not an applied schema or migration | TC-103SQL01..12 in review source: all NOT RUN; SQL not compiled/executed |
 
 Additional final gates: real-role revoke/issue races, immutable source byte preservation,
 one-time capability disposal on unmount, cancellation of pending metadata requests, 375/768/1024
@@ -1355,3 +1360,331 @@ Worker **376 passed / 67 skipped / 1 warning**; preceding Node/Renderer/Web stag
 (Git line-ending warning only). No executable 0103 P/S/R case, full PostgreSQL gate or additional
 browser proof ran. Only this ADR changed; no Runtime/API/Migration, package/skill update, external
 document write, commit or push. These checks do not change full Freeze WAIT or implementation NO-GO.
+
+### v0.10 P4 single-response profile and CSP proposal — 2026-10-17
+
+**Status: PROPOSED / OWNER REVIEW REQUIRED; design only.** The owner explicitly requested
+"push, then continue". The approved v0.9 documentation checkpoint was committed and pushed as
+`413a0cc246689fd634117fcfe5979c5f9d46a8dd`; remote branch SHA matched and the worktree was clean.
+That commit changed only this ADR. The continuation below remains local and unapproved; no further
+commit/push, Runtime, API, Migration, new Browser proof or Hosted/customer activation is inferred.
+
+Sources: owner-approved T1..T7/D6/S1/S2/R2/P2/P3; ADR-088 isolation/System Font boundary; ADR-089's
+verified immutable 0100 source and restricted derivative rules; read-only inspection of the fixed
+0100 builder, Renderer and existing Preview validator. Technical review: [CSP Level 3](https://www.w3.org/TR/CSP3/)
+and [HTML templates](https://html.spec.whatwg.org/multipage/scripting.html#the-template-element),
+accessed 2026-10-17. No new Canonical Drive review or document edit is claimed.
+
+Modern Web Guidance search found the security guide, but retrieval was not executed because
+automatic approval review hit a service usage limit. No access-check bypass or retry through an
+unapproved path was attempted. Primary standards and already-read accepted repository sources
+support this proposal; the unavailable guide is not presented as inspected or product authority.
+
+#### P4.1 — Separate immutable derivative, never a 0102 profile extension
+
+Proposed contract identities are `preview_bootstrap_transformer_v1` and
+`preview_bootstrap_delivery_policy_v1`. They are reviewable names, not registered constants or
+new DB fields. Use the existing concept of exact source plus versioned transformer/policy identity
+to distinguish this packet from `preview_delivery_transformer_v1`. A ready 0102 Representation is
+not rewritten or re-labelled as P1. Original ArtifactVersion, canonical AST, Renderer/Core assets,
+ready 0102 files and their hashes remain unchanged. Changing the new rules requires new versions.
+
+The input remains the exact allowlisted 0100 `artifact_manifest/v1` static bundle and its canonical
+Application AST. Verify bound source identity, all file paths/types/sizes/hashes, AST references
+and existing runtime-security constraints before any transformation. No Provider, customer data,
+Next.js runtime bundle, remote asset, arbitrary HTML or regeneration is accepted. Preparation stays
+in the existing Worker artifact. This proposal creates no new service, endpoint, public parameter,
+queue type or dispatch mechanism. Exact integration and private packet metadata/SQL remain review
+items; this is not a hidden command/persistence contract.
+
+#### P4.2 — Closed HTML/CSS/media transformation
+
+Proposed preparation is structured parsing and deterministic serialization, never regex rewriting
+or request-time rendering. Preserve page/section identity, content, order, headings, RTL semantics
+and approved component structure except for the following explicit derivative-only adaptations:
+
+1. Embed verified CSS after only the already-reviewed import-removal and System Font substitutions
+   permitted by ADR-089. No external stylesheet, `@import`, `url()` resource, `@font-face`, style
+   attribute or arbitrary new CSS is accepted. Any additional fixed navigation/accessibility CSS
+   must be versioned Application code using existing tokens, with exact bytes reviewed before
+   implementation/acceptance. Nothing is copied into Core CSS or the Renderer package.
+2. Embed media only from the exact verified source Manifest's fixed synthetic
+   `generation-fixtures/media.svg`. The builder in `scripts/artifact-generation/build-static-bundle.mjs`
+   writes a different SVG from `packages/generation-renderer/fixtures/.../media.svg`; the path name
+   alone does not authorize substituting that Renderer fixture or a fresh hand-written image.
+   Verify the actual source bytes/hash and existing SVG safety restrictions. Reject any other
+   image format, general SVG ingestion, external reference, `use`/`image` URL, script, foreignObject,
+   event handler, animation or data/blob URL. Preserve verified geometry/colors, not an approximation.
+3. Proposed accessible inline SVG adaptation: preserve the original validated image's nonempty alt
+   as an escaped SVG `aria-label` with `role="img"`; do not let a fixture's generic label override it.
+   Empty-alt decorative media becomes `aria-hidden="true"` and non-focusable. Remove conflicting
+   fixture-only accessible labels/title/description IDs in this derivative rather than emitting
+   repeated IDs. This explicit metadata transformation is proposed, not silent loss of AST content;
+   source bytes remain intact. No canonical Page/Section identity or protection state changes.
+4. Put exactly one page in the active document and all other supported pages in inert templates.
+   Proposed initial page is `canonical_ast.pages[0]`, preserving source array order, not an invented
+   root-page requirement or lexicographic/latest lookup. This initial-page choice needs owner review.
+   All pages are delivered upfront; this provides neither per-page secrecy nor live revocation.
+5. Convert only validated intra-AST page links into `type="button"` page-switch controls with the
+   same accessible labels and approved classes; remove network-navigation attributes. No `href`,
+   `target`, download, ping, base, meta refresh or external destination survives in the packet.
+   The target key comes from the verified canonical page mapping, never an arbitrary caller URL.
+   These controls start disabled and are enabled only after fixed-script initialization succeeds.
+   No-JavaScript/CSP-blocked behavior is the initial page only, with disabled navigation and no GET.
+6. Preserve SimpleForm's fieldset/native controls and `type="button"` preview-only interaction.
+   No form owner, action, submission handler, request, saved field values or new validation workflow
+   is added. Enter/click without JavaScript must still cause no navigation or submission.
+
+Unknown nodes/attributes, ambiguous parsing, duplicate/conflicting identities, unsupported sources
+or unsafe CSS/SVG fail preparation. The transform does not sanitize arbitrary input into trusted
+output. Final bytes must meet approved S1 and be immutable before approved P3 consumption.
+
+#### P4.3 — Fixed Application script, no generated execution
+
+Propose exactly one reviewed Application-owned inline script, identical for every packet under
+its script/profile version. No content, token, IDs, labels, manifest or Provider strings are
+interpolated into executable source; escaped data stays in validated markup. Reject executable
+nodes inside templates and all event/style attributes. The preparation guard verifies that the
+only script is the expected fixed source **before** calculating its authorized hash; hashing any
+input script and accepting it would not be a security boundary.
+
+Its closed behavior is page activation only: validate target membership, move existing verified
+nodes between the active slot and their templates (not parse strings), keep at most one active
+main/h1, and move keyboard focus to the newly active page heading. No page clone/ID regeneration,
+innerHTML/outerHTML/insertAdjacentHTML, document.write, eval/Function, dynamic import, fetch/XHR,
+WebSocket, Worker/ServiceWorker, storage, postMessage, location/history mutation or background task
+is permitted. It does not copy/serialize form values or send analytics. Page-local native controls
+remain local; no form persistence guarantee is created by page switching. Exact script and any
+support CSS bytes are NOT WRITTEN or approved by this behavior proposal; their source review and
+Browser proof remain necessary before claiming acceptance.
+
+#### P4.4 — Proposed response CSP, not an installed header
+
+```text
+default-src 'none';
+base-uri 'none';
+script-src 'sha256-<reviewed-fixed-script-content-hash>';
+script-src-attr 'none';
+style-src 'sha256-<verified-final-style-content-hash>';
+style-src-attr 'none';
+img-src 'none';
+font-src 'none';
+connect-src 'none';
+media-src 'none';
+manifest-src 'none';
+form-action 'none';
+object-src 'none';
+frame-src 'none';
+worker-src 'none';
+frame-ancestors <exact-approved-core-origin>;
+```
+
+Hash placeholders are not usable values. Derive hashes from the exact final inline text under a
+reviewed UTF-8/LF-only serialization, excluding the surrounding tags; reject unexpected raw-text
+closing delimiters instead of authorizing altered script/style. Final packet byte verification and
+size counting happen after serialization. No `'self'`, wildcard, scheme source, nonce, unsafe-inline,
+unsafe-eval, unsafe-hashes or strict-dynamic is proposed. No runtime policy weakening or arbitrary
+script hashing is allowed to make output work. System Fonts and the existing sandbox remain.
+
+This policy is defense in depth, not a sanitizer or a universal navigation firewall. The closed
+profile must prohibit all external script/resource URLs even with matching integrity metadata;
+hash sources alone do not replace that check. Sandbox does not itself prohibit every same-frame
+navigation, so zero follow-up requests depends on verified markup, fixed code and Browser evidence.
+Inline SVG geometry and exact CSS/script compatibility must be tested under this policy; no
+`img-src data:`, CORS exception or extra sandbox permission is an authorized fallback.
+
+Propose CSP as an enforcing HTTP response header, including exact frame-ancestors, not a meta tag
+or Report-Only substitution. Retain no-store, no-referrer, nosniff, the existing restrictive
+Permissions Policy and narrowly scoped Local/Synthetic CORP cross-origin. ACAO, Set-Cookie and
+response Content-Encoding are absent; no compression/transformation, credential forwarding or
+external reporting/report-sample endpoint is added. Core strict-origin/form-action remains its
+separately reviewed R1/Core policy, never a global Core header change. The iframe stays exactly
+allow-scripts, without same-origin/forms/popups/downloads/top-navigation or a postMessage bridge.
+
+#### P4.5 — Planned profile acceptance, all NOT RUN
+
+| Case | Required future observation |
+|---|---|
+| TC-103D01 | Exact three-type 0100 source produces version-distinct deterministic packets; repeated preparation matches bytes/hashes; source/0102 bytes unchanged |
+| TC-103D02 | Initial page follows approved source order; one active main/h1; page controls are accessible and never navigate, including modifier/middle clicks and JS-off |
+| TC-103D03 | Actual source Manifest SVG, original alt/decorative semantics and unique references survive; wrong file under same path, arbitrary media and active/external SVG rejected |
+| TC-103D04 | Fixed script and verified style hashes match final bytes; modified/extra script or attributes fail preparation; unapproved inline execution blocked in Browser |
+| TC-103D05 | No resource/GET/redirect/prefetch/preload/font/API/Worker or storage/message traffic; external URL plus matching script integrity still rejected by profile |
+| TC-103D06 | Native SimpleForm controls remain usable with zero submit/navigation/storage; script failure leaves only initial-page display and disabled navigation |
+| TC-103D07 | Exact hash CSP, absent CORS/cookie/encoding, unchanged opaque sandbox and unauthorized-embedding denial work in every actually executed browser family |
+| TC-103D08 | Approved final-body cap and exact-byte delivery hold with all pages embedded; no mutation after measurement, no partial consumption on preparation failure; report Mobile/memory limitations honestly |
+
+These add detail to, not replace or pass, TC-103T01..12. The complete browser/OS matrix, BFCache,
+actual-role consumption/revoke races and exact SQL/private packet schema remain unexecuted/open.
+No source script, packet, schema file, endpoint, migration, new test harness or dependency was added.
+
+**Owner review requested:** approve/refine P4's derivative identities, exact-source SVG/accessibility
+mapping, source-first initial page, inert page-switch controls/fixed script boundary and CSP profile.
+All P4 choices remain PROPOSED; complete ADR-090 Freeze WAIT and 0103 implementation NO-GO.
+
+v0.10 verification: full `npm test` completed with exit 0 using the existing workspace-local uv
+cache; preceding Node/Renderer/Web stages passed, API **592 passed / 246 skipped / 2 warnings**,
+Worker **376 passed / 67 skipped / 1 warning**. Existing deprecation/pytest-cache warnings were not
+suppressed. `npm run validate` **23/23 PASS**, Secret Scan **1,235 files PASS**, and diff whitespace
+checks PASS (line-ending warnings only). No new P4 script, packet, Browser/DB test or proof ran.
+The single local change after the verified checkpoint push is this ADR; the new v0.10 proposal was
+not committed/pushed. Service skips and P1 acceptance remain unexecuted, not a full Runtime PASS.
+
+### v0.11 persistence compatibility review — 2026-10-17
+
+**Status: OPTION A APPROVED FOR DESIGN / EXACT SCHEMA AND DDL REVIEW WAIT.** The owner's subsequent
+"continue" authorized independent contract design, not an inferred P4 approval or 0103 implementation.
+The focused persistence question was then answered "A — additive closed support". P4 remains
+PROPOSED, and the full ADR remains WAIT. This section records the source-level obstacle and the
+approved direction, not permission to implement a new consumption schema or helper DDL.
+
+Sources: [active Alembic 0040](../../apps/api/migrations/versions/0040_preview_publication.py),
+[0041](../../apps/api/migrations/versions/0041_preview_failure.py),
+[current resolver adapter](../../apps/worker/app/infrastructure/db/preview_access.py), ADR-089,
+the architecture mirror and owner's approved single-use/retention/atomicity rules. Inspection was
+read-only on 2026-10-17; no live PostgreSQL, Supabase service or customer database was contacted.
+The PostgreSQL best-practices skill and its privilege/RLS, short-transaction, lock-order and FK-index
+references were read. They guide security review, not new product defaults, role grants, timeout
+values or the broad policy examples in those references. Canonical source links/sync context above
+remain unchanged; this is not a fresh Drive review.
+
+#### Confirmed compatibility findings, not hypothetical runtime results
+
+| Actual source boundary | Finding | Consequence for P1 |
+|---|---|---|
+| 0040 Representation column CHECKs | Only `preview_delivery_transformer_v1` and `preview_delivery_policy_v1` are allowed | The distinct P4 names cannot simply be inserted into the current table |
+| 0040 profile uniqueness tuple | `(account_id, artifact_version_id, transformer_version, delivery_policy_version)` is already unique | Existing identity concept can distinguish derivatives, but does not override restrictive CHECKs |
+| 0040 Representation protection trigger | Source/profile identity is immutable; ready rows cannot be rewritten | No relabelling or mutation of ready 0102 representations to turn them into P1 |
+| 0040 claim/finalize functions | Exact v1 transformer/policy predicates are embedded | Changing CHECKs alone would not make P1 publishing work; worker authority needs separate review |
+| 0040 `aria_internal.resolve_preview` | Also checks the exact v1 profile pair | Existing per-file resolver must not silently become a generic P1 capability resolver |
+| Current Worker resolver adapter | Calls that fixed function and expects its closed v1 metadata projection | No existing P1 packet or one-shot consumption authority is supplied by this adapter |
+| 0041 `fail_preview` | Also checks the v1 profile pair and only three existing bounded error codes | Neither P1 failure finalization nor `PREVIEW_PACKET_TOO_LARGE` is implicitly supported; review the P1-specific failure boundary without widening v1 error semantics |
+
+The resolver finding is a deliberate safety boundary: accepting P1 at an old per-file resolver could
+mix access models. Keep existing 0102 capability resolution pinned to its reviewed profile rather
+than widening it merely to make a new packet accessible. Legacy `/p/` transport remains forbidden
+in 0103. Narrow function owners, RLS and tenant/project/version checks remain required; existing
+shared-Worker risk is not redesigned or declared solved.
+
+#### Persistence direction selected explicitly by the owner
+
+| Option | Design direction only | Required later review |
+|---|---|---|
+| A — additive closed-profile support; APPROVED FOR DESIGN | Keep existing Representation/Publication concepts; a future reviewed migration permits only the exact accepted 0102 pair and separately approved P1 pair, never mixed/arbitrary versions. New P1 rows are distinct; old rows/files remain immutable | Exact pair CHECK, profile-aware publishing authority, dedicated P1 resolve/consume boundary and its consumed-state schema; preserve v1 resolver and all 0102 regression behavior |
+| B — separate P1 metadata model; NOT SELECTED | Would keep current profile CHECKs and publishing functions unchanged but introduce separate P1 packet/publication/capability associations | Not pursued; selecting A does not authorize duplicating those aggregates under B |
+
+Option A is now the selected design direction, not permission to change an old migration.
+Any later approved additive implementation must use a new reviewed migration, not edit applied 0040/0041
+history. Option B is not selected merely to avoid reading existing predicates. This decision does not
+authorize arbitrary profile strings, a generic SQL helper, broad table writes, RLS bypass or a
+new deployable service. Exact schema/function names, signatures and DDL remain unselected.
+
+Under Option A, consumption must remain a durable, at-most-once effect independent of
+management Idempotency TTL and transient Job/Outbox execution claims. It is not a cache or a lease.
+Prepared packet IO stays outside the short final transaction; exact bound state is revalidated
+under lock, and no Preview bytes precede the successful commit. No cleanup or reactivation path
+is introduced. The helper owner must have only reviewed privileges, safe fixed search_path and
+qualified objects, no dynamic SQL and no PUBLIC execution. No generic skill example that grants
+CASCADE, broad table access or a new timeout is inherited into this contract.
+
+#### Planned compatibility acceptance — all NOT RUN
+
+| Case | Required observation after a separately approved design/implementation |
+|---|---|
+| TC-103M01 | Accepted v1 and exact P1 profiles remain distinct; mixed/arbitrary profile versions rejected at DB boundary |
+| TC-103M02 | Historical ready source/0102 rows, hashes, files, commands and per-file capability behavior remain unchanged |
+| TC-103M03 | V1 resolver cannot authorize P1 content, and P1 resolve/consume cannot authorize legacy per-file content or bypass profile identity |
+| TC-103M04 | Cross-tenant/project/version and wrong packet identity rejected by actual limited runtime authority; no direct new table writes or PUBLIC/anon authority |
+| TC-103M05 | Concurrent one-shot consumption, revoke ordering and commit failure preserve approved invariants; Idempotency/claim expiry cannot erase consumption |
+| TC-103M06 | Existing v1 failure reasons/ownership remain unchanged; a separately approved P1 failure path handles packet-size failure only for the exact P1 profile without accepting arbitrary reasons |
+
+These are future contract checks, not executed SQL tests. A complete migration-source security
+review and actual-role gate remain required after this design selection. **Current boundary:**
+P4 approval WAIT; persistence A direction APPROVED FOR DESIGN ONLY; exact schema/helper authority
+and SQL source review WAIT; Runtime/API/Migration and Hosted/customer activation NO-GO; commit/push
+not authorized for this local continuation. No schema file, DDL, new helper or runtime test was written.
+
+#### P5 candidate under Option A — consumption ledger and authority, NOT FROZEN
+
+Propose a minimal append-only consumption ledger, not a second Publication/Capability aggregate:
+
+| Logical field | Proposed meaning / invariant |
+|---|---|
+| `publication_id` | Primary/unique identity: at most one successful consumption for the Publication's one immutable issued Capability |
+| `account_id`, `project_id` | Required tenant/project consistency, with a composite FK to the same Publication and RESTRICT; never caller authority |
+| `consumed_at` | Required server timestamp of the atomically committed first consumption, not receipt or rendering time |
+
+This is a logical proposal, not accepted DB columns or a table name/schema. The immutable Publication
+binding already identifies Representation/ArtifactVersion and explicit expiry; do not duplicate or
+invent a mutable second binding. No raw token, duplicate token hash, content, packet bytes, guest
+identity, retry counter, TTL or numeric `purge_after` is proposed. R2 prohibits cleanup, including
+through Idempotency/claim deletion. Exact FKs, indexes, RLS, immutable protection and owner privileges
+must be reviewed before choosing executable DDL.
+
+Propose two fixed P1-only helper operations, with exact names/signatures/roles still awaiting SQL
+review: a read-only preflight returning the closed private binding/packet reference, and an atomic
+consume operation comparing that expected binding and Manifest hash to the same hash-resolved
+Capability. Preflight is not a reservation or lasting authorization. Both reject wrong profile or
+tenant/project/version associations; neither accepts an arbitrary relation, predicate, SQL fragment,
+caller-supplied tenant context change or generic profile string.
+
+Prepared bytes are read/verified before the short transaction. Consume locks the same Publication
+row used by revoke, rechecks current server-time expiry after any lock wait, exact immutable binding
+and unused state, then inserts the one consumption effect with a DB final uniqueness guard.
+No check-then-insert-only protection or transaction across file IO is acceptable. Any positive
+helper result is provisional until the calling transaction's commit succeeds; only then may those
+already verified bytes be sent. Failed/ambiguous commit acknowledgment discloses no Preview bytes
+and creates no automatic retry/reissue; durable consumed state, if committed, still blocks replay.
+
+The helper-owner choice, fixed search_path, qualified objects, narrowly scoped grants and RLS must
+be source-reviewed. Owner must not silently gain table ownership/RLS bypass, and Worker/public/anon
+must receive no direct new-table write authority. The existing Worker raw SELECT/RLS behavior and
+shared-credential residual risk remain outside this limited design; no complete Production tenant
+isolation claim is made. This candidate does not approve new roles, EXECUTE grants, functions,
+failure allowlists or changes to any existing helper. P4 remains separately unapproved.
+
+v0.11 verification: full `npm test` exit 0 with the existing workspace-local uv cache; prior
+Node/Renderer/Web stages passed, API **592 passed / 246 skipped / 2 warnings**, Worker **376 passed /
+67 skipped / 1 warning**. Existing deprecation/pytest-cache warnings were not suppressed. Validate
+**23/23 PASS**, Secret Scan **1,235 files PASS**, and diff whitespace checks PASS (Git line-ending
+warning only). No new SQL, schema, Migration, helper, runtime test, PostgreSQL instance or Browser
+proof was created/executed. The only changed file is this ADR; local v0.10/v0.11 design remains
+uncommitted/unpushed. New compatibility/consumption tests are NOT RUN; no complete Runtime PASS.
+
+### v0.12 owner P5 approval and SQL review source — 2026-10-17
+
+The owner explicitly approved P5's append-only logical model, its four fields, no token/content,
+no TTL/purge, limited Preflight/Consume, Publication locking/uniqueness and response only after
+successful commit. SQL **design** is authorized; exact SQL contract/source review remains PENDING.
+The subsequent authentication question was answered "valid Capability plus database binding": no
+new JWT/Tenant header or Core assertion is introduced. Tenant/project derive from the unique stored
+capability hash and full bound graph, never caller-selected tenant input. P4 is still WAIT.
+
+The [separate P5 SQL contract](ADR-090-p5-sql-contract.md) supplies proposed DDL, immutable ledger
+protection, composite RESTRICT FK/PK, RLS, fixed function bodies/signatures, effective-grant review,
+transaction flow and twelve unexecuted race/privilege/crash scenarios. It is Markdown review text,
+not an executable migration or source imported by runtime. Proposed names and reuse of the existing
+restricted helper owner require source review; none is falsely marked approved by logical-model
+approval. Current v1 publishing/resolution helpers and applied migration history are unchanged.
+
+SQL inspection confirmed ready ArtifactVersion/Representation immutability and the existing revoke
+Job -> Publication order. Proposed Consume locks Publication only and never later requests Job or
+Representation locks; packet IO and validation are outside the short final transaction. A positive
+helper return remains provisional until commit is confirmed. Unknown commit acknowledgment means
+no Preview bytes and no automatic replay/reissue; existing durable consumption, if any, persists.
+
+The exact P4 version names/private packet schema and additive publishing/failure SQL remain open
+dependencies; approving this P5 source alone cannot make P1 publishable or authorize execution.
+No live PostgreSQL/Supabase service, SQL parser/compiler, migration runner or new runtime test was
+used. No application schema file, endpoint, Helper object, role/grant or database state changed.
+**P5 Logical Model APPROVED; P5 SQL Contract PENDING REVIEW; P4/full ADR Freeze WAIT; 0103
+implementation, SQL execution/Migration, Hosted/customer activation and commit/push NO-GO.**
+
+v0.12 verification: full existing `npm test` exited 0; Node/Renderer/Web stages passed (Web
+47/47), API **592 passed / 246 skipped / 2 warnings**, Worker **376 passed / 67 skipped /
+1 warning**. Existing Starlette/httpx deprecation and pytest-cache permission warnings remain
+visible. Documentation validation **23/23 PASS**, Secret Scan **1,236 publishable text files PASS**,
+and whitespace checks PASS (Git line-ending warning only). These are regression/document checks,
+not execution evidence for the proposed SQL: all twelve new P5 SQL scenarios are **NOT RUN**;
+the source is **NOT COMPILED / NOT EXECUTED**. Only this ADR and its new SQL-review Markdown
+changed; no completed development increment, PostgreSQL gate or full 0103 acceptance is claimed.
