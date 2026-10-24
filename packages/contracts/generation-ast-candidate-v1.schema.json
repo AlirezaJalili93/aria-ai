@@ -1,0 +1,632 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria.local/contracts/generation-ast-candidate-v1.schema.json",
+  "title": "Aria Generation AST Provider Candidate v1",
+  "$ref": "#/$defs/CandidateRoot",
+  "$defs": {
+    "SingleLine80": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^(?!.*[\\u0000-\\u001f\\u007f-\\u009f]).+$"
+    },
+    "SingleLine160": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^(?!.*[\\u0000-\\u001f\\u007f-\\u009f]).+$"
+    },
+    "SingleLine600": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "pattern": "^(?!.*[\\u0000-\\u001f\\u007f-\\u009f]).+$"
+    },
+    "AltText": {
+      "type": "string",
+      "maxLength": 160,
+      "pattern": "^(?!.*[\\u0000-\\u001f\\u007f-\\u009f]).*$"
+    },
+    "MultiLine500": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "^(?!.*[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f])[\\s\\S]+$"
+    },
+    "MultiLine4000": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "^(?!.*[\\u0000-\\u0009\\u000b-\\u001f\\u007f-\\u009f])[\\s\\S]+$"
+    },
+    "Uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Path": {
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^/$|^/[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*$"
+    },
+    "NavigationLink": {
+      "type": "object",
+      "required": ["label", "target_path"],
+      "properties": {
+        "label": { "$ref": "#/$defs/SingleLine80" },
+        "target_path": { "$ref": "#/$defs/Path" }
+      },
+      "additionalProperties": false
+    },
+    "Action": {
+      "$ref": "#/$defs/NavigationLink"
+    },
+    "StyleTokenRefs": {
+      "type": "object",
+      "required": ["surface", "text", "accent", "border", "container"],
+      "properties": {
+        "surface": { "enum": ["background", "surface", "surface_muted"] },
+        "text": { "enum": ["text", "text_muted"] },
+        "accent": { "const": "primary" },
+        "border": { "const": "border" },
+        "container": { "enum": ["content_max", "form_max", "text_measure"] }
+      },
+      "additionalProperties": false
+    },
+    "NavbarContent": {
+      "type": "object",
+      "required": ["brand_text", "links"],
+      "properties": {
+        "brand_text": { "$ref": "#/$defs/SingleLine80" },
+        "links": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/NavigationLink" }
+        },
+        "primary_action": { "$ref": "#/$defs/Action" },
+        "brand_logo_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "brand_logo_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "brand_logo_asset_ref": ["brand_logo_alt_text"],
+        "brand_logo_alt_text": ["brand_logo_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "HeroContent": {
+      "type": "object",
+      "required": ["heading"],
+      "properties": {
+        "eyebrow": { "$ref": "#/$defs/SingleLine80" },
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "primary_action": { "$ref": "#/$defs/Action" },
+        "secondary_action": { "$ref": "#/$defs/Action" },
+        "primary_media_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "primary_media_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "primary_media_asset_ref": ["primary_media_alt_text"],
+        "primary_media_alt_text": ["primary_media_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "FooterContent": {
+      "type": "object",
+      "required": ["brand_text"],
+      "properties": {
+        "brand_text": { "$ref": "#/$defs/SingleLine80" },
+        "links": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/NavigationLink" }
+        },
+        "legal_text": { "$ref": "#/$defs/MultiLine500" },
+        "brand_logo_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "brand_logo_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "brand_logo_asset_ref": ["brand_logo_alt_text"],
+        "brand_logo_alt_text": ["brand_logo_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "FeatureItem": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": { "$ref": "#/$defs/SingleLine160" },
+        "description": { "$ref": "#/$defs/SingleLine600" },
+        "feature_media_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "feature_media_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "feature_media_asset_ref": ["feature_media_alt_text"],
+        "feature_media_alt_text": ["feature_media_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "FeatureGridContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/FeatureItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ServiceItem": {
+      "type": "object",
+      "required": ["title", "description"],
+      "properties": {
+        "title": { "$ref": "#/$defs/SingleLine160" },
+        "description": { "$ref": "#/$defs/SingleLine600" },
+        "service_media_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "service_media_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "service_media_asset_ref": ["service_media_alt_text"],
+        "service_media_alt_text": ["service_media_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "ServiceListContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/ServiceItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AboutSectionContent": {
+      "type": "object",
+      "required": ["heading", "body"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "highlights": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/SingleLine160" }
+        },
+        "primary_media_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "primary_media_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "primary_media_asset_ref": ["primary_media_alt_text"],
+        "primary_media_alt_text": ["primary_media_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "CTAContent": {
+      "type": "object",
+      "required": ["heading", "action"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "action": { "$ref": "#/$defs/Action" }
+      },
+      "additionalProperties": false
+    },
+    "TestimonialItem": {
+      "type": "object",
+      "required": ["quote", "author_name"],
+      "properties": {
+        "quote": { "$ref": "#/$defs/MultiLine4000" },
+        "author_name": { "$ref": "#/$defs/SingleLine80" },
+        "author_role": { "$ref": "#/$defs/SingleLine80" },
+        "author_avatar_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "author_avatar_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "author_avatar_asset_ref": ["author_avatar_alt_text"],
+        "author_avatar_alt_text": ["author_avatar_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "TestimonialContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/TestimonialItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "FAQItem": {
+      "type": "object",
+      "required": ["question", "answer"],
+      "properties": {
+        "question": { "$ref": "#/$defs/SingleLine160" },
+        "answer": { "$ref": "#/$defs/MultiLine4000" }
+      },
+      "additionalProperties": false
+    },
+    "FAQContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/FAQItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ContactMethod": {
+      "type": "object",
+      "required": ["kind", "label", "value"],
+      "properties": {
+        "kind": { "enum": ["email", "phone", "address"] },
+        "label": { "$ref": "#/$defs/SingleLine80" },
+        "value": { "$ref": "#/$defs/SingleLine600" }
+      },
+      "additionalProperties": false
+    },
+    "ContactSectionContent": {
+      "type": "object",
+      "required": ["heading", "methods"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/ContactMethod" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "PortfolioItem": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "title": { "$ref": "#/$defs/SingleLine160" },
+        "summary": { "$ref": "#/$defs/SingleLine600" },
+        "portfolio_media_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "portfolio_media_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "dependentRequired": {
+        "portfolio_media_asset_ref": ["portfolio_media_alt_text"],
+        "portfolio_media_alt_text": ["portfolio_media_asset_ref"]
+      },
+      "additionalProperties": false
+    },
+    "PortfolioGridContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/PortfolioItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "StatItem": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "$ref": "#/$defs/SingleLine80" },
+        "label": { "$ref": "#/$defs/SingleLine80" }
+      },
+      "additionalProperties": false
+    },
+    "StatsContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/StatItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "LogoItem": {
+      "type": "object",
+      "required": ["name", "logo_asset_ref", "logo_alt_text"],
+      "properties": {
+        "name": { "$ref": "#/$defs/SingleLine80" },
+        "logo_asset_ref": { "$ref": "#/$defs/Uuid" },
+        "logo_alt_text": { "$ref": "#/$defs/AltText" }
+      },
+      "additionalProperties": false
+    },
+    "LogoCloudContent": {
+      "type": "object",
+      "required": ["items"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/LogoItem" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "FormField": {
+      "type": "object",
+      "required": ["key", "type", "label", "required", "max_length"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,39}$"
+        },
+        "type": { "enum": ["text", "email", "tel", "textarea"] },
+        "label": { "$ref": "#/$defs/SingleLine80" },
+        "required": { "type": "boolean" },
+        "max_length": { "type": "integer", "minimum": 1, "maximum": 2000 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "textarea" } }, "required": ["type"] },
+          "then": { "properties": { "max_length": { "maximum": 2000 } } },
+          "else": { "properties": { "max_length": { "maximum": 320 } } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "SimpleFormContent": {
+      "type": "object",
+      "required": ["heading", "fields", "submit_label", "submission_mode"],
+      "properties": {
+        "heading": { "$ref": "#/$defs/SingleLine160" },
+        "body": { "$ref": "#/$defs/MultiLine4000" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/FormField" }
+        },
+        "submit_label": { "$ref": "#/$defs/SingleLine80" },
+        "submission_mode": { "const": "preview_only" },
+        "consent_label": { "$ref": "#/$defs/SingleLine160" }
+      },
+      "additionalProperties": false
+    },
+    "CandidateSectionCore": {
+      "type": "object",
+      "required": [
+        "component_type",
+        "content",
+        "layout_variant",
+        "style_token_refs",
+        "responsive_rule_ref",
+        "source_requirement_ids"
+      ],
+      "properties": {
+        "component_type": {
+          "enum": [
+            "Navbar", "Hero", "Footer", "FeatureGrid", "ServiceList",
+            "AboutSection", "CTA", "Testimonial", "FAQ", "ContactSection",
+            "PortfolioGrid", "Stats", "LogoCloud", "SimpleForm"
+          ]
+        },
+        "content": { "type": "object" },
+        "layout_variant": { "type": "string" },
+        "style_token_refs": { "$ref": "#/$defs/StyleTokenRefs" },
+        "responsive_rule_ref": { "type": "string" },
+        "source_requirement_ids": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Uuid" }
+        }
+      }
+    },
+    "SectionCompatibility": {
+      "oneOf": [
+        { "$ref": "#/$defs/NavbarSection" },
+        { "$ref": "#/$defs/HeroSection" },
+        { "$ref": "#/$defs/FooterSection" },
+        { "$ref": "#/$defs/FeatureGridSection" },
+        { "$ref": "#/$defs/ServiceListSection" },
+        { "$ref": "#/$defs/AboutSectionSection" },
+        { "$ref": "#/$defs/CTASection" },
+        { "$ref": "#/$defs/TestimonialSection" },
+        { "$ref": "#/$defs/FAQSection" },
+        { "$ref": "#/$defs/ContactSectionSection" },
+        { "$ref": "#/$defs/PortfolioGridSection" },
+        { "$ref": "#/$defs/StatsSection" },
+        { "$ref": "#/$defs/LogoCloudSection" },
+        { "$ref": "#/$defs/SimpleFormSection" }
+      ]
+    },
+    "CandidateSection": {
+      "allOf": [
+        { "$ref": "#/$defs/CandidateSectionCore" },
+        { "$ref": "#/$defs/SectionCompatibility" }
+      ],
+      "unevaluatedProperties": false
+    },
+    "NavbarSection": {
+      "properties": {
+        "component_type": { "const": "Navbar" },
+        "content": { "$ref": "#/$defs/NavbarContent" },
+        "layout_variant": { "enum": ["horizontal", "centered"] },
+        "responsive_rule_ref": { "const": "responsive.nav_collapse_v1" }
+      },
+      "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"]
+    },
+    "HeroSection": {
+      "oneOf": [
+        {
+          "properties": {
+            "component_type": { "const": "Hero" },
+            "content": { "$ref": "#/$defs/HeroContent" },
+            "layout_variant": { "const": "centered" },
+            "responsive_rule_ref": { "const": "responsive.single_v1" }
+          },
+          "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"]
+        },
+        {
+          "properties": {
+            "component_type": { "const": "Hero" },
+            "content": {
+              "allOf": [
+                { "$ref": "#/$defs/HeroContent" },
+                { "required": ["primary_media_asset_ref", "primary_media_alt_text"] }
+              ]
+            },
+            "layout_variant": { "enum": ["split_media_start", "split_media_end"] },
+            "responsive_rule_ref": { "const": "responsive.split_v1" }
+          },
+          "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"]
+        }
+      ]
+    },
+    "FooterSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "Footer" }, "content": { "$ref": "#/$defs/FooterContent" }, "layout_variant": { "const": "compact" }, "responsive_rule_ref": { "const": "responsive.inline_wrap_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "Footer" }, "content": { "$ref": "#/$defs/FooterContent" }, "layout_variant": { "const": "columns" }, "responsive_rule_ref": { "const": "responsive.grid_4_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "FeatureGridSection": { "$ref": "#/$defs/GridTwoOrThreeFeature" },
+    "GridTwoOrThreeFeature": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "FeatureGrid" }, "content": { "$ref": "#/$defs/FeatureGridContent" }, "layout_variant": { "const": "grid_2" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "FeatureGrid" }, "content": { "$ref": "#/$defs/FeatureGridContent" }, "layout_variant": { "const": "grid_3" }, "responsive_rule_ref": { "const": "responsive.grid_3_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "ServiceListSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "ServiceList" }, "content": { "$ref": "#/$defs/ServiceListContent" }, "layout_variant": { "const": "stacked" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "ServiceList" }, "content": { "$ref": "#/$defs/ServiceListContent" }, "layout_variant": { "const": "grid_2" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "ServiceList" }, "content": { "$ref": "#/$defs/ServiceListContent" }, "layout_variant": { "const": "grid_3" }, "responsive_rule_ref": { "const": "responsive.grid_3_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "AboutSectionSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "AboutSection" }, "content": { "$ref": "#/$defs/AboutSectionContent" }, "layout_variant": { "const": "text_only" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "AboutSection" }, "content": { "allOf": [{ "$ref": "#/$defs/AboutSectionContent" }, { "required": ["primary_media_asset_ref", "primary_media_alt_text"] }] }, "layout_variant": { "enum": ["media_start", "media_end"] }, "responsive_rule_ref": { "const": "responsive.split_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "CTASection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "CTA" }, "content": { "$ref": "#/$defs/CTAContent" }, "layout_variant": { "const": "centered" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "CTA" }, "content": { "$ref": "#/$defs/CTAContent" }, "layout_variant": { "const": "split" }, "responsive_rule_ref": { "const": "responsive.split_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "TestimonialSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "Testimonial" }, "content": { "$ref": "#/$defs/TestimonialContent" }, "layout_variant": { "const": "single" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "Testimonial" }, "content": { "$ref": "#/$defs/TestimonialContent" }, "layout_variant": { "const": "grid_2" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "FAQSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "FAQ" }, "content": { "$ref": "#/$defs/FAQContent" }, "layout_variant": { "const": "stacked" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "FAQ" }, "content": { "$ref": "#/$defs/FAQContent" }, "layout_variant": { "const": "two_column" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "ContactSectionSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "ContactSection" }, "content": { "$ref": "#/$defs/ContactSectionContent" }, "layout_variant": { "const": "stacked" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "ContactSection" }, "content": { "$ref": "#/$defs/ContactSectionContent" }, "layout_variant": { "const": "split" }, "responsive_rule_ref": { "const": "responsive.split_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "PortfolioGridSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "PortfolioGrid" }, "content": { "$ref": "#/$defs/PortfolioGridContent" }, "layout_variant": { "const": "grid_2" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "PortfolioGrid" }, "content": { "$ref": "#/$defs/PortfolioGridContent" }, "layout_variant": { "const": "grid_3" }, "responsive_rule_ref": { "const": "responsive.grid_3_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "StatsSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "Stats" }, "content": { "$ref": "#/$defs/StatsContent" }, "layout_variant": { "const": "inline" }, "responsive_rule_ref": { "const": "responsive.inline_wrap_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "Stats" }, "content": { "$ref": "#/$defs/StatsContent" }, "layout_variant": { "const": "grid_2" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "Stats" }, "content": { "$ref": "#/$defs/StatsContent" }, "layout_variant": { "const": "grid_4" }, "responsive_rule_ref": { "const": "responsive.grid_4_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "LogoCloudSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "LogoCloud" }, "content": { "$ref": "#/$defs/LogoCloudContent" }, "layout_variant": { "const": "grid" }, "responsive_rule_ref": { "const": "responsive.grid_4_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "LogoCloud" }, "content": { "$ref": "#/$defs/LogoCloudContent" }, "layout_variant": { "const": "inline_wrap" }, "responsive_rule_ref": { "const": "responsive.inline_wrap_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "SimpleFormSection": {
+      "oneOf": [
+        { "properties": { "component_type": { "const": "SimpleForm" }, "content": { "$ref": "#/$defs/SimpleFormContent" }, "layout_variant": { "const": "stacked" }, "responsive_rule_ref": { "const": "responsive.single_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] },
+        { "properties": { "component_type": { "const": "SimpleForm" }, "content": { "$ref": "#/$defs/SimpleFormContent" }, "layout_variant": { "const": "two_column" }, "responsive_rule_ref": { "const": "responsive.grid_2_v1" } }, "required": ["component_type", "content", "layout_variant", "responsive_rule_ref"] }
+      ]
+    },
+    "CandidatePage": {
+      "type": "object",
+      "required": ["title", "path", "sections"],
+      "properties": {
+        "title": { "$ref": "#/$defs/SingleLine160" },
+        "path": { "$ref": "#/$defs/Path" },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": { "$ref": "#/$defs/CandidateSection" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "CandidateRoot": {
+      "type": "object",
+      "required": ["schema_version", "project_type", "theme", "assets", "pages"],
+      "properties": {
+        "schema_version": { "const": "generation_ast_candidate_v1" },
+        "project_type": { "enum": ["landing", "corporate", "portfolio"] },
+        "theme": {
+          "type": "object",
+          "required": ["mode", "token_profile"],
+          "properties": {
+            "mode": { "enum": ["light", "dark"] },
+            "token_profile": { "const": "aria_semantic_v1" }
+          },
+          "additionalProperties": false
+        },
+        "assets": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Uuid" }
+        },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/CandidatePage" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "version": "1",
+  "reviewer_count": 2,
+  "scale": { "minimum": 1, "maximum": 5 },
+  "dimensions": [
+    {
+      "id": "clarity_score",
+      "score_1": "Unusable, ambiguous or meaningfully misleading",
+      "score_3": "Understandable only after material editing",
+      "score_5": "Precise, unambiguous and readable without material editing"
+    },
+    {
+      "id": "actionability_score",
+      "score_1": "Cannot guide a Scope or implementation decision",
+      "score_3": "Usable only after material completion or clarification",
+      "score_5": "Directly usable in Scope without material editing"
+    }
+  ],
+  "adjudication": {
+    "required_when_absolute_difference_at_least": 2,
+    "replacement": "adjudicated_dimension_replaces_disputed_dimension",
+    "otherwise": "arithmetic_mean_of_two_independent_scores"
+  },
+  "free_text_notes": "prohibited_from_evaluator_input_and_reports"
+}

@@ -44,6 +44,8 @@ Secrets are not recorded.
 | TC-2307, TC-2314, TC-2317 | `npm run scan:secrets`; `npm run scan:dependencies` | 282 publishable files clean; npm/API/Worker audits found no blocking vulnerabilities | PASS |
 | TC-2301–TC-2317 | `npm run quality` with the isolated PostgreSQL target | 246 tests passed; lint, typecheck, build and 22 architecture checks passed | PASS |
 | TC-2301–TC-2317 | [PR #17 CI](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33622019480) | Quality passed in 1m27s; Security Baseline passed in 30s; Vercel Preview passed | PASS |
+| TC-2301–TC-2317 | [Post-merge main CI](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33622481477) | Merge SHA `b352a07af4627f449d04d0c031103f4058dd07b6`; Quality passed in 1m25s and Security Baseline in 25s | PASS |
+| TC-2308, TC-2315, TC-2317 | [Staging database migration](https://github.com/AlirezaJalili93/aria-ai/actions/runs/33622481516) | Exact merge SHA upgraded and verified at Alembic head in 29s | PASS |
 
 ## Failures and Corrections
 

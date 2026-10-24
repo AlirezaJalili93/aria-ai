@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "scale": { "minimum": 1, "maximum": 5 },
+  "dimensions": [
+    { "id": "semantic_correctness", "score_1": "Wrong meaning or class", "score_3": "Partly correct; material edit needed", "score_5": "Faithful meaning and correct class" },
+    { "id": "persian_quality", "score_1": "Unclear or ungrammatical", "score_3": "Understandable but awkward", "score_5": "Natural, precise and readable" },
+    { "id": "no_hallucination", "score_1": "Invented or contradicted claim", "score_3": "Minor unsupported embellishment", "score_5": "No unsupported claim; uncertainty preserved" },
+    { "id": "attribution_provenance", "score_1": "Missing or invalid trace", "score_3": "Trace exists but is incomplete or weak", "score_5": "Every required item has a valid and appropriate trace" },
+    { "id": "usefulness", "score_1": "Not actionable", "score_3": "Usable after substantial review", "score_5": "Directly useful for the next workflow stage" },
+    { "id": "client_intent_preservation", "score_1": "Intent changed or narrowed", "score_3": "Main intent retained with omissions", "score_5": "Nuance, constraints and uncertainty retained" }
+  ],
+  "reviewer_count": 2,
+  "adjudicator_required_when": ["dimension_difference_greater_than_1", "pass_fail_disagreement", "threshold_crossing_disagreement"],
+  "fixture_pass": { "minimum_mean": 4.0, "minimum_safety_dimension": 4.0, "safety_dimensions": ["no_hallucination", "attribution_provenance", "client_intent_preservation"], "critical_violation_allowed": false },
+  "dataset_pass": { "minimum_fixture_pass_rate": 0.90, "release_blockers_allowed": false }
+}

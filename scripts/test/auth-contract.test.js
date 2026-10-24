@@ -49,12 +49,24 @@ test("Supabase JWKS access uses the owner-approved five-second timeout", async (
   assert.match(adapter, /timeout=_JWKS_TIMEOUT_SECONDS/);
 });
 
-test("public API contract keeps Bearer JWT and health exceptions explicit", async () => {
+test("public API contract keeps Bearer JWT, health, and capability exceptions explicit", async () => {
   const openapi = await readFile(
     path.join(root, "packages", "contracts", "openapi.yaml"),
     "utf8"
   );
 
   assert.match(openapi, /bearerAuth:\s*\n\s+type: http\s*\n\s+scheme: bearer\s*\n\s+bearerFormat: JWT/);
-  assert.equal((openapi.match(/security: \[\]/g) ?? []).length, 2);
+  assert.equal((openapi.match(/security: \[\]/g) ?? []).length, 5);
+  assert.match(
+    openapi,
+    /\/public\/scope-shares\/resolve:[\s\S]*?operationId: resolvePublicScopeShare[\s\S]*?security: \[\]/,
+  );
+  assert.match(
+    openapi,
+    /\/public\/scope-shares\/approve:[\s\S]*?operationId: approvePublicScopeShare[\s\S]*?security: \[\]/,
+  );
+  assert.match(
+    openapi,
+    /\/public\/scope-shares\/request-changes:[\s\S]*?operationId: requestPublicScopeChanges[\s\S]*?security: \[\]/,
+  );
 });

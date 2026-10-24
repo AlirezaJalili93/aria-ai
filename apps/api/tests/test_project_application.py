@@ -270,8 +270,8 @@ def test_create_uses_active_tenant_subject_as_owner_and_emits_safe_event() -> No
     assert analytics_event["event_category"] == "product_analytics"
     assert analytics_event["account_id"] == str(context.account_id)
     assert analytics_event["project_id"] == str(project_id)
-    assert analytics_event["project_type"] == "landing"
-    assert analytics_event["role"] == "owner"
+    assert analytics_event["properties"]["project_type"] == "landing"
+    assert analytics_event["properties"]["role"] == "owner"
     assert "محرمانه" not in json.dumps(analytics_event, ensure_ascii=False)
 
 

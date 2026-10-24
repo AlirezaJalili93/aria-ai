@@ -1,0 +1,17 @@
+{
+  "fixture_id": "fa_ctx_013",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_013_src_a", "source_version_id": "fa_ctx_013_src_a_v1", "canonical_text": "صفحه Landing باید RTL باشد، بخش FAQ و Case Study داشته باشد و CTA آن Book a demo باشد." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_013_c1", "item_type": "constraint", "content": "RTL", "source_refs": [{ "source_id": "fa_ctx_013_src_a", "source_version_id": "fa_ctx_013_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_013_d1", "item_type": "decision", "content": "بخش FAQ", "source_refs": [{ "source_id": "fa_ctx_013_src_a", "source_version_id": "fa_ctx_013_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_013_d2", "item_type": "decision", "content": "بخش Case Study", "source_refs": [{ "source_id": "fa_ctx_013_src_a", "source_version_id": "fa_ctx_013_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_013_d3", "item_type": "decision", "content": "CTA Book a demo", "source_refs": [{ "source_id": "fa_ctx_013_src_a", "source_version_id": "fa_ctx_013_src_a_v1" }], "trace_required": true }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_013_c1", "fa_ctx_013_d1", "fa_ctx_013_d2", "fa_ctx_013_d3"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": false, "has_constraint": true, "has_decision": true, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_013_src_a"], "trace_required_item_ids": ["fa_ctx_013_c1", "fa_ctx_013_d1", "fa_ctx_013_d2", "fa_ctx_013_d3"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "mixed", "difficulty": "intermediate", "phenomena": ["constraint", "decision", "persian_english"], "fixture_version": "1" }
+}

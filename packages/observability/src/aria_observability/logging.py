@@ -6,13 +6,23 @@ import re
 import sys
 from datetime import UTC, datetime
 from itertools import count
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 from uuid import UUID
 
 from aria_observability.context import current_trace_context
+from aria_observability.product_analytics import (
+    PRODUCT_ANALYTICS_CATEGORY,
+    PRODUCT_ANALYTICS_SCHEMA_VERSION,
+)
+
+if TYPE_CHECKING:
+    from aria_observability.product_analytics import ProductAnalyticsEvent
 
 _LOGGER_SEQUENCE = count()
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
+_SAFE_MIME_TYPE = re.compile(
+    r"^[a-z0-9][a-z0-9.+-]{0,63}/[a-z0-9][a-z0-9.+-]{0,63}$"
+)
 _LEVELS = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
@@ -23,6 +33,7 @@ _LEVELS = {
 _OPTIONAL_FIELDS = {
     "route",
     "task_type",
+    "job_type",
     "duration_ms",
     "latency_ms",
     "status",
@@ -36,17 +47,47 @@ _OPTIONAL_FIELDS = {
     "output_tokens",
     "estimated_cost",
     "provider_request_id",
+    "outbox_event_id",
+    "aggregate_type",
+    "aggregate_id",
     "exception_type",
     "component",
     "operation",
+    "resource_type",
     "queue_adapter_configured",
     "actor_id",
     "project_id",
     "source_id",
+    "source_version_id",
+    "context_item_id",
+    "requirement_id",
+    "gap_id",
+    "clarification_id",
     "version_no",
+    "context_version",
     "event_category",
     "project_type",
     "role",
+    "priority",
+    "created_by_type",
+    "gap_type",
+    "severity",
+    "gap_status",
+    "resolution_type",
+    "workflow_version",
+    "prompt_version",
+    "checklist_version",
+    "repair_no",
+    "candidate_count",
+    "persisted_count",
+    "unsupported_count",
+    "duplicate_count",
+    "conflict_count",
+    "gap_count",
+    "critical_candidate_count",
+    "file_size_bytes",
+    "declared_mime_normalized",
+    "validation_result",
 }
 
 
@@ -113,9 +154,41 @@ def _safe_optional_value(field: str, value: object) -> object | None:
         return _safe_status(value)
     if field == "queue_adapter_configured":
         return value if isinstance(value, bool) else None
-    if field in {"actor_id", "project_id", "source_id"}:
+    if field == "declared_mime_normalized":
+        if not isinstance(value, str):
+            return None
+        return value if _SAFE_MIME_TYPE.fullmatch(value) is not None else None
+    if field == "validation_result":
+        return value if value in {"accepted", "rejected"} else None
+    if field in {
+        "actor_id",
+        "project_id",
+        "source_id",
+        "source_version_id",
+        "context_item_id",
+        "requirement_id",
+        "gap_id",
+        "clarification_id",
+        "outbox_event_id",
+        "aggregate_id",
+    }:
         return _safe_uuid(value)
-    if field in {"attempt", "input_tokens", "output_tokens", "version_no"}:
+    if field in {
+        "attempt",
+        "input_tokens",
+        "output_tokens",
+        "version_no",
+        "context_version",
+        "repair_no",
+        "candidate_count",
+        "persisted_count",
+        "unsupported_count",
+        "duplicate_count",
+        "conflict_count",
+        "gap_count",
+        "critical_candidate_count",
+        "file_size_bytes",
+    }:
         return _safe_non_negative_integer(value)
     if field == "estimated_cost":
         return _safe_non_negative_number(value)
@@ -152,6 +225,7 @@ class StructuredEventLogger:
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
         self._logger = logger
+        self._product_event_ids: set[str] = set()
 
     def emit(self, event_name: str, *, level: str = "INFO", **fields: object) -> None:
         safe_event_name = _safe_name(event_name)
@@ -188,6 +262,28 @@ class StructuredEventLogger:
             _LEVELS[level],
             json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         )
+
+    def emit_product_analytics(self, event: ProductAnalyticsEvent) -> None:
+        """Emit one validated product event; repeated event IDs are ignored."""
+        event_id = str(event.event_id)
+        if event_id in self._product_event_ids:
+            return
+        self._product_event_ids.add(event_id)
+        payload = {
+            "event_id": event_id,
+            "event_name": event.event_name,
+            "event_category": PRODUCT_ANALYTICS_CATEGORY,
+            "schema_version": PRODUCT_ANALYTICS_SCHEMA_VERSION,
+            "occurred_at": _utc_timestamp(),
+            "account_id": str(event.account_id),
+            "project_id": str(event.project_id),
+            "actor_id": str(event.actor_id) if event.actor_id is not None else None,
+            "properties": {
+                key: (str(value) if key.endswith("_id") else value)
+                for key, value in event.properties.items()
+            },
+        }
+        self._logger.info(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
 
 
 def create_event_logger(

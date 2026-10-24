@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/gap-detection-fixture-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixture_id", "eval_set_id", "language", "project_type", "input", "expected_output", "evaluation_annotations", "metadata"],
+  "$defs": {
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "source_version_id"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "source_version_id": { "type": "string", "minLength": 1 },
+        "start_offset": { "type": "integer", "minimum": 0 },
+        "end_offset": { "type": "integer", "minimum": 1 }
+      },
+      "dependentRequired": { "start_offset": ["end_offset"], "end_offset": ["start_offset"] }
+    },
+    "gap_type": { "enum": ["missing_information", "ambiguity", "conflict", "unsupported_assumption", "decision_required", "scope_risk"] },
+    "severity": { "enum": ["critical", "high", "medium", "low"] }
+  },
+  "properties": {
+    "fixture_id": { "type": "string", "pattern": "^fa_gap_[0-9]{3}$" },
+    "eval_set_id": { "const": "gap_detection_eval_v1" },
+    "language": { "const": "fa" },
+    "project_type": { "enum": ["landing", "corporate", "portfolio"] },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["context_version", "source_versions", "context_items", "requirements"],
+      "properties": {
+        "context_version": { "type": "integer", "minimum": 1 },
+        "source_versions": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["source_id", "source_version_id", "canonical_length"], "properties": {
+          "source_id": { "type": "string", "minLength": 1 },
+          "source_version_id": { "type": "string", "minLength": 1 },
+          "canonical_length": { "type": "integer", "minimum": 0 }
+        }}},
+        "context_items": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["context_item_id", "item_type", "content", "source_refs", "status"], "properties": {
+          "context_item_id": { "type": "string", "minLength": 1 },
+          "item_type": { "enum": ["fact", "assumption", "decision", "constraint", "reference", "unknown"] },
+          "content": { "type": "string", "minLength": 1 },
+          "source_refs": { "type": "array", "items": { "$ref": "#/$defs/source_ref" } },
+          "status": { "enum": ["proposed", "confirmed"] }
+        }}},
+        "requirements": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["requirement_id", "status", "priority"], "properties": {
+          "requirement_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["draft", "confirmed"] },
+          "priority": { "enum": ["must", "should", "could"] }
+        }}}
+      }
+    },
+    "expected_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_gap", "gaps"],
+      "properties": {
+        "no_gap": { "type": "boolean" },
+        "gaps": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["gold_gap_id", "gap_type", "severity", "source_refs_expectation", "source_refs", "affected_requirement_ids", "critical_for_scope", "critical_rule_id", "semantic_group_id"], "properties": {
+          "gold_gap_id": { "type": "string", "minLength": 1 },
+          "gap_type": { "$ref": "#/$defs/gap_type" },
+          "severity": { "$ref": "#/$defs/severity" },
+          "source_refs_expectation": { "enum": ["empty", "required", "optional"] },
+          "source_refs": { "type": "array", "items": { "$ref": "#/$defs/source_ref" } },
+          "affected_requirement_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "critical_for_scope": { "type": "boolean" },
+          "critical_rule_id": { "type": ["string", "null"], "enum": ["CGR-001", "CGR-002", "CGR-003", null] },
+          "semantic_group_id": { "type": "string", "minLength": 1 }
+        }}}
+      }
+    },
+    "evaluation_annotations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_annotations", "deterministic_output_candidate_ids", "semantic_duplicate_groups"],
+      "properties": {
+        "candidate_annotations": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["candidate_id", "gold_gap_id", "semantically_unsupported", "critical_for_scope", "source_refs_expectation"], "properties": {
+          "candidate_id": { "type": "string", "minLength": 1 },
+          "gold_gap_id": { "type": ["string", "null"] },
+          "semantically_unsupported": { "type": "boolean" },
+          "critical_for_scope": { "type": "boolean" },
+          "source_refs_expectation": { "enum": ["empty", "required", "optional"] }
+        }}},
+        "deterministic_output_candidate_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "semantic_duplicate_groups": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["group_id", "candidate_ids"], "properties": {
+          "group_id": { "type": "string", "minLength": 1 },
+          "candidate_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } }
+        }}}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["synthetic", "segment", "difficulty", "phenomena", "fixture_version"],
+      "properties": {
+        "synthetic": { "const": true },
+        "segment": { "enum": ["clear", "ambiguous", "incomplete", "contradictory", "unsupported", "scope_risk", "mixed"] },
+        "difficulty": { "enum": ["basic", "intermediate", "hard"] },
+        "phenomena": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "fixture_version": { "const": "1" }
+      }
+    }
+  }
+}

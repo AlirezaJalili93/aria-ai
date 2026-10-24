@@ -5,6 +5,9 @@ Language-neutral, versioned boundary contracts live here.
 - `openapi.yaml`: public HTTP contract.
 - `events.schema.json`: transactional outbox/domain-event envelope.
 - `job-trace-context.schema.json`: API-to-job-to-worker correlation metadata. It contains identifiers only; raw project content and secrets are forbidden from trace context.
+- `component-registry-v1.json`: immutable MVP Component, layout/responsive, Asset-slot and renderer-interaction registry.
+- `generation-ast-candidate-v1.schema.json`: strict Provider-candidate JSON/AST contract; Application identity/protection fields are forbidden.
+- `generation-ast-v1.schema.json`: Application-enriched canonical AST contract used by the future controlled Renderer and Artifact finalizer.
 
 - `openapi.yaml` baseline قرارداد `/api/v1` است. Endpoint هر Story هم‌زمان با implementation و contract test افزوده می‌شود.
 - `events.schema.json` envelope مشترک رویدادهای outbox/queue را تعریف می‌کند.
