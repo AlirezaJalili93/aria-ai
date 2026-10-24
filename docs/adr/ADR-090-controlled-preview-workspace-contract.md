@@ -6,14 +6,20 @@
 
 **Planned increment:** `0103-controlled-preview-workspace`
 
-**Review revision:** v0.12 — P5 logical model approved; separate proposed SQL source ready for review; P4/full Freeze WAIT; SQL execution/Migration/implementation NO-GO
+**Review revision:** v0.15 — P4 contract FROZEN; P5 Installer/pre-commit ACL design APPROVED, exact SQL r2 PENDING SOURCE REVIEW; full ADR Freeze WAIT; implementation/SQL execution/Migration NO-GO
 
 The owner approved T1..T7, the six D6 One-shot semantics and the minimum consumption-retention
 invariant and identity-only response direction recorded in v0.7 below, plus S1/S2/R2 with the
 refinements and subsequent explicit P2/P3 approvals recorded in v0.9, and the P5 logical model and
-Capability-bound authentication decision recorded in v0.12. P1 design is conditionally
-accepted for Local/Synthetic only; the exact transport/profile, other D clauses, detailed state/
-polling proposals and wireframe are not Frozen. Contract refinement only is authorized. No runtime
+Capability-bound authentication decision recorded in v0.12, plus the P4 derivative identities and
+initial-page decision recorded in v0.13. The owner subsequently read the complete v0.13 P4.R1..R4
+text in the conversation and explicitly froze the complete P4 contract (v0.14, 2026-10-24).
+The subsequent v0.15 decision approves only the independent temporary Superuser Installer and
+pre-commit effective-authority design; the revised SQL text itself remains pending source review.
+This includes its derivative identities, initial page, transformation/script/CSP rules and P4
+acceptance conditions, not executable source bytes or proof results. Remaining P1 transport/
+persistence integration, other D clauses, detailed state/polling proposals and wireframe are not
+thereby Frozen. Contract refinement/review only is authorized. No runtime
 code, endpoint, migration, Hosted activation, commit or push is authorized by this draft revision.
 
 **ADR090-T01 direction resolved:** the owner selected option 2: no capability token in any URL,
@@ -28,8 +34,9 @@ Define a concrete next slice for `FE-F3-05` (browser preview container) and `FE-
 (mobile/desktop viewport switch). The owner asked to continue development from the canonical
 documents, then to continue the proposed contract definition. This authorizes preparing this
 proposal. Except for the explicitly approved T1..T7, D6 semantics, v0.7 retention/identity-only
-decisions, v0.9 S1/S2/R2/P2/P3 and v0.12 P5 logical-model/authentication decisions, unapproved
-details below remain proposals.
+decisions, v0.9 S1/S2/R2/P2/P3, v0.12 P5 logical-model/authentication decisions and the v0.14
+P4 contract Freeze based on v0.13's complete text, plus v0.15 Installer/pre-commit ACL design,
+unapproved details below remain proposals.
 
 0102 passed its approved Local/Synthetic publication, access and browser matrix. It deliberately
 excluded management HTTP/JWT and product activation. Source inspection on 2026-10-17 found
@@ -762,9 +769,13 @@ development record before implementation.
 | REQ-10314 | Owner's explicit identity-only response selection in v0.7; numeric/request refinements approved in REQ-10316 | Contract design only: uncompressed final UTF-8 HTML response body; no proxy/runtime changes | TC-103S02..04: planned boundary cases, NOT RUN |
 | REQ-10315 | Historical v0.8 design proposal; approval/refinements superseded by REQ-10316 / v0.9 | Review document only: original size proposal and rationale; no executable implementation | TC-103S01..08: planned boundary checks, NOT RUN |
 | REQ-10316 | Owner's explicit v0.8 S1/S2/R2 approval and subsequent P2/P3 answers, recorded in v0.9 | ADR only: approved caps/error mapping/no-purge scope, exact parser and precedence; immutable prepared bytes before atomic consumption; no Runtime/SQL | TC-103S01..08, TC-103P01..06 and TC-103R01..06: NOT RUN; no acceptance claimed |
-| REQ-10317 | Owner's push-then-design continuation; ADR-088/089 invariants and P1 conditional design; P4 NOT APPROVED | Contract only: proposed versioned packet transformation, fixed navigation script, exact-source SVG and hash-only CSP; no source/profile/Worker/schema implementation | TC-103D01..08 below: all NOT RUN; no Browser acceptance claimed |
+| REQ-10317 | Historical P4 proposal; owner approval now recorded in REQ-10321 | Contract only: versioned packet transformation, fixed navigation script, exact-source SVG and hash-only CSP; no source/profile/Worker/schema implementation | TC-103D01..08 below: all NOT RUN; no Browser acceptance claimed |
 | REQ-10318 | Owner's design continuation and explicit Option A selection; actual Alembic 0040/0041 and ADR-089 authority boundary | Additive closed-profile design approved; exact consumption schema/helper DDL still requires review; no Migration/Runtime change | TC-103M01..06 below: proposed future compatibility checks, NOT RUN |
 | REQ-10319 | Owner's explicit P5 logical-model/SQL-design approval and Capability-bound authentication clarification | [P5 SQL review source](ADR-090-p5-sql-contract.md): proposed DDL, FK/PK/RLS, fixed Preflight/Consume, lock/commit/ACL boundaries; not an applied schema or migration | TC-103SQL01..12 in review source: all NOT RUN; SQL not compiled/executed |
+| REQ-10320 | Owner's P4 v0.10 source review at d794ffa: identities/initial page approved; four mandatory refinements, 2026-10-18 | P4.R1..R4 and v0.13: exact DOM ownership/reference/failure rules, closed SVG boundary, reviewed CSP hash provenance and separate zero-request/zero-navigation invariants; documentation only | TC-103D02..07 strengthened; TC-103D09..12 planned below, all NOT RUN; no Browser/Runtime/SQL authorization |
+| REQ-10321 | Owner's explicit final P4 architecture decision after reading the complete v0.13 text, 2026-10-24 | P4 current status and v0.14 decision record: complete P4 contract FROZEN, executable bytes/proofs and other ADR gates still independent | Source-to-decision status audit only; P4 tests NOT RUN; no Freeze of P5 SQL/full ADR or implementation permission inferred |
+| REQ-10322 | Same instruction: continue independent P5 SQL review only | P5 review document section 10: static constraint/authority/concurrency/commit review and open installation preconditions; SQL blocks unchanged | TC-103SQL01..12 remain NOT RUN; text-only SQL preservation check; no parser/compiler/database execution |
+| REQ-10323 | Owner's P5 Installation Authority decision, 2026-10-24: SQL-contract text design only | P5-SQL r2 sections 2/3/6/6.1/11: temporary independent Superuser Installer, restricted final definer ownership and pre-commit raw/effective ACL/role/schema/RLS assertions; no Helper owner CREATE or Worker installation rights | TC-103SQL13..16 proposed NOT RUN; source/privilege-path review and existing regression checks only; exact SQL acceptance and execution still separate NO-GO gates |
 
 Additional final gates: real-role revoke/issue races, immutable source byte preservation,
 one-time capability disposal on unmount, cancellation of pending metadata requests, 375/768/1024
@@ -1363,11 +1374,17 @@ document write, commit or push. These checks do not change full Freeze WAIT or i
 
 ### v0.10 P4 single-response profile and CSP proposal — 2026-10-17
 
-**Status: PROPOSED / OWNER REVIEW REQUIRED; design only.** The owner explicitly requested
+**Current status (v0.14 owner decision, 2026-10-24): APPROVED / FROZEN AT CONTRACT LEVEL.**
+The owner reviewed the complete v0.13 P4.R1..R4 text sent in the conversation, not the old GitHub
+checkpoint. The Freeze includes P4's identities, pages[0], HTML/CSS/SVG transformations, fixed-script
+behavior, CSP and acceptance conditions. Concrete executable bytes/hashes, Transformer code and
+Browser evidence are still unreviewed/unexecuted. P5/full ADR/implementation remain separate.
+The following v0.10 history records the original proposal and its verification. The owner explicitly requested
 "push, then continue". The approved v0.9 documentation checkpoint was committed and pushed as
 `413a0cc246689fd634117fcfe5979c5f9d46a8dd`; remote branch SHA matched and the worktree was clean.
-That commit changed only this ADR. The continuation below remains local and unapproved; no further
-commit/push, Runtime, API, Migration, new Browser proof or Hosted/customer activation is inferred.
+That commit changed only this ADR. Later local contract text has now received the limited P4 Freeze
+above; no further commit/push, Runtime, API, Migration, new Browser proof or Hosted/customer
+activation is inferred. Historical proposal/review states remain history, not the current P4 state.
 
 Sources: owner-approved T1..T7/D6/S1/S2/R2/P2/P3; ADR-088 isolation/System Font boundary; ADR-089's
 verified immutable 0100 source and restricted derivative rules; read-only inspection of the fixed
@@ -1382,8 +1399,8 @@ support this proposal; the unavailable guide is not presented as inspected or pr
 
 #### P4.1 — Separate immutable derivative, never a 0102 profile extension
 
-Proposed contract identities are `preview_bootstrap_transformer_v1` and
-`preview_bootstrap_delivery_policy_v1`. They are reviewable names, not registered constants or
+Owner-approved contract identities are `preview_bootstrap_transformer_v1` and
+`preview_bootstrap_delivery_policy_v1` (2026-10-18). They are not registered runtime constants or
 new DB fields. Use the existing concept of exact source plus versioned transformer/policy identity
 to distinguish this packet from `preview_delivery_transformer_v1`. A ready 0102 Representation is
 not rewritten or re-labelled as P1. Original ArtifactVersion, canonical AST, Renderer/Core assets,
@@ -1399,7 +1416,7 @@ items; this is not a hidden command/persistence contract.
 
 #### P4.2 — Closed HTML/CSS/media transformation
 
-Proposed preparation is structured parsing and deterministic serialization, never regex rewriting
+Contract preparation is structured parsing and deterministic serialization, never regex rewriting
 or request-time rendering. Preserve page/section identity, content, order, headings, RTL semantics
 and approved component structure except for the following explicit derivative-only adaptations:
 
@@ -1415,15 +1432,15 @@ and approved component structure except for the following explicit derivative-on
    Verify the actual source bytes/hash and existing SVG safety restrictions. Reject any other
    image format, general SVG ingestion, external reference, `use`/`image` URL, script, foreignObject,
    event handler, animation or data/blob URL. Preserve verified geometry/colors, not an approximation.
-3. Proposed accessible inline SVG adaptation: preserve the original validated image's nonempty alt
+3. Required accessible inline SVG adaptation: preserve the original validated image's nonempty alt
    as an escaped SVG `aria-label` with `role="img"`; do not let a fixture's generic label override it.
    Empty-alt decorative media becomes `aria-hidden="true"` and non-focusable. Remove conflicting
    fixture-only accessible labels/title/description IDs in this derivative rather than emitting
-   repeated IDs. This explicit metadata transformation is proposed, not silent loss of AST content;
+   repeated IDs. Apply the independent closed SVG validation in P4.R2 before this adaptation;
    source bytes remain intact. No canonical Page/Section identity or protection state changes.
 4. Put exactly one page in the active document and all other supported pages in inert templates.
-   Proposed initial page is `canonical_ast.pages[0]`, preserving source array order, not an invented
-   root-page requirement or lexicographic/latest lookup. This initial-page choice needs owner review.
+   Owner-approved initial page is `canonical_ast.pages[0]`, preserving source array order, not an
+   invented root-page requirement or lexicographic/latest lookup. Apply exact DOM rules in P4.R1.
    All pages are delivered upfront; this provides neither per-page secrecy nor live revocation.
 5. Convert only validated intra-AST page links into `type="button"` page-switch controls with the
    same accessible labels and approved classes; remove network-navigation attributes. No `href`,
@@ -1441,7 +1458,7 @@ output. Final bytes must meet approved S1 and be immutable before approved P3 co
 
 #### P4.3 — Fixed Application script, no generated execution
 
-Propose exactly one reviewed Application-owned inline script, identical for every packet under
+Require exactly one reviewed Application-owned inline script, identical for every packet under
 its script/profile version. No content, token, IDs, labels, manifest or Provider strings are
 interpolated into executable source; escaped data stays in validated markup. Reject executable
 nodes inside templates and all event/style attributes. The preparation guard verifies that the
@@ -1458,7 +1475,7 @@ remain local; no form persistence guarantee is created by page switching. Exact 
 support CSS bytes are NOT WRITTEN or approved by this behavior proposal; their source review and
 Browser proof remain necessary before claiming acceptance.
 
-#### P4.4 — Proposed response CSP, not an installed header
+#### P4.4 — Contract response CSP template, not an installed header
 
 ```text
 default-src 'none';
@@ -1493,7 +1510,7 @@ navigation, so zero follow-up requests depends on verified markup, fixed code an
 Inline SVG geometry and exact CSS/script compatibility must be tested under this policy; no
 `img-src data:`, CORS exception or extra sandbox permission is an authorized fallback.
 
-Propose CSP as an enforcing HTTP response header, including exact frame-ancestors, not a meta tag
+Require CSP as an enforcing HTTP response header, including exact frame-ancestors, not a meta tag
 or Report-Only substitution. Retain no-store, no-referrer, nosniff, the existing restrictive
 Permissions Policy and narrowly scoped Local/Synthetic CORP cross-origin. ACAO, Set-Cookie and
 response Content-Encoding are absent; no compression/transformation, credential forwarding or
@@ -1501,26 +1518,203 @@ external reporting/report-sample endpoint is added. Core strict-origin/form-acti
 separately reviewed R1/Core policy, never a global Core header change. The iframe stays exactly
 allow-scripts, without same-origin/forms/popups/downloads/top-navigation or a postMessage bridge.
 
+#### P4.R1 — Exact page DOM, references, focus and failure boundary
+
+This is the mandatory design refinement of P4.2/P4.3, not source code or a new Renderer contract.
+Let `P[i]` denote the verified page subtree for `canonical_ast.pages[i]`. The packet has one ordinary
+active-page container (not an extra `main`) and one inert **ordinary HTML template** per page in
+that same source order. On initial parsing, `P[0]` is already in the active container, its own
+template is empty, and each other template contains its one corresponding `P[i]`. These are logical
+slots, not new AST fields, endpoint parameters or a requirement to invent public DOM identifiers.
+Declarative Shadow DOM, custom elements, nested browsing contexts and executable/resource-bearing
+template content are not allowed. Inertness alone is not input validation.
+
+The page subtree includes its existing Navbar/Footer landmarks and exactly one `main` with its one
+accessible `h1`. Only the active subtree is connected as visible/focusable page content. Inactive
+pages live in template `content`, not CSS-hidden copies in the active accessibility/focus tree.
+All pages nevertheless remain present in the delivered bytes under D6; this is not per-page secrecy.
+
+Before delivery, recursively inspect the whole prepared packet **including every template's
+content**. Build one combined inventory of all page, field, heading, wrapper and control IDs:
+
+- IDs must not collide across any possible active page, parked template or Application wrapper.
+  Preserve canonical Page/Section identities and already-valid label/control identities; do not
+  repair collisions by silently renaming those identities, dropping a field or merging pages.
+- Every retained `label[for]`, `aria-labelledby`, `aria-describedby` and other permitted IDREF/IDREFS
+  must resolve unambiguously within its own page subtree, or to an explicitly fixed Application
+  control/container where that association is defined. No cross-page label, dangling reference,
+  duplicate attribute or reference to untrusted markup is accepted. Native wrapping labels remain
+  wrapping labels; their control and text must not be separated. Page-navigation target keys are
+  the closed verified page mapping, not arbitrary DOM/CSS selectors supplied by content.
+- Preserve page-array order, Section order, field/control order, visible labels and accessible
+  names. A page switch changes attachment, not source order or canonical identity. No cloning,
+  `innerHTML`/string re-parsing, ID regeneration or new content is part of switching.
+
+The fixed script validates page membership, both source/destination slots and all needed references
+**before** a switch. It serializes switches without re-entrant mutations. Move the old subtree to
+its own empty template before attaching the target, so two `main`/`h1` page subtrees are never active
+together. After a successful switch exactly one page is active and its own template is empty;
+every other page is parked exactly once. Selecting the already-active page creates no duplicate.
+No network, URL/history update, new parser pass or asynchronous external work occurs in this step.
+
+After a successful switch, move focus within the iframe to the newly active page's existing `h1`.
+If a programmatic focus target needs focusability, use only an Application-owned `tabindex="-1"`,
+never a positive tab order, `autofocus`, `aria-hidden` on the active heading or focus on a parked
+page. Preserve existing heading/landmark semantics and visible focus. Controls that carry
+Application-owned `aria-current`/`aria-controls` must reflect the actual active page/valid target;
+no stale reference, unjustified tab-widget role or provider-defined ARIA state is introduced.
+Inactive template pages contribute no interactive tab stops.
+
+Initial markup is independently safe: if script is absent, blocked by CSP or fails initialization,
+only `P[0]` is visible and all page-switch buttons remain disabled. Initialization enables controls
+only after the graph/slot checks and handlers are ready. A detected switch failure must restore
+the verified `P[0]` subtree, park the others once and disable page-switch controls; it must not leave
+a mixed page, dangling labels, focus in an inactive subtree or a network-navigation fallback.
+Fixed-code rollback/guard behavior and injected initialization/switch failures require source
+review and Browser evidence. This clause does not claim rendering after a browser process crash
+or recovery of memory lost with that process. No script bytes or DOM implementation were written.
+
+#### P4.R2 — Independent closed SVG structural and accessibility boundary
+
+Source Manifest binding and exact source bytes/hash remain necessary, but are **not sufficient**
+to authorize inline SVG. Independently parse with external entities/DTDs disabled and validate
+namespace, structure, attributes, values and references before emitting a derivative. Reject
+ambiguous parsing, foreign namespaces, duplicate attributes, XML declarations, DOCTYPE/processing
+instructions, unrecognized nodes or unexpected text. Only the fixed root `xmlns` declaration below
+is permitted. Do not load an XML resource to validate it.
+
+The accepted source here is the exact current 0100 builder fixture, not general SVG:
+
+| Source element / position | Closed attributes and value authority |
+|---|---|
+| One root SVG in the SVG namespace | `xmlns`, `viewBox`, `role`, `aria-label` exactly as present in the verified Application-owned source profile |
+| Its single `rect` child | `width`, `height`, `fill` exactly as present in that same verified source profile |
+
+This set comes from `scripts/artifact-generation/build-static-bundle.mjs` and the existing 0102
+source check; it does not authorize an arbitrary shape/attribute library or alternate geometry.
+There is no SVG `id`, local fragment reference or IDREF in this exact source subset. Reject such
+additions (including otherwise-local references) rather than inventing a rewrite/remapping policy.
+If a future profile needs internal IDs/references it requires a separately reviewed closed graph,
+uniqueness and referential-integrity contract; it is not silently supported by v1.
+
+Explicitly reject script/event attributes, `foreignObject`, `use`, `image`, links, animation,
+`href`/`xlink:href`, `xml:base`, external namespace mechanisms, CSS/style/class injection, resource
+URLs of any scheme and reference-valued paint/filter/clip/mask attributes. Unknown namespaced or
+case/encoding-obfuscated forms are not repaired into trusted attributes. Safe geometry/colors
+are retained unchanged; neither a correct hash nor a familiar file name overrides the closed
+structural check. No remote fetch, CSS URL, data/blob image or font is introduced.
+
+Only after source validation may the derivative replace the fixture's generic accessible label:
+nonempty validated source-image Alt becomes escaped `aria-label` and `role="img"`; decorative
+empty Alt produces `aria-hidden="true"`, without a competing `role="img"`/accessible label. SVGs
+are non-focusable, with no positive tab stop. Only the Application-owned accessibility attributes
+needed for those two cases may be added; no `title`/`desc`/ID reference is synthesized. Inspect every
+emitted occurrence in the combined P4.R1 identity/reference inventory. No SVG-ID collision or
+dangling reference may be hidden by template inertness. Any unexpected source metadata fails
+preparation rather than being broadly sanitized. Original source/0102 files are never modified.
+
+#### P4.R3 — CSP hash provenance, version review and exact embedding boundary
+
+The two hashes have different provenance; neither authorizes arbitrary input:
+
+- **Script:** compare the sole inline classic script against the exact, pre-reviewed fixed
+  Application script version **before** accepting its hash. The expected hash is derived from
+  that trusted version, not discovered by hashing whatever script arrives in a packet. Reject
+  extra/modified scripts, module/import/speculation maps, external `src`, event attributes and
+  content interpolated into executable bytes, including inside templates.
+- **Style:** first verify exact approved CSS inputs and only the reviewed import/System Font
+  substitutions plus separately reviewed fixed support CSS. After deterministic final
+  serialization, hash the one authorized inline style text. No user/Provider CSS, unexpected
+  attribute, `url()` spelling/escape, import, font or style tag is authorized just because a hash
+  can be calculated. The closed profile check precedes hash acceptance.
+
+Compute CSP SHA-256/Base64 over each exact final inline text encoded as UTF-8 with the reviewed LF
+serialization, without its tag delimiters; the packet must contain those same texts after HTML
+parsing. Reject raw-text end-tag ambiguity, BOM/line-ending/encoding surprises or any later
+serializer/transport mutation. The whole-packet integrity hash and final S1 byte count are
+separate checks over the final response bytes, not interchangeable with inline CSP hashes.
+
+Any change to script, style input/output, Transformer rules or serialization must undergo review
+of the affected version identity and hash binding before further preparation/delivery under that
+contract. Do not silently mutate an immutable published profile, register a new version, compute
+and trust a new hash at runtime, or continue an old evidence matrix under changed bytes. Full
+packet byte verification must bind the authorized source/profile, not let an attacker replace
+content and its claimed hash together. Concrete script/style/serialization source bytes and
+version bindings still require review; no executable fixed-script implementation is supplied here.
+
+Hash matches do not permit an external URL/resource, matching-SRI script, scheme source or
+dynamic loader. P4.R2/R4 closed parsing still rejects those inputs. Retain the hash-only enforced
+HTTP CSP in P4.4, with `script-src-attr 'none'`, `style-src-attr 'none'`, System Fonts/no network
+sources and no reporting endpoint/sample. There is no general `'unsafe-inline'`, `'unsafe-eval'`,
+`'strict-dynamic'`, nonce, CORS or Trusted Types fallback added to this contract.
+
+`frame-ancestors` is the exact configured Core **scheme + host + port**, not `'self'`, `null`, a
+wildcard, suffix match or all Core subdomains. Emit it as an enforcing HTTP response header, not
+Meta or Report-Only. Observe allowed Core embedding and foreign/nested-ancestor denial in the
+actual Browser with the child still opaque under `sandbox="allow-scripts"`. An allowed ancestor
+must not be inferred from the child's own opaque origin or from a successful HTTP response.
+CSP neither replaces sandbox restrictions nor authorizes `allow-same-origin`, `allow-forms` or a
+postMessage bridge. Compatibility failures remain failures; there is no header relaxation path.
+
+#### P4.R4 — Zero follow-up requests AND zero unintended navigation
+
+Treat these as two independent acceptance invariants, not the single claim "no fetch API":
+
+1. After the one successful Bootstrap response, the delivered packet initiates **zero subsequent
+   network requests**, including page documents, redirects, subresources, hints, favicons, styles,
+   fonts, SVG references, telemetry/reports, WebSockets, beacons, prefetch/prerender and workers.
+2. The packet performs **zero unintended navigation**, even when no HTTP request would occur:
+   no same-document fragment/URL/history mutation, `about:`/`data:`/`blob:` fallback, iframe/parent/
+   top navigation, form default action, auxiliary context, download or external-protocol action.
+   Approved page switches move verified nodes only; they are not browser navigation.
+
+The Bootstrap request itself is excluded from the follow-up count. Independent, already-approved
+Core metadata/BFCache revalidation is outside the packet's initiator scope; this does not authorize
+any new Core request, polling, session or hidden rebootstrap. Browser chrome/user-directed manual
+navigation or extensions are not claimed to be controlled by packet CSP. Existing T6/D6 lifecycle
+limitations remain explicit; no live access or BFCache single-frame secrecy promise is added.
+
+Before consumption, recursively reject network/navigation surfaces in all HTML/template/CSS/SVG
+content: destination/resource attributes and escaped alternatives, links/forms/base/meta-refresh,
+resource hints/preload/prefetch/speculation rules, external style/script/media/object/frame/worker
+references and any unsupported default behavior. Convert only the already-approved intra-AST
+page links to disabled-until-ready buttons as P4.2 permits; do not silently strip arbitrary unsafe
+inputs into an acceptable packet. Browser auto-generated document/icon loads must also be checked;
+if they occur, the zero-request gate fails rather than being ignored or accommodated by new URLs.
+
+Future Browser evidence must inspect document/frame URL changes, navigation attempts and all
+request initiators, not just XHR/fetch or a mocked network client. Exercise ordinary/middle/modifier
+clicks, keyboard activation/Enter, SimpleForm controls, JS-off/CSP-blocked initialization, switch
+errors and inactive pages after activation. A CSP/sandbox denial may prove defense in depth for a
+negative probe, but does not make an unsafe input packet eligible or a valid packet's attempted
+navigation acceptable. Do not use request interception to manufacture normal-flow zero traffic.
+Keep raw content, tokens, URLs and sensitive exception context out of persisted evidence.
+The original browser-family/device matrix remains required; no Browser Proof is authorized here.
+
 #### P4.5 — Planned profile acceptance, all NOT RUN
 
 | Case | Required future observation |
 |---|---|
 | TC-103D01 | Exact three-type 0100 source produces version-distinct deterministic packets; repeated preparation matches bytes/hashes; source/0102 bytes unchanged |
-| TC-103D02 | Initial page follows approved source order; one active main/h1; page controls are accessible and never navigate, including modifier/middle clicks and JS-off |
-| TC-103D03 | Actual source Manifest SVG, original alt/decorative semantics and unique references survive; wrong file under same path, arbitrary media and active/external SVG rejected |
-| TC-103D04 | Fixed script and verified style hashes match final bytes; modified/extra script or attributes fail preparation; unapproved inline execution blocked in Browser |
-| TC-103D05 | No resource/GET/redirect/prefetch/preload/font/API/Worker or storage/message traffic; external URL plus matching script integrity still rejected by profile |
-| TC-103D06 | Native SimpleForm controls remain usable with zero submit/navigation/storage; script failure leaves only initial-page display and disabled navigation |
-| TC-103D07 | Exact hash CSP, absent CORS/cookie/encoding, unchanged opaque sandbox and unauthorized-embedding denial work in every actually executed browser family |
+| TC-103D02 | Approved pages[0] first, exact P4.R1 slot cardinality/order; one active main/h1, no duplicate IDs, detached-label/IDREF or parked-page tab stops; page controls never navigate |
+| TC-103D03 | Exact source bytes/hash AND independent P4.R2 namespace/node/attribute/value/reference checks; meaningful/decorative Alt preserved; arbitrary media/IDs/active or external SVG rejected |
+| TC-103D04 | Sole script matches pre-reviewed source/version/hash; CSS origin/transforms verified before final hash; modified/extra scripts/styles/serialization rejected, not auto-hashed into trust |
+| TC-103D05 | Observe zero normal-flow follow-up requests AND zero unintended document/fragment/history navigation across resource/default-action/hint/SVG/CSS paths; matching integrity cannot admit a URL |
+| TC-103D06 | Native SimpleForm remains usable with zero submission/navigation/storage; JS-off/init rejection leaves P0 and disabled controls; detected switch fault restores P0 with correct focus/ARIA and no mixed page |
+| TC-103D07 | Enforcing HTTP CSP exact Core ancestor allowed, foreign/nested ancestor denied under unchanged opaque sandbox; absent CORS/cookie/encoding; test actual browser rather than HTTP status alone |
 | TC-103D08 | Approved final-body cap and exact-byte delivery hold with all pages embedded; no mutation after measurement, no partial consumption on preparation failure; report Mobile/memory limitations honestly |
+| TC-103D09 | Reject duplicate IDs/dangling or cross-page label/ARIA references even inside inactive templates; repeated switches preserve canonical IDs, field associations/order and at most one active page |
+| TC-103D10 | Inject startup/switch faults and repeated/re-entrant activation; only verified P0 safe fallback with disabled controls, no duplicated nodes/focus in parked page or network fallback |
+| TC-103D11 | Correct-hash-but-unapproved SVG structure, XML/namespace/entity tricks, event/URL/reference attributes and extra metadata fail closed; no ID-remapping or general SVG sanitization path |
+| TC-103D12 | Changed script/style/Transformer/serialization requires affected version/hash review; extra resource with matching SRI still denied; middle/modifier/keyboard/form and JS-off interactions cause neither request nor navigation |
 
 These add detail to, not replace or pass, TC-103T01..12. The complete browser/OS matrix, BFCache,
 actual-role consumption/revoke races and exact SQL/private packet schema remain unexecuted/open.
 No source script, packet, schema file, endpoint, migration, new test harness or dependency was added.
 
-**Owner review requested:** approve/refine P4's derivative identities, exact-source SVG/accessibility
-mapping, source-first initial page, inert page-switch controls/fixed script boundary and CSP profile.
-All P4 choices remain PROPOSED; complete ADR-090 Freeze WAIT and 0103 implementation NO-GO.
+**Owner Freeze decision recorded:** P4.R1..R4 and P4's strengthened acceptance conditions are
+APPROVED / FROZEN AT CONTRACT LEVEL (2026-10-24). No executable source, actual hash or Browser
+result is approved by that decision. P5 SQL PENDING REVIEW; full ADR Freeze WAIT; 0103 NO-GO.
 
 v0.10 verification: full `npm test` completed with exit 0 using the existing workspace-local uv
 cache; preceding Node/Renderer/Web stages passed, API **592 passed / 246 skipped / 2 warnings**,
@@ -1688,3 +1882,138 @@ and whitespace checks PASS (Git line-ending warning only). These are regression/
 not execution evidence for the proposed SQL: all twelve new P5 SQL scenarios are **NOT RUN**;
 the source is **NOT COMPILED / NOT EXECUTED**. Only this ADR and its new SQL-review Markdown
 changed; no completed development increment, PostgreSQL gate or full 0103 acceptance is claimed.
+
+### v0.13 owner P4 review and required contract refinements — 2026-10-18
+
+Authority: the owner read P4 v0.10 directly at checkpoint `d794ffa`, accepted the design in
+principle, approved its two derivative identities and `canonical_ast.pages[0]`, and required four
+specific refinements **before** another Freeze review. Authorization is documentation revision
+only; it does not include Browser Proof, Runtime, SQL/Migration, commit/push or Hosted activation.
+REQ-10320 maps these changes to P4.R1..R4 and planned TC-103D02..12. Older v0.10/v0.11 proposal
+status is historical where this owner decision now supersedes identities/initial-page uncertainty.
+
+P4 now defines the active slot/one-template-per-page model, combined ID/reference inventory,
+move-without-clone ordering, focus/ARIA and initial-page failure fallback; an independent exact
+SVG structural/attribute/reference boundary with meaningful/decorative Alt; trusted script-source
+versus validated-style hash provenance and version review; and two distinct zero-follow-up-request
+and zero-unintended-navigation invariants. New acceptance cases remain NOT RUN. No script, CSS,
+DOM implementation, executable test, source SVG or packet was generated or modified.
+
+Read-only source checks: the actual 0100 builder and 0102 transformer both accept the fixed SVG
+root/rect source; Renderer field labels use Section-bound stable IDs. These facts ground the
+refinements; they do not prove the proposed P4 transformer or rollback implementation works.
+No fresh Canonical Drive review or write is claimed for this owner-directed contract revision.
+
+Technical references checked 2026-10-18: [HTML template content/inertness](https://html.spec.whatwg.org/multipage/scripting.html#the-template-element),
+[CSP3](https://www.w3.org/TR/CSP3/) (hash sources and frame-ancestors) and
+[SVG2 structure](https://www.w3.org/TR/SVG2/struct.html). Modern Web Guidance `security` was searched
+and fully retrieved for this turn. It reinforced unsafe-DOM-sink avoidance and independent
+header/isolation verification; generic reporting/nonces/strict-dynamic/CORS/Trusted Types changes
+were not adopted over the owner's narrower no-network/hash-only contract. The tool warned of a
+newer skill revision; no repository dependency or installed skill was updated.
+
+**Status:** P4 derivative identities/initial page APPROVED; SVG/navigation/CSP accepted in principle
+with required refinements now documented; P4 Freeze WAIT. P5 logical model/authentication APPROVED,
+exact SQL review PENDING and unaffected. Full ADR-090 Freeze WAIT; 0103 implementation,
+SQL execution/Migration, Browser Proof, Hosted/customer use and commit/push remain NO-GO.
+
+v0.13 documentation/regression verification: `npm test` exit 0; preceding Node/Renderer/Web stages
+passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in 32.14s**, Worker **376 passed /
+67 skipped / 1 warning in 21.44s**. Existing deprecation/pytest-cache warnings were not suppressed.
+Service-test environment variables were absent before running; no PostgreSQL/Redis integration
+gate or Browser launch was enabled. `npm run validate` **23/23 PASS**, Secret Scan **1,237 files
+PASS**, and diff whitespace checks PASS (line-ending warnings only). Text-only comparison against
+HEAD confirms every fenced P5 SQL block is unchanged; only its dependency-status prose reflects
+the newly approved P4 names. The pre-existing local MVP assessment report was preserved unchanged.
+No executable P4 test/proof, SQL compilation/execution, Runtime/API/Migration change, commit/push
+or external system write occurred. TC-103D01..12 and the full P1 matrix remain **NOT RUN**;
+regression PASS is not P4 Freeze, Browser acceptance or full 0103 completion.
+
+### v0.14 final P4 contract Freeze and independent P5 source review — 2026-10-24
+
+The owner explicitly approved the complete P4 contract after reviewing the full v0.13 P4.R1..R4
+text supplied in the conversation. The decision is **not** based on the older GitHub revision.
+Record P4 as **APPROVED / FROZEN AT CONTRACT LEVEL**, including both derivative identities,
+`canonical_ast.pages[0]`, the HTML/CSS/SVG conversion boundary, fixed page-switch script behavior,
+hash CSP and P4 acceptance conditions. The normative P4.R1..R4 text is unchanged by this status
+update. Actual script/CSS/serialization bytes, real hashes, Transformer implementation and Browser
+proof still require their independent executable gates; none has been authorized or run here.
+
+The owner separately authorized continued **source review** of P5, not SQL approval or execution.
+[P5 section 10](ADR-090-p5-sql-contract.md) records the static comparison against 0038/0040/0041,
+the current revoke repository and PostgreSQL documentation. It distinguishes reasoned expectations
+from runtime evidence and identifies installation-authority/ACL ordering questions. No fenced SQL
+statement, active migration, runtime role/grant/RLS, endpoint or executable test changes as part
+of the review. The PostgreSQL skill informs minimum privilege and short-transaction/lock review;
+it does not authorize a new role, tenant-RLS redesign or a numeric timeout/retry policy.
+
+| Gate | Current decision |
+|---|---|
+| P4 contract | APPROVED / FROZEN AT CONTRACT LEVEL |
+| P4 executable bytes/hashes/Transformer/Browser proof | NOT APPROVED / NOT RUN |
+| P5 logical model and Capability + stored-binding boundary | APPROVED |
+| P5 exact SQL contract | PENDING OWNER SOURCE REVIEW |
+| Full ADR-090 Freeze | WAIT |
+| 0103 implementation / SQL execution / Migration | NO-GO |
+| Hosted Preview / customer content | NO-GO |
+| Commit / Push | NOT AUTHORIZED |
+
+This decision record supersedes historical P4 WAIT/proposal labels only for P4's contract. It does
+not waive the remaining D clauses, wireframe, P5 integration/private Manifest, complete browser
+matrix or shared-Worker security limitations. No new Canonical Drive review/write is claimed.
+Existing uncommitted reports and earlier local edits are preserved.
+
+v0.14 verification: `npm test` exit 0; existing Node/Renderer/Web stages passed (Web 47/47),
+API **592 passed / 246 skipped / 2 warnings in 33.42s**, Worker **376 passed / 67 skipped /
+1 warning in 24.38s**. Existing deprecation/cache-permission warnings remain visible. Service-test
+environment was absent before execution; no PostgreSQL/Redis integration or Browser Proof ran.
+`npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**, and diff whitespace checks
+PASS (line-ending warnings only). Text-only comparison confirms all fenced P5 SQL blocks remain
+identical to HEAD. No new SQL compilation/execution, Runtime/Migration change, commit/push or
+external document/system write occurred. New P4/P5 acceptance cases remain NOT RUN; these checks
+do not change any gate other than recording the owner's explicit P4 contract decision.
+
+### v0.15 independent Installer and pre-commit ACL design — 2026-10-24
+
+Owner decision: **P5 INSTALLATION AUTHORITY APPROVED FOR SQL CONTRACT DESIGN ONLY**. Record the
+Installer as an independently controlled temporary PostgreSQL Superuser installation session in
+the disposable Local/Synthetic database, not an arbitrary Admin or Worker. No Installer identity,
+credential, role membership or schema CREATE is created/granted to runtime principals. Helper
+owner stays restricted NOLOGIN/NOBYPASSRLS, without schema CREATE; Worker gains only exact
+approved runtime EXECUTEs, no installation, ownership or direct ledger privilege.
+
+[P5-SQL r2](ADR-090-p5-sql-contract.md), especially sections 3, 6/6.1 and 11, proposes one future
+installation transaction: Installer guard -> create/alter scoped objects -> assign restricted
+final SECURITY DEFINER ownership -> revoke PUBLIC -> explicit grants -> inspect raw/effective
+ACLs, ownership, memberships/SET ROLE, schema privileges and RLS metadata -> assert -> COMMIT only
+if all pass. Failure requires rollback without broad role/default-policy repair. Superuser may
+remain ledger/invoker-trigger owner but not final owner of the two runtime definer functions.
+Post-commit actual-role tests remain separate and cannot use Installer as an RLS proof identity.
+
+This updates SQL review text only. Exact SQL r2, helper-owner reuse and executable catalog/role
+behavior still require source review and separate execution authority. Existing three helper/
+trigger function definitions and frozen P4.R1..R4 normative clauses are not changed. TC-103SQL13..16
+extend the planned negative installation/ACL/rollback evidence; all new P5 cases remain NOT RUN.
+No SQL file/migration, runtime/API, database connection, Browser Proof or executable test is added.
+No new Canonical Drive read/write, commit or push is claimed or authorized. Prior source-review
+statements about unchanged SQL blocks describe their historical v0.14 checkpoint, not r2.
+
+| Gate | Current decision |
+|---|---|
+| P4 contract | APPROVED / FROZEN AT CONTRACT LEVEL |
+| P5 logical model / Installer / pre-commit authority design | APPROVED |
+| P5 exact SQL r2 / operational-role verification | PENDING SOURCE REVIEW / NOT RUN |
+| Full ADR-090 Freeze | WAIT |
+| SQL execution / Migration / 0103 implementation / Browser Proof | NO-GO |
+| Hosted Preview / customer content / Commit / Push | NOT AUTHORIZED |
+
+v0.15 documentation/regression verification: `npm test` exit 0; existing Node/Renderer/Web stages
+passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in 33.81s**, Worker **376 passed /
+67 skipped / 1 warning in 21.88s**. Existing warnings were not suppressed. `npm run validate`
+**23/23 PASS**, Secret Scan **1,237 files PASS**, diff whitespace checks PASS (line-ending warnings
+only). Text-only comparison confirms the three fixed function definitions remain identical to
+HEAD; proposed installer/ACL review blocks changed deliberately. Service-test environment was
+absent; no database/Redis integration, SQL compilation/execution, Browser Proof, runtime/migration
+change, commit/push or external-system write occurred. TC-103SQL01..16 remain NOT RUN. Only the two
+tracked ADR Markdown files changed; existing uncommitted MVP assessment was preserved. Regression
+checks do not freeze exact SQL or authorize 0103 implementation.
