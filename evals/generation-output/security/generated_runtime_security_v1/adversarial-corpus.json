@@ -1,0 +1,56 @@
+{
+  "suite_version": "generated_runtime_security_v1",
+  "fixture_version": "generation_ast_v1",
+  "cases": [
+    {
+      "case_id": "ast_text_markup_inert",
+      "mutation": "hero_heading",
+      "value": "<script>globalThis.__ARIA_0098_XSS__='executed'</script><img src=\"https://example.invalid/aria-0098.png\" onerror=\"globalThis.__ARIA_0098_XSS__='executed'\">",
+      "expected": "accepted_as_inert_text"
+    },
+    {
+      "case_id": "ast_unknown_component",
+      "mutation": "component_type",
+      "value": "InjectedWidget",
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_unknown_property",
+      "mutation": "content_property",
+      "property": "dangerouslySetInnerHTML",
+      "value": { "__html": "<script>globalThis.__ARIA_0098_XSS__='executed'</script>" },
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_javascript_navigation",
+      "mutation": "target_path",
+      "value": "javascript:globalThis.__ARIA_0098_XSS__='executed'",
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_remote_asset",
+      "mutation": "asset_ref",
+      "value": "https://example.invalid/remote.png",
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_data_asset",
+      "mutation": "asset_ref",
+      "value": "data:image/svg+xml,<svg onload=alert(1) />",
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_path_traversal",
+      "mutation": "page_path",
+      "value": "/../private",
+      "expected": "rejected"
+    },
+    {
+      "case_id": "ast_provider_owned_protection",
+      "mutation": "section_property",
+      "property": "protected_state",
+      "value": "protected",
+      "expected": "rejected"
+    }
+  ]
+}

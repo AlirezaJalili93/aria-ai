@@ -36,8 +36,8 @@ and provide enough runtime evidence to complete the Sprint 1 staging gate.
 7. Keep `/health/live` dependency-free. Use `/health/ready` as the API deployment admission check;
    it requires PostgreSQL and Queue but deliberately excludes AI providers.
 8. Use Railway's `ON_FAILURE` policy with at most ten restarts because `ALWAYS` is unavailable on
-   Free/Trial. The Worker remains truthful about `queue_adapter_configured=false` until its dedicated
-   queue story is implemented.
+   Free/Trial. At the time of this ADR the Worker reported `queue_adapter_configured=false`; S1-E02
+   and accepted ADR-015 now supersede that runtime state with an explicitly configured Celery adapter.
 9. Treat this decision as Staging-only. It does not approve Railway Trial, Upstash Free, sleeping,
    limited credits, or cross-region traffic for Production/Closed Beta.
 

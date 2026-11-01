@@ -9,6 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /srv/aria
 
 COPY packages/observability ./packages/observability
+COPY packages/backend-application ./packages/backend-application
 COPY apps/api/pyproject.toml apps/api/uv.lock ./apps/api/
 
 RUN python -m pip install --no-cache-dir uv==0.12.5 \

@@ -1,0 +1,78 @@
+{
+  "fixture_id": "fa_req_007",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_007_ctx_1",
+        "item_type": "assumption",
+        "content": "سایت می‌تواند رتبه اول گوگل را در یک هفته تضمین کند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_007_src_a",
+            "source_version_id": "fa_req_007_src_a_v1"
+          }
+        ],
+        "status": "proposed"
+      },
+      {
+        "context_item_id": "fa_req_007_ctx_2",
+        "item_type": "unknown",
+        "content": "امکان چنین تضمینی اعتبارسنجی نشده است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_007_src_a",
+            "source_version_id": "fa_req_007_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_007_req_1",
+        "title": "تضمین رتبه اول گوگل",
+        "description": "سایت باید رسیدن به رتبه اول گوگل در یک هفته را تضمین کند.",
+        "category": "business",
+        "priority": "could",
+        "source_refs": [
+          {
+            "source_id": "fa_req_007_src_a",
+            "source_version_id": "fa_req_007_src_a_v1"
+          }
+        ],
+        "is_unsupported": true,
+        "critical_for_scope": false
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_007_cand_1",
+        "gold_requirement_id": "fa_req_007_req_1",
+        "semantically_unsupported": true,
+        "critical_for_scope": false
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_007_cand_1"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "unsupported",
+    "difficulty": "intermediate",
+    "phenomena": [
+      "unsupported_claim",
+      "business"
+    ],
+    "fixture_version": "1"
+  }
+}

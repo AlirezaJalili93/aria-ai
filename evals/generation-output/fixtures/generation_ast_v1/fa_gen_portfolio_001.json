@@ -1,0 +1,70 @@
+{
+  "schema_version": "generation_ast_candidate_v1",
+  "project_type": "portfolio",
+  "theme": { "mode": "dark", "token_profile": "aria_semantic_v1" },
+  "assets": [
+    "12000000-0000-4000-8000-000000000001",
+    "12000000-0000-4000-8000-000000000002",
+    "12000000-0000-4000-8000-000000000003"
+  ],
+  "pages": [
+    {
+      "title": "معرفی",
+      "path": "/",
+      "sections": [
+        {
+          "component_type": "Navbar",
+          "content": { "brand_text": "نمونه‌کار", "links": [{ "label": "کارها", "target_path": "/work" }, { "label": "تماس", "target_path": "/contact" }] },
+          "layout_variant": "centered",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.nav_collapse_v1",
+          "source_requirement_ids": []
+        },
+        {
+          "component_type": "Hero",
+          "content": { "heading": "طراحی با تمرکز بر مسئله", "primary_media_asset_ref": "12000000-0000-4000-8000-000000000001", "primary_media_alt_text": "نمایی از یک پروژه طراحی" },
+          "layout_variant": "split_media_end",
+          "style_token_refs": { "surface": "background", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.split_v1",
+          "source_requirement_ids": ["22000000-0000-4000-8000-000000000001"]
+        },
+        {
+          "component_type": "Testimonial",
+          "content": { "items": [{ "quote": "همکاری منظم و نتیجه قابل اتکا بود.", "author_name": "مشتری نمونه", "author_avatar_asset_ref": "12000000-0000-4000-8000-000000000003", "author_avatar_alt_text": "تصویر مشتری نمونه" }] },
+          "layout_variant": "single",
+          "style_token_refs": { "surface": "surface_muted", "text": "text", "accent": "primary", "border": "border", "container": "text_measure" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["22000000-0000-4000-8000-000000000002"]
+        }
+      ]
+    },
+    {
+      "title": "کارها",
+      "path": "/work",
+      "sections": [
+        {
+          "component_type": "PortfolioGrid",
+          "content": { "heading": "پروژه‌ها", "items": [{ "title": "پروژه نمونه", "summary": "بازطراحی تجربه یک خدمت حرفه‌ای.", "portfolio_media_asset_ref": "12000000-0000-4000-8000-000000000002", "portfolio_media_alt_text": "پیش‌نمایش پروژه نمونه" }] },
+          "layout_variant": "grid_2",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.grid_2_v1",
+          "source_requirement_ids": ["22000000-0000-4000-8000-000000000003"]
+        }
+      ]
+    },
+    {
+      "title": "تماس",
+      "path": "/contact",
+      "sections": [
+        {
+          "component_type": "ContactSection",
+          "content": { "heading": "برای همکاری", "methods": [{ "kind": "email", "label": "ایمیل", "value": "portfolio@example.test" }] },
+          "layout_variant": "stacked",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["22000000-0000-4000-8000-000000000004"]
+        }
+      ]
+    }
+  ]
+}

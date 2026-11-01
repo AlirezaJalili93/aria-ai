@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/requirement-extraction-report-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eval_set_id", "report_version", "provider_mode", "fixture_count", "metrics", "threshold_assessments", "critical_blockers", "human_review_status", "contract_gate", "model_quality_gate", "fixtures"],
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "numerator", "denominator"],
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "numerator": { "type": "number", "minimum": 0 },
+        "denominator": { "type": "number", "minimum": 0 }
+      }
+    },
+    "threshold_assessment": {
+      "enum": ["target", "minimum_acceptable", "below_minimum", "above_minimum", "release_blocker", "not_run"]
+    }
+  },
+  "properties": {
+    "eval_set_id": { "const": "requirement_extraction_eval_v1" },
+    "report_version": { "const": "1" },
+    "provider_mode": { "const": "fake_deterministic" },
+    "fixture_count": { "const": 20 },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_recall", "critical_omission_rate", "unsupported_output_rate", "unsupported_detection_rate", "duplicate_rate", "clarity_score", "actionability_score"],
+      "properties": {
+        "requirement_recall": { "$ref": "#/$defs/metric" },
+        "critical_omission_rate": { "$ref": "#/$defs/metric" },
+        "unsupported_output_rate": { "$ref": "#/$defs/metric" },
+        "unsupported_detection_rate": { "$ref": "#/$defs/metric" },
+        "duplicate_rate": { "$ref": "#/$defs/metric" },
+        "clarity_score": { "$ref": "#/$defs/metric" },
+        "actionability_score": { "$ref": "#/$defs/metric" }
+      }
+    },
+    "threshold_assessments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_recall", "critical_omission_rate", "unsupported_output_rate", "unsupported_detection_rate", "duplicate_rate", "clarity_score", "actionability_score"],
+      "properties": {
+        "requirement_recall": { "$ref": "#/$defs/threshold_assessment" },
+        "critical_omission_rate": { "$ref": "#/$defs/threshold_assessment" },
+        "unsupported_output_rate": { "$ref": "#/$defs/threshold_assessment" },
+        "unsupported_detection_rate": { "$ref": "#/$defs/threshold_assessment" },
+        "duplicate_rate": { "$ref": "#/$defs/threshold_assessment" },
+        "clarity_score": { "$ref": "#/$defs/threshold_assessment" },
+        "actionability_score": { "$ref": "#/$defs/threshold_assessment" }
+      }
+    },
+    "critical_blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["critical_gold_unmatched", "critical_unsupported_not_detected", "critical_clarity_below_3", "critical_actionability_below_3"]
+      }
+    },
+    "human_review_status": { "enum": ["not_applicable", "not_run", "incomplete", "adjudication_required", "scored"] },
+    "contract_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": { "status": { "enum": ["pass", "fail"] } }
+    },
+    "model_quality_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "const": "not_run" },
+        "reason": { "const": "real_provider_and_human_review_required" }
+      }
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fixture_id", "gold_count", "generated_count", "failure_categories"],
+        "properties": {
+          "fixture_id": { "type": "string", "pattern": "^fa_req_[0-9]{3}$" },
+          "gold_count": { "type": "integer", "minimum": 0 },
+          "generated_count": { "type": "integer", "minimum": 0 },
+          "failure_categories": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "fixture_id": "fa_req_015",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "portfolio",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_015_ctx_1",
+        "item_type": "fact",
+        "content": "نمونه‌کارها شامل تصویر و توضیح پروژه هستند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_015_src_a",
+            "source_version_id": "fa_req_015_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_015_ctx_2",
+        "item_type": "decision",
+        "content": "هر پروژه صفحه جزئیات مستقل داشته باشد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_015_src_b",
+            "source_version_id": "fa_req_015_src_b_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_015_ctx_3",
+        "item_type": "constraint",
+        "content": "تصاویر بدون برش محتوایی نمایش داده شوند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_015_src_b",
+            "source_version_id": "fa_req_015_src_b_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_015_req_1",
+        "title": "صفحه جزئیات نمونه‌کار",
+        "description": "هر نمونه‌کار باید صفحه مستقلی برای تصویر و توضیح پروژه داشته باشد.",
+        "category": "content",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_015_src_b",
+            "source_version_id": "fa_req_015_src_b_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_015_req_2",
+        "title": "حفظ محتوای تصاویر",
+        "description": "نمایش تصاویر نمونه‌کار نباید باعث برش محتوای اصلی شود.",
+        "category": "visual",
+        "priority": "should",
+        "source_refs": [
+          {
+            "source_id": "fa_req_015_src_b",
+            "source_version_id": "fa_req_015_src_b_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": false
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_015_cand_1",
+        "gold_requirement_id": "fa_req_015_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_015_cand_2",
+        "gold_requirement_id": "fa_req_015_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": false
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_015_cand_1",
+      "fa_req_015_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "mixed",
+    "difficulty": "hard",
+    "phenomena": [
+      "multi_source",
+      "content",
+      "visual"
+    ],
+    "fixture_version": "1"
+  }
+}

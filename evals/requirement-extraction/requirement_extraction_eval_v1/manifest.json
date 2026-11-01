@@ -1,0 +1,22 @@
+{
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "version": "1",
+  "fixture_schema_version": "1",
+  "report_schema_version": "1",
+  "metric_version": "1",
+  "threshold_version": "1",
+  "human_review_rubric_version": "1",
+  "expected_fixture_count": 20,
+  "fixture_ids": [
+    "fa_req_001", "fa_req_002", "fa_req_003", "fa_req_004", "fa_req_005",
+    "fa_req_006", "fa_req_007", "fa_req_008", "fa_req_009", "fa_req_010",
+    "fa_req_011", "fa_req_012", "fa_req_013", "fa_req_014", "fa_req_015",
+    "fa_req_016", "fa_req_017", "fa_req_018", "fa_req_019", "fa_req_020"
+  ],
+  "provider_boundary": {
+    "contract_provider": "fake_deterministic",
+    "model_quality_provider": "real_provider_deferred",
+    "real_provider_selection": "G02/G03_deferred"
+  },
+  "immutability": "gold_change_requires_new_eval_set_version"
+}

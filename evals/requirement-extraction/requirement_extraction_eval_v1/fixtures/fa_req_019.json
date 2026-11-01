@@ -1,0 +1,66 @@
+{
+  "fixture_id": "fa_req_019",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_019_ctx_1",
+        "item_type": "constraint",
+        "content": "پیاده‌سازی با Next.js و TypeScript انجام شود.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_019_src_a",
+            "source_version_id": "fa_req_019_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_019_req_1",
+        "title": "پشته فنی Next.js و TypeScript",
+        "description": "پیاده‌سازی باید از Next.js و TypeScript استفاده کند.",
+        "category": "technical",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_019_src_a",
+            "source_version_id": "fa_req_019_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_019_cand_1",
+        "gold_requirement_id": "fa_req_019_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_019_cand_1"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "technology",
+      "technical"
+    ],
+    "fixture_version": "1"
+  }
+}

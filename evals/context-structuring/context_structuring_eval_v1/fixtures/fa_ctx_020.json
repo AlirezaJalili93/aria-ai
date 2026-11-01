@@ -1,0 +1,17 @@
+{
+  "fixture_id": "fa_ctx_020",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_020_src_a", "source_version_id": "fa_ctx_020_src_a_v1", "canonical_text": "پروژه لندینگ یک آموزشگاه زبان است. هدف ثبت‌نام جلسه آزمایشی است. مخاطبان والدین کودکان ۷ تا ۱۲ سال هستند. فرض فعلی ما این است که والدین از موبایل استفاده می‌کنند و باید بعداً اعتبارسنجی شود." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_020_f1", "item_type": "fact", "content": "آموزشگاه زبان", "source_refs": [{ "source_id": "fa_ctx_020_src_a", "source_version_id": "fa_ctx_020_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_020_d1", "item_type": "decision", "content": "ثبت‌نام جلسه آزمایشی", "source_refs": [{ "source_id": "fa_ctx_020_src_a", "source_version_id": "fa_ctx_020_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_020_f2", "item_type": "fact", "content": "والدین کودکان ۷ تا ۱۲ سال", "source_refs": [{ "source_id": "fa_ctx_020_src_a", "source_version_id": "fa_ctx_020_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_020_a1", "item_type": "assumption", "content": "استفاده والدین از موبایل", "source_refs": [{ "source_id": "fa_ctx_020_src_a", "source_version_id": "fa_ctx_020_src_a_v1" }], "trace_required": true }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_020_f1", "fa_ctx_020_d1", "fa_ctx_020_f2", "fa_ctx_020_a1"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": true, "has_constraint": false, "has_decision": true, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_020_src_a"], "trace_required_item_ids": ["fa_ctx_020_f1", "fa_ctx_020_d1", "fa_ctx_020_f2", "fa_ctx_020_a1"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "mixed", "difficulty": "intermediate", "phenomena": ["fact", "decision", "assumption"], "fixture_version": "1" }
+}

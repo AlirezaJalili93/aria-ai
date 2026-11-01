@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aria.local/product-analytics/v1.json",
+  "title": "Aria Product Analytics Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_name", "event_category", "schema_version", "occurred_at", "account_id", "project_id", "actor_id", "properties"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_name": { "type": "string", "enum": ["project_created", "context_added", "structuring_started", "structuring_completed", "requirements_generated", "gap_detected", "gap_resolved", "scope_generated", "scope_version_saved", "project_opened", "project_type_selected", "requirement_edited", "requirement_removed", "scope_edited"] },
+    "event_category": { "const": "product_analytics" },
+    "schema_version": { "const": "1" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "account_id": { "type": "string", "format": "uuid" },
+    "project_id": { "type": ["string", "null"], "format": "uuid" },
+    "actor_id": { "type": ["string", "null"], "format": "uuid" },
+    "properties": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project_type": { "type": "string", "enum": ["landing", "corporate", "portfolio"] },
+        "role": { "type": "string", "enum": ["owner", "admin", "member"] },
+        "source_surface": { "type": "string", "enum": ["project_overview", "context_page", "requirements_page", "gaps_page", "scope_page", "system"] },
+        "source_id": { "type": "string", "format": "uuid" },
+        "gap_id": { "type": "string", "format": "uuid" },
+        "requirement_id": { "type": "string", "format": "uuid" },
+        "section_id": { "type": "string", "format": "uuid" },
+        "context_version": { "type": "integer", "minimum": 1 },
+        "version_no": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

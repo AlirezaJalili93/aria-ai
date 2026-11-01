@@ -1,0 +1,15 @@
+{
+  "fixture_id": "fa_ctx_007",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "corporate",
+  "input": { "sources": [{ "source_id": "fa_ctx_007_src_a", "source_version_id": "fa_ctx_007_src_a_v1", "canonical_text": "احتمالاً کاربران ما مدیران منابع انسانی هستند؛ هنوز با مشتریان مصاحبه نکرده‌ایم." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_007_a1", "item_type": "assumption", "content": "مخاطب مدیران منابع انسانی است", "source_refs": [{ "source_id": "fa_ctx_007_src_a", "source_version_id": "fa_ctx_007_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_007_f1", "item_type": "fact", "content": "مصاحبه مشتری انجام نشده", "source_refs": [{ "source_id": "fa_ctx_007_src_a", "source_version_id": "fa_ctx_007_src_a_v1" }], "trace_required": true }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_007_a1", "fa_ctx_007_f1"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": true, "has_constraint": false, "has_decision": false, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_007_src_a"], "trace_required_item_ids": ["fa_ctx_007_a1", "fa_ctx_007_f1"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "clear", "difficulty": "intermediate", "phenomena": ["assumption", "fact"], "fixture_version": "1" }
+}

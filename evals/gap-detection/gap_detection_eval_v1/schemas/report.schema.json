@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aria-ai.local/schemas/gap-detection-report-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eval_set_id", "report_version", "provider_mode", "fixture_count", "metrics", "contract_gate", "model_quality_gate"],
+  "properties": {
+    "eval_set_id": { "const": "gap_detection_eval_v1" },
+    "report_version": { "const": "1" },
+    "provider_mode": { "enum": ["fake_deterministic", "real_provider"] },
+    "fixture_count": { "type": "integer", "minimum": 0 },
+    "metrics": { "type": "object", "additionalProperties": false, "required": ["gap_recall", "critical_gap_recall", "false_gap_rate", "critical_gap_precision", "semantic_validity_score"] },
+    "contract_gate": { "type": "object", "required": ["status"], "properties": { "status": { "enum": ["pass", "fail", "invalid_dataset"] } } },
+    "model_quality_gate": { "type": "object", "required": ["status"], "properties": { "status": { "enum": ["not_run", "pass", "fail"] } } }
+  }
+}

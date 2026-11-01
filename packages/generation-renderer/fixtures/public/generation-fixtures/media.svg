@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">دارایی مصنوعی رندرر</title>
+  <desc id="description">شکل هندسی ساده برای تست دارایی محلی</desc>
+  <rect x="80" y="80" width="1040" height="515" rx="48" fill="none" stroke="currentColor" stroke-width="16"/>
+  <circle cx="420" cy="337" r="120" fill="none" stroke="currentColor" stroke-width="16"/>
+  <path d="M600 250h360M600 337h280M600 424h320" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>
+</svg>

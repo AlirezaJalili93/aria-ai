@@ -1,0 +1,90 @@
+{
+  "schema_version": "generation_ast_candidate_v1",
+  "project_type": "corporate",
+  "theme": { "mode": "light", "token_profile": "aria_semantic_v1" },
+  "assets": [
+    "11000000-0000-4000-8000-000000000001",
+    "11000000-0000-4000-8000-000000000002",
+    "11000000-0000-4000-8000-000000000003"
+  ],
+  "pages": [
+    {
+      "title": "شرکت",
+      "path": "/",
+      "sections": [
+        {
+          "component_type": "Hero",
+          "content": { "heading": "راهکارهای قابل اتکا", "body": "خدمات حرفه‌ای برای کسب‌وکارها." },
+          "layout_variant": "centered",
+          "style_token_refs": { "surface": "background", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["21000000-0000-4000-8000-000000000001"]
+        },
+        {
+          "component_type": "AboutSection",
+          "content": {
+            "heading": "درباره ما",
+            "body": "تیم ما بر همکاری شفاف تمرکز دارد.",
+            "highlights": ["پاسخ‌گویی روشن", "فرایند قابل پیگیری"],
+            "primary_media_asset_ref": "11000000-0000-4000-8000-000000000001",
+            "primary_media_alt_text": "اعضای تیم در جلسه برنامه‌ریزی"
+          },
+          "layout_variant": "media_end",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.split_v1",
+          "source_requirement_ids": ["21000000-0000-4000-8000-000000000002"]
+        },
+        {
+          "component_type": "Stats",
+          "content": { "items": [{ "value": "۱۲۰", "label": "پروژه تکمیل‌شده" }, { "value": "۹۲٪", "label": "رضایت همکاری" }] },
+          "layout_variant": "grid_2",
+          "style_token_refs": { "surface": "surface_muted", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.grid_2_v1",
+          "source_requirement_ids": ["21000000-0000-4000-8000-000000000003"]
+        },
+        {
+          "component_type": "LogoCloud",
+          "content": {
+            "heading": "همکاران",
+            "items": [
+              { "name": "همکار یک", "logo_asset_ref": "11000000-0000-4000-8000-000000000002", "logo_alt_text": "نشان همکار یک" },
+              { "name": "همکار دو", "logo_asset_ref": "11000000-0000-4000-8000-000000000003", "logo_alt_text": "نشان همکار دو" }
+            ]
+          },
+          "layout_variant": "grid",
+          "style_token_refs": { "surface": "surface", "text": "text_muted", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.grid_4_v1",
+          "source_requirement_ids": []
+        }
+      ]
+    },
+    {
+      "title": "خدمات",
+      "path": "/services",
+      "sections": [
+        {
+          "component_type": "ServiceList",
+          "content": { "heading": "خدمات", "items": [{ "title": "مشاوره", "description": "تعریف مسیر اجرایی روشن." }] },
+          "layout_variant": "stacked",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.single_v1",
+          "source_requirement_ids": ["21000000-0000-4000-8000-000000000004"]
+        }
+      ]
+    },
+    {
+      "title": "تماس",
+      "path": "/contact",
+      "sections": [
+        {
+          "component_type": "ContactSection",
+          "content": { "heading": "تماس با ما", "methods": [{ "kind": "email", "label": "ایمیل", "value": "hello@example.test" }] },
+          "layout_variant": "split",
+          "style_token_refs": { "surface": "surface", "text": "text", "accent": "primary", "border": "border", "container": "content_max" },
+          "responsive_rule_ref": "responsive.split_v1",
+          "source_requirement_ids": ["21000000-0000-4000-8000-000000000005"]
+        }
+      ]
+    }
+  ]
+}

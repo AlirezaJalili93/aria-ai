@@ -241,3 +241,44 @@ def test_logging_schema_allows_safe_ai_metadata_and_discards_raw_content() -> No
     assert event["estimated_cost"] == 0.0125
     assert secret_prompt not in stream.getvalue()
     assert secret_response not in stream.getvalue()
+
+
+def test_gap_detection_logging_allows_safe_counts_and_discards_candidate_content() -> None:
+    stream = StringIO()
+    logger = create_event_logger(
+        service="aria-worker",
+        environment="test",
+        app_version="0.1.0",
+        release_commit_sha=None,
+        level="INFO",
+        stream=stream,
+    )
+    secret_explanation = "customer-gap-explanation"
+    secret_requirement = "customer-requirement-description"
+
+    logger.emit(
+        "gap.detection_completed",
+        checklist_version="checklist-v1",
+        workflow_version="workflow-v1",
+        prompt_version="prompt-v1",
+        context_version=2,
+        candidate_count=3,
+        gap_count=2,
+        critical_candidate_count=1,
+        explanation=secret_explanation,
+        requirement_description=secret_requirement,
+        source_refs=[{"private": "value"}],
+        affected_requirement_ids=["private"],
+        raw_ai_response="private-provider-output",
+        status="success",
+    )
+
+    event = json.loads(stream.getvalue())
+    assert event["checklist_version"] == "checklist-v1"
+    assert event["gap_count"] == 2
+    assert event["critical_candidate_count"] == 1
+    assert secret_explanation not in stream.getvalue()
+    assert secret_requirement not in stream.getvalue()
+    assert "source_refs" not in event
+    assert "affected_requirement_ids" not in event
+    assert "raw_ai_response" not in event

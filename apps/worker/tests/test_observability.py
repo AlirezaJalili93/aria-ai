@@ -7,6 +7,11 @@ from app.core.config import WorkerSettings
 from app.main import run_worker
 
 
+class RuntimeProbe:
+    def run(self) -> None:
+        pass
+
+
 def _logger(stream: StringIO):
     return create_event_logger(
         service="aria-worker",
@@ -20,16 +25,24 @@ def _logger(stream: StringIO):
 
 def test_worker_startup_uses_structured_logging_instead_of_print() -> None:
     stream = StringIO()
-    settings = WorkerSettings(app_env="test", app_version="0.1.0", log_level="INFO")
+    settings = WorkerSettings(
+        app_env="test",
+        app_version="0.1.0",
+        log_level="INFO",
+        queue_broker_url="redis://queue.test:6379/0",
+        queue_name="aria-test-jobs",
+        queue_visibility_timeout_seconds=60,
+        worker_concurrency=1,
+    )
 
-    run_worker(settings, wait=lambda: None, event_logger=_logger(stream))
+    run_worker(settings, queue_runtime=RuntimeProbe(), event_logger=_logger(stream))
 
     event = json.loads(stream.getvalue())
     assert event["event_name"] == "worker.runtime_started"
     assert event["service"] == "aria-worker"
     assert event["environment"] == "test"
     assert event["status"] == "started"
-    assert event["queue_adapter_configured"] is False
+    assert event["queue_adapter_configured"] is True
 
 
 def test_job_context_preserves_correlation_through_worker_and_provider_boundary() -> None:
@@ -74,3 +87,38 @@ def test_structured_logger_drops_unapproved_sensitive_fields() -> None:
     assert "full model prompt" not in output
     assert "raw-share-token" not in output
     assert json.loads(output)["status"] == "ok"
+
+
+def test_requirement_generation_logging_keeps_only_approved_versions_and_counts() -> None:
+    stream = StringIO()
+    logger = _logger(stream)
+
+    logger.emit(
+        "requirements.generation_completed",
+        workflow_version="requirements-v1",
+        prompt_version="prompt-v1",
+        repair_no=1,
+        candidate_count=3,
+        persisted_count=2,
+        unsupported_count=1,
+        duplicate_count=1,
+        conflict_count=0,
+        title="محرمانه",
+        description="متن مشتری",
+        source_refs="private provenance",
+        status="success",
+    )
+
+    output = stream.getvalue()
+    event = json.loads(output)
+    assert event["workflow_version"] == "requirements-v1"
+    assert event["prompt_version"] == "prompt-v1"
+    assert event["repair_no"] == 1
+    assert event["candidate_count"] == 3
+    assert event["persisted_count"] == 2
+    assert event["unsupported_count"] == 1
+    assert event["duplicate_count"] == 1
+    assert event["conflict_count"] == 0
+    assert "محرمانه" not in output
+    assert "متن مشتری" not in output
+    assert "private provenance" not in output

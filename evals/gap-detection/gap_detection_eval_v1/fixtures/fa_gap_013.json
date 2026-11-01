@@ -1,0 +1,74 @@
+{
+  "fixture_id": "fa_gap_013",
+  "eval_set_id": "gap_detection_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "source_versions": [
+      {
+        "source_id": "fa_gap_013_src",
+        "source_version_id": "fa_gap_013_src_v1",
+        "canonical_length": 64
+      }
+    ],
+    "context_items": [
+      {
+        "context_item_id": "fa_gap_013_ctx_1",
+        "item_type": "fact",
+        "content": "مسیر تماس نهایی برای دریافت درخواست مشتری مشخص نشده است.",
+        "source_refs": [
+          {
+            "source_id": "fa_gap_013_src",
+            "source_version_id": "fa_gap_013_src_v1",
+            "start_offset": 0,
+            "end_offset": 24
+          }
+        ],
+        "status": "confirmed"
+      }
+    ],
+    "requirements": []
+  },
+  "expected_output": {
+    "no_gap": false,
+    "gaps": [
+      {
+        "gold_gap_id": "fa_gap_013_gold_1",
+        "gap_type": "missing_information",
+        "severity": "critical",
+        "source_refs_expectation": "empty",
+        "source_refs": [],
+        "affected_requirement_ids": [],
+        "critical_for_scope": true,
+        "critical_rule_id": "CGR-001",
+        "semantic_group_id": "fa_gap_013_group_1"
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "deterministic_output_candidate_ids": [
+      "fa_gap_013_candidate_1"
+    ],
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_gap_013_candidate_1",
+        "gold_gap_id": "fa_gap_013_gold_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true,
+        "source_refs_expectation": "empty"
+      }
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "ambiguous",
+    "difficulty": "basic",
+    "phenomena": [
+      "missing_information",
+      "critical"
+    ],
+    "fixture_version": "1"
+  }
+}

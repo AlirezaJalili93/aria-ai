@@ -1,0 +1,180 @@
+{
+  "registry_version": "component_registry_v1",
+  "candidate_schema_version": "generation_ast_candidate_v1",
+  "canonical_schema_version": "generation_ast_schema_v1",
+  "project_types": ["landing", "corporate", "portfolio"],
+  "breakpoints": [375, 768, 1024, 1440],
+  "limits": {
+    "pages_min": 1,
+    "pages_max": 12,
+    "sections_per_page_min": 1,
+    "sections_per_page_max": 30,
+    "sections_total_max": 120,
+    "assets_max": 100,
+    "requirement_refs_per_section_max": 50
+  },
+  "style_token_refs": {
+    "surface": ["background", "surface", "surface_muted"],
+    "text": ["text", "text_muted"],
+    "accent": ["primary"],
+    "border": ["border"],
+    "container": ["content_max", "form_max", "text_measure"]
+  },
+  "responsive_rules": {
+    "responsive.single_v1": [1, 1, 1, 1],
+    "responsive.split_v1": [1, 2, 2, 2],
+    "responsive.grid_2_v1": [1, 2, 2, 2],
+    "responsive.grid_3_v1": [1, 2, 3, 3],
+    "responsive.grid_4_v1": [1, 2, 3, 4],
+    "responsive.inline_wrap_v1": ["wrap", "wrap", "inline_wrap", "inline_wrap"],
+    "responsive.nav_collapse_v1": ["collapsed", "inline", "inline", "inline"]
+  },
+  "components": {
+    "Navbar": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/NavbarContent",
+      "layout_responsive": {
+        "horizontal": "responsive.nav_collapse_v1",
+        "centered": "responsive.nav_collapse_v1"
+      },
+      "asset_pairs": [
+        ["brand_logo_asset_ref", "brand_logo_alt_text"]
+      ],
+      "interaction_flags": ["mobile_menu"]
+    },
+    "Hero": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/HeroContent",
+      "layout_responsive": {
+        "centered": "responsive.single_v1",
+        "split_media_start": "responsive.split_v1",
+        "split_media_end": "responsive.split_v1"
+      },
+      "asset_pairs": [
+        ["primary_media_asset_ref", "primary_media_alt_text"]
+      ],
+      "media_required_layouts": ["split_media_start", "split_media_end"],
+      "interaction_flags": []
+    },
+    "Footer": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/FooterContent",
+      "layout_responsive": {
+        "compact": "responsive.inline_wrap_v1",
+        "columns": "responsive.grid_4_v1"
+      },
+      "asset_pairs": [
+        ["brand_logo_asset_ref", "brand_logo_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "FeatureGrid": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/FeatureGridContent",
+      "layout_responsive": {
+        "grid_2": "responsive.grid_2_v1",
+        "grid_3": "responsive.grid_3_v1"
+      },
+      "item_asset_pairs": [
+        ["feature_media_asset_ref", "feature_media_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "ServiceList": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/ServiceListContent",
+      "layout_responsive": {
+        "stacked": "responsive.single_v1",
+        "grid_2": "responsive.grid_2_v1",
+        "grid_3": "responsive.grid_3_v1"
+      },
+      "item_asset_pairs": [
+        ["service_media_asset_ref", "service_media_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "AboutSection": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/AboutSectionContent",
+      "layout_responsive": {
+        "text_only": "responsive.single_v1",
+        "media_start": "responsive.split_v1",
+        "media_end": "responsive.split_v1"
+      },
+      "asset_pairs": [
+        ["primary_media_asset_ref", "primary_media_alt_text"]
+      ],
+      "media_required_layouts": ["media_start", "media_end"],
+      "interaction_flags": []
+    },
+    "CTA": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/CTAContent",
+      "layout_responsive": {
+        "centered": "responsive.single_v1",
+        "split": "responsive.split_v1"
+      },
+      "interaction_flags": []
+    },
+    "Testimonial": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/TestimonialContent",
+      "layout_responsive": {
+        "single": "responsive.single_v1",
+        "grid_2": "responsive.grid_2_v1"
+      },
+      "item_asset_pairs": [
+        ["author_avatar_asset_ref", "author_avatar_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "FAQ": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/FAQContent",
+      "layout_responsive": {
+        "stacked": "responsive.single_v1",
+        "two_column": "responsive.grid_2_v1"
+      },
+      "interaction_flags": ["disclosure"]
+    },
+    "ContactSection": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/ContactSectionContent",
+      "layout_responsive": {
+        "stacked": "responsive.single_v1",
+        "split": "responsive.split_v1"
+      },
+      "interaction_flags": []
+    },
+    "PortfolioGrid": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/PortfolioGridContent",
+      "layout_responsive": {
+        "grid_2": "responsive.grid_2_v1",
+        "grid_3": "responsive.grid_3_v1"
+      },
+      "item_asset_pairs": [
+        ["portfolio_media_asset_ref", "portfolio_media_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "Stats": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/StatsContent",
+      "layout_responsive": {
+        "inline": "responsive.inline_wrap_v1",
+        "grid_2": "responsive.grid_2_v1",
+        "grid_4": "responsive.grid_4_v1"
+      },
+      "interaction_flags": []
+    },
+    "LogoCloud": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/LogoCloudContent",
+      "layout_responsive": {
+        "grid": "responsive.grid_4_v1",
+        "inline_wrap": "responsive.inline_wrap_v1"
+      },
+      "required_item_asset_pairs": [
+        ["logo_asset_ref", "logo_alt_text"]
+      ],
+      "interaction_flags": []
+    },
+    "SimpleForm": {
+      "content_schema_ref": "generation-ast-candidate-v1.schema.json#/$defs/SimpleFormContent",
+      "layout_responsive": {
+        "stacked": "responsive.single_v1",
+        "two_column": "responsive.grid_2_v1"
+      },
+      "interaction_flags": ["client_validation"],
+      "submission_mode": "preview_only"
+    }
+  }
+}

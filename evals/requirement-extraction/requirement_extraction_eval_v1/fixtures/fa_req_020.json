@@ -1,0 +1,126 @@
+{
+  "fixture_id": "fa_req_020",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_020_ctx_1",
+        "item_type": "fact",
+        "content": "پروژه برای آموزشگاه زبان کودکان است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_020_ctx_2",
+        "item_type": "fact",
+        "content": "مخاطبان والدین کودکان ۷ تا ۱۲ سال هستند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_020_ctx_3",
+        "item_type": "decision",
+        "content": "اقدام اصلی ثبت‌نام جلسه آزمایشی است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_020_ctx_4",
+        "item_type": "constraint",
+        "content": "شرایط جلسه آزمایشی پیش از ثبت‌نام توضیح داده شود.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_020_req_1",
+        "title": "ثبت‌نام جلسه آزمایشی",
+        "description": "والدین باید بتوانند برای کودک خود جلسه آزمایشی ثبت کنند.",
+        "category": "functional",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_020_req_2",
+        "title": "توضیح شرایط جلسه آزمایشی",
+        "description": "شرایط جلسه آزمایشی باید پیش از اقدام به ثبت‌نام نمایش داده شود.",
+        "category": "content",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_020_src_a",
+            "source_version_id": "fa_req_020_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_020_cand_1",
+        "gold_requirement_id": "fa_req_020_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_020_cand_2",
+        "gold_requirement_id": "fa_req_020_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_020_cand_1",
+      "fa_req_020_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "mixed",
+    "difficulty": "hard",
+    "phenomena": [
+      "audience",
+      "cta",
+      "content",
+      "constraint"
+    ],
+    "fixture_version": "1"
+  }
+}

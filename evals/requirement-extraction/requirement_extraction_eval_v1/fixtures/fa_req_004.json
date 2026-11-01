@@ -1,0 +1,53 @@
+{
+  "fixture_id": "fa_req_004",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_004_ctx_1",
+        "item_type": "fact",
+        "content": "کاربر یک سایت می‌خواهد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_004_src_a",
+            "source_version_id": "fa_req_004_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_004_ctx_2",
+        "item_type": "unknown",
+        "content": "هدف، مخاطب و اقدام اصلی مشخص نشده است.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_004_src_a",
+            "source_version_id": "fa_req_004_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": []
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [],
+    "deterministic_output_candidate_ids": [],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "ambiguous",
+    "difficulty": "basic",
+    "phenomena": [
+      "ambiguous",
+      "no_actionable_requirement"
+    ],
+    "fixture_version": "1"
+  }
+}

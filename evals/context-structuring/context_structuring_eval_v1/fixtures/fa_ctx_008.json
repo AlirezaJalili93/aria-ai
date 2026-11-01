@@ -1,0 +1,16 @@
+{
+  "fixture_id": "fa_ctx_008",
+  "eval_set_id": "context_structuring_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": { "sources": [{ "source_id": "fa_ctx_008_src_a", "source_version_id": "fa_ctx_008_src_a_v1", "canonical_text": "بودجه طراحی محدود است و نسخه اول باید تا پایان خرداد آماده شود. استفاده از RTL اجباری است." }] },
+  "expected_structured_output": { "items": [
+    { "gold_item_id": "fa_ctx_008_c1", "item_type": "constraint", "content": "بودجه محدود", "source_refs": [{ "source_id": "fa_ctx_008_src_a", "source_version_id": "fa_ctx_008_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_008_c2", "item_type": "constraint", "content": "مهلت پایان خرداد", "source_refs": [{ "source_id": "fa_ctx_008_src_a", "source_version_id": "fa_ctx_008_src_a_v1" }], "trace_required": true },
+    { "gold_item_id": "fa_ctx_008_c3", "item_type": "constraint", "content": "RTL اجباری", "source_refs": [{ "source_id": "fa_ctx_008_src_a", "source_version_id": "fa_ctx_008_src_a_v1" }], "trace_required": true }
+  ], "forbidden_claims": [], "required_item_ids": ["fa_ctx_008_c1", "fa_ctx_008_c2", "fa_ctx_008_c3"] },
+  "expected_labels": { "clarity": "clear", "has_assumption": false, "has_constraint": true, "has_decision": false, "requires_unknown": false, "prompt_injection": false, "unsupported_assumption": false },
+  "provenance_expectations": { "allowed_source_ids": ["fa_ctx_008_src_a"], "trace_required_item_ids": ["fa_ctx_008_c1", "fa_ctx_008_c2", "fa_ctx_008_c3"], "offset_policy": "optional", "whole_version_reference_allowed": true },
+  "failure_expectations": { "expected_outcome": "success", "allowed_failure_codes": [], "must_not_persist_on_failure": true },
+  "metadata": { "synthetic": true, "segment": "clear", "difficulty": "basic", "phenomena": ["constraint"], "fixture_version": "1" }
+}

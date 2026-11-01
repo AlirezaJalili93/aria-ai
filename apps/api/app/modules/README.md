@@ -23,3 +23,36 @@ surface only. S1-C01 exposes no HTTP route.
 `context/application` admits only text Sources in this increment and records safe lifecycle events;
 `context/infrastructure` implements tenant/project-scoped persistence and derives the current ready
 Version. No Context HTTP route, parser, queue or file ingestion is exposed by S1-D01.
+
+`requirements/domain` owns the Requirement vocabulary, creator and Source Reference invariants.
+The I01 Application boundary validates the selected integer Context Version and semantic
+provenance before persistence. The shared S1-I02 Application workflow snapshots eligible Context
+Items, invokes only the provider-neutral AI port, validates and optionally repairs candidates,
+merges only exact duplicate groups, preserves existing Requirement decisions, and atomically
+persists the batch plus safe conflict Outbox signals. Infrastructure implements tenant-safe
+PostgreSQL persistence. Replay resolves only a same-tenant terminal Job and then reads its
+`generation_job_id` Requirement rows; no result-mapping table or historical payload snapshot is
+introduced. I02 exposes no HTTP route, concrete provider, Gap model or conflict table.
+
+`scope/domain` owns the K01 Working Scope Draft and strict `scope_content_schema_v1` validation.
+`scope/application` exposes only the Domain/Repository boundary; `scope/infrastructure` persists
+one tenant-scoped Draft per Project/Context Version with `updated_at` CAS. Historical Drafts are
+protected after Context advances. `scope/domain/readiness.py` owns the K02 pure readiness policy;
+it consumes tenant-scoped authoritative Gap metadata and computes `ready_for_share` without
+persistence, HTTP, UI or content scoring. The provider-neutral K03 Application boundary resolves
+an exact ready snapshot, accepts only draft/confirmed Requirements, maps AI-05 into the twelve K01
+sections, meters every AI/repair call, and conflicts instead of overwriting an existing Draft.
+Public API/UI, concrete Providers, Worker wiring, regeneration and immutable Scope Snapshots remain
+deferred to later increments.
+
+`sharing/domain` owns exact immutable ScopeVersion binding, token-hash, terminal revocation and
+immutable final Approval and independent Change Request invariants. `sharing/application` owns authenticated Create/Revoke with
+one-time token disclosure, safe idempotency replay, public exact-version resolution and public
+body-token Approval and Change Request. Both decisions capture the exact snapshot hash, lock the
+same ScopeVersion and use dedicated capability-scoped idempotency without weakening authenticated
+records; only one terminal decision can commit. Infrastructure keeps raw tokens out of PostgreSQL.
+ADR-080 adds exact-version authenticated Share/Decision read projections, bound-Version public
+decision status and a fragment-only volatile browser bootstrap. Full SCR-14..17 Share/Guest UI
+remains deferred to 0094. The authenticated Scope Revision boundary
+consumes one exact Change Request after an explicit K04 Draft edit, creates N+1 with immutable
+parent lineage and supersedes N atomically; it never merges the public comment or invokes AI.

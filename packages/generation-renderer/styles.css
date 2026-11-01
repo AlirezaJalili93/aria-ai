@@ -1,0 +1,215 @@
+@import "@aria/design-tokens/tokens.css";
+
+.aria-gen-page {
+  min-block-size: 100%;
+  background: hsl(var(--color-background));
+  color: hsl(var(--color-text));
+  font-family: var(--font-family-body);
+  line-height: var(--line-height-body);
+}
+
+.aria-gen-main,
+.aria-gen-section,
+.aria-gen-page > header,
+.aria-gen-page > footer {
+  inline-size: 100%;
+}
+
+.aria-gen-section,
+.aria-gen-page > header,
+.aria-gen-page > footer {
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: var(--primitive-space-8) var(--responsive-gutter);
+}
+
+.aria-gen-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aria-gen-heading {
+  margin-block: 0 var(--primitive-space-6);
+  font-weight: var(--font-weight-heading);
+}
+
+.aria-gen-body {
+  max-inline-size: var(--text-measure);
+  white-space: pre-line;
+}
+
+.aria-gen-surface-background { background: hsl(var(--color-background)); }
+.aria-gen-surface-default { background: hsl(var(--color-surface)); }
+.aria-gen-surface-muted { background: hsl(var(--color-surface-muted)); }
+.aria-gen-text-default { color: hsl(var(--color-text)); }
+.aria-gen-text-muted { color: hsl(var(--color-text-muted)); }
+.aria-gen-container-content { max-inline-size: var(--content-max-width); }
+.aria-gen-container-form { max-inline-size: var(--form-max-width); }
+.aria-gen-container-text { max-inline-size: var(--text-measure); }
+
+.aria-gen-navbar,
+.aria-gen-actions,
+.aria-gen-link-list,
+.aria-gen-brand,
+.aria-gen-responsive-inline-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--primitive-space-4);
+  flex-wrap: wrap;
+}
+
+.aria-gen-navbar {
+  justify-content: space-between;
+  min-block-size: var(--header-height);
+}
+
+.aria-gen-link-list,
+.aria-gen-logo-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.aria-gen-action {
+  display: inline-flex;
+  min-block-size: var(--button-height);
+  min-inline-size: var(--button-height);
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-inline: var(--primitive-space-4);
+  border: var(--border-width-default) solid hsl(var(--color-primary));
+  border-radius: var(--button-radius);
+  background: hsl(var(--button-primary-background));
+  color: hsl(var(--button-primary-text));
+  font: inherit;
+  text-decoration: none;
+}
+
+.aria-gen-action-secondary {
+  border-color: hsl(var(--button-secondary-border));
+  background: hsl(var(--button-secondary-background));
+  color: hsl(var(--button-secondary-text));
+}
+
+.aria-gen-action:focus-visible,
+.aria-gen-link-list a:focus-visible,
+.aria-gen-field :is(input, textarea):focus-visible {
+  outline: var(--focus-ring-width) solid hsl(var(--button-focus-ring));
+  outline-offset: var(--focus-ring-offset);
+}
+
+.aria-gen-items,
+.aria-gen-stats,
+.aria-gen-logo-list,
+.aria-gen-fields {
+  display: grid;
+  gap: var(--primitive-space-4);
+}
+
+.aria-gen-card {
+  box-sizing: border-box;
+  padding: var(--primitive-space-4);
+  border: var(--border-width-default) solid hsl(var(--card-border));
+  border-radius: var(--card-radius);
+  background: hsl(var(--card-background));
+}
+
+.aria-gen-media {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--card-radius);
+}
+
+.aria-gen-definition-list > div,
+.aria-gen-stats > div {
+  display: grid;
+  gap: var(--primitive-space-2);
+}
+
+.aria-gen-definition-list dt,
+.aria-gen-stats dt,
+.aria-gen-field label {
+  font-weight: var(--font-weight-label);
+}
+
+.aria-gen-stats dd,
+.aria-gen-definition-list dd {
+  margin-inline: 0;
+}
+
+.aria-gen-fieldset {
+  padding: 0;
+  border: 0;
+}
+
+.aria-gen-field {
+  display: grid;
+  gap: var(--primitive-space-2);
+}
+
+.aria-gen-field :is(input, textarea) {
+  box-sizing: border-box;
+  min-block-size: var(--field-height);
+  padding: var(--primitive-space-3);
+  border: var(--border-width-default) solid hsl(var(--field-border));
+  border-radius: var(--primitive-radius-sm);
+  background: hsl(var(--field-background));
+  color: hsl(var(--field-text));
+  font: inherit;
+}
+
+.aria-gen-field textarea {
+  min-block-size: calc(var(--field-height) * 3);
+  resize: vertical;
+}
+
+.aria-gen-consent {
+  display: flex;
+  min-block-size: var(--button-height);
+  align-items: center;
+  gap: var(--primitive-space-2);
+}
+
+.aria-gen-preview-note,
+.aria-gen-eyebrow {
+  color: hsl(var(--color-text-muted));
+  font-size: var(--font-size-caption);
+}
+
+@media (min-width: 48rem) {
+  .aria-gen-responsive-split,
+  .aria-gen-responsive-grid-2,
+  .aria-gen-responsive-grid-3,
+  .aria-gen-responsive-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--primitive-space-6);
+  }
+
+  .aria-gen-responsive-split > .aria-gen-heading,
+  .aria-gen-responsive-split > .aria-gen-body {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 64rem) {
+  .aria-gen-responsive-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .aria-gen-responsive-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aria-gen-page * {
+    scroll-behavior: auto;
+    transition-duration: var(--primitive-duration-reduced);
+    animation-duration: var(--primitive-duration-reduced);
+  }
+}

@@ -40,6 +40,8 @@
   --primitive-size-focus-ring: 0.125rem;
   --primitive-size-border: 0.0625rem;
   --primitive-font-family-body: Vazirmatn, system-ui, sans-serif;
+  --primitive-font-size-caption: 0.875rem;
+  --primitive-font-size-heading-3: 1.125rem;
   --primitive-font-weight-heading: 700;
   --primitive-font-weight-label: 500;
   --primitive-line-height-body: 1.5;
@@ -69,6 +71,8 @@
   --focus-ring-width: var(--primitive-size-focus-ring);
   --focus-ring-offset: var(--primitive-size-focus-ring);
   --font-family-body: var(--primitive-font-family-body);
+  --font-size-caption: var(--primitive-font-size-caption);
+  --font-size-heading-3: var(--primitive-font-size-heading-3);
   --font-weight-heading: var(--primitive-font-weight-heading);
   --font-weight-label: var(--primitive-font-weight-label);
   --line-height-body: var(--primitive-line-height-body);
@@ -94,6 +98,7 @@
   --card-radius: var(--primitive-radius-lg);
   --auth-card-max-width: var(--form-max-width);
   --border-width-default: var(--primitive-size-border);
+  --border-width-emphasis: var(--primitive-size-focus-ring);
   --header-height: var(--primitive-size-header);
 }
 

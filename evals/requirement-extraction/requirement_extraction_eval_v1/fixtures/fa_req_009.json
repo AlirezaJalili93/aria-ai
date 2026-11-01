@@ -1,0 +1,101 @@
+{
+  "fixture_id": "fa_req_009",
+  "eval_set_id": "requirement_extraction_eval_v1",
+  "language": "fa",
+  "project_type": "landing",
+  "input": {
+    "context_version": 1,
+    "context_items": [
+      {
+        "context_item_id": "fa_req_009_ctx_1",
+        "item_type": "constraint",
+        "content": "همه صفحات فارسی و راست‌به‌چپ باشند.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_009_src_a",
+            "source_version_id": "fa_req_009_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "context_item_id": "fa_req_009_ctx_2",
+        "item_type": "constraint",
+        "content": "نسخه موبایل باید قابل استفاده باشد.",
+        "source_refs": [
+          {
+            "source_id": "fa_req_009_src_a",
+            "source_version_id": "fa_req_009_src_a_v1"
+          }
+        ],
+        "status": "confirmed"
+      }
+    ]
+  },
+  "expected_output": {
+    "requirements": [
+      {
+        "gold_requirement_id": "fa_req_009_req_1",
+        "title": "پشتیبانی کامل از RTL",
+        "description": "رابط فارسی باید در همه صفحات راست‌به‌چپ نمایش داده شود.",
+        "category": "technical",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_009_src_a",
+            "source_version_id": "fa_req_009_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "gold_requirement_id": "fa_req_009_req_2",
+        "title": "سازگاری با موبایل",
+        "description": "صفحات باید در نمایشگر موبایل قابل استفاده باشند.",
+        "category": "visual",
+        "priority": "must",
+        "source_refs": [
+          {
+            "source_id": "fa_req_009_src_a",
+            "source_version_id": "fa_req_009_src_a_v1"
+          }
+        ],
+        "is_unsupported": false,
+        "critical_for_scope": true
+      }
+    ]
+  },
+  "evaluation_annotations": {
+    "candidate_annotations": [
+      {
+        "candidate_id": "fa_req_009_cand_1",
+        "gold_requirement_id": "fa_req_009_req_1",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      },
+      {
+        "candidate_id": "fa_req_009_cand_2",
+        "gold_requirement_id": "fa_req_009_req_2",
+        "semantically_unsupported": false,
+        "critical_for_scope": true
+      }
+    ],
+    "deterministic_output_candidate_ids": [
+      "fa_req_009_cand_1",
+      "fa_req_009_cand_2"
+    ],
+    "semantic_duplicate_groups": []
+  },
+  "metadata": {
+    "synthetic": true,
+    "segment": "clear",
+    "difficulty": "basic",
+    "phenomena": [
+      "rtl",
+      "responsive",
+      "constraint"
+    ],
+    "fixture_version": "1"
+  }
+}

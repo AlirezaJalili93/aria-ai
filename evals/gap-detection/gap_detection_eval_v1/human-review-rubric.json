@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "reviewer_count": 2,
+  "scale": { "min": 1, "max": 5 },
+  "dimension": "semantic_validity_score",
+  "adjudication": { "required_when_absolute_difference_at_least": 2 },
+  "critical_blocker_below": 3,
+  "notes_in_report": false
+}
