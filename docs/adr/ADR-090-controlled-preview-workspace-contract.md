@@ -6,7 +6,7 @@
 
 **Planned increment:** `0103-controlled-preview-workspace`
 
-**Review revision:** v0.15 — P4 contract FROZEN; P5 Installer/pre-commit ACL design APPROVED, exact SQL r2 PENDING SOURCE REVIEW; full ADR Freeze WAIT; implementation/SQL execution/Migration NO-GO
+**Review revision:** v0.22 — P4/P5/P6 contracts FROZEN; independent limited Core authority direction APPROVED FOR DESIGN; exact P7 r2 contract PENDING SOURCE REVIEW; full ADR Freeze WAIT; implementation/SQL execution/Migration NO-GO
 
 The owner approved T1..T7, the six D6 One-shot semantics and the minimum consumption-retention
 invariant and identity-only response direction recorded in v0.7 below, plus S1/S2/R2 with the
@@ -14,9 +14,12 @@ refinements and subsequent explicit P2/P3 approvals recorded in v0.9, and the P5
 Capability-bound authentication decision recorded in v0.12, plus the P4 derivative identities and
 initial-page decision recorded in v0.13. The owner subsequently read the complete v0.13 P4.R1..R4
 text in the conversation and explicitly froze the complete P4 contract (v0.14, 2026-10-24).
-The subsequent v0.15 decision approves only the independent temporary Superuser Installer and
-pre-commit effective-authority design; the revised SQL text itself remains pending source review.
-This includes its derivative identities, initial page, transformation/script/CSP rules and P4
+The v0.15 decision approved the independent temporary Superuser Installer/pre-commit authority
+design. After independent review of the complete exact r3.1 source and both document/SQL
+fingerprints, the owner explicitly froze the five P5 SQL blocks at contract level (v0.18).
+The owner subsequently froze the complete P6 r1 contract on 2026-11-01 (v0.21) and authorized
+P7 exact design. None of these contract Freezes authorizes execution. The P4 Freeze includes its derivative identities,
+initial page, transformation/script/CSP rules and P4
 acceptance conditions, not executable source bytes or proof results. Remaining P1 transport/
 persistence integration, other D clauses, detailed state/polling proposals and wireframe are not
 thereby Frozen. Contract refinement/review only is authorized. No runtime
@@ -35,7 +38,8 @@ Define a concrete next slice for `FE-F3-05` (browser preview container) and `FE-
 documents, then to continue the proposed contract definition. This authorizes preparing this
 proposal. Except for the explicitly approved T1..T7, D6 semantics, v0.7 retention/identity-only
 decisions, v0.9 S1/S2/R2/P2/P3, v0.12 P5 logical-model/authentication decisions and the v0.14
-P4 contract Freeze based on v0.13's complete text, plus v0.15 Installer/pre-commit ACL design,
+P4 contract Freeze based on v0.13's complete text, plus v0.15 Installer/pre-commit ACL design
+and v0.18 exact P5 r3.1 SQL contract Freeze, plus v0.21 exact P6 r1 contract Freeze,
 unapproved details below remain proposals.
 
 0102 passed its approved Local/Synthetic publication, access and browser matrix. It deliberately
@@ -776,6 +780,23 @@ development record before implementation.
 | REQ-10321 | Owner's explicit final P4 architecture decision after reading the complete v0.13 text, 2026-10-24 | P4 current status and v0.14 decision record: complete P4 contract FROZEN, executable bytes/proofs and other ADR gates still independent | Source-to-decision status audit only; P4 tests NOT RUN; no Freeze of P5 SQL/full ADR or implementation permission inferred |
 | REQ-10322 | Same instruction: continue independent P5 SQL review only | P5 review document section 10: static constraint/authority/concurrency/commit review and open installation preconditions; SQL blocks unchanged | TC-103SQL01..12 remain NOT RUN; text-only SQL preservation check; no parser/compiler/database execution |
 | REQ-10323 | Owner's P5 Installation Authority decision, 2026-10-24: SQL-contract text design only | P5-SQL r2 sections 2/3/6/6.1/11: temporary independent Superuser Installer, restricted final definer ownership and pre-commit raw/effective ACL/role/schema/RLS assertions; no Helper owner CREATE or Worker installation rights | TC-103SQL13..16 proposed NOT RUN; source/privilege-path review and existing regression checks only; exact SQL acceptance and execution still separate NO-GO gates |
+| REQ-10324 | Owner: push then continue the authorized SQL-contract design/review, 2026-10-24; existing effective-authority constraint in REQ-10323 | P5 section 12 documents SR-P5-03; proposed r3 section 6.1 checks membership ADMIN authority without executing grants/revokes or changing runtime roles | TC-103SQL17 planned NOT RUN; text-only source diff; official PostgreSQL 16 authority semantics reviewed, no database/compiler or policy acceptance claimed |
+| REQ-10325 | Owner's R3 review: necessity/function approved in principle; explicit strict-vs-P5-only policy scope and separate Installer boundary required; contract text/scenarios only | Proposed P5 r3.1 sections 6.1/8/13 explicitly select strict ADMIN review, define r/actor/target and conservative unrelated-role stops; no Boolean-expression or role/ACL change | TC-103SQL17a..g positive/negative subcases planned NOT RUN; comment-insensitive text comparison and existing regression checks only; no SQL/RLS acceptance |
+| REQ-10326 | Owner: continue under the unchanged SQL-contract review-only authorization | P5 section 14 consolidates actual parent-grant, lock, pinning, single-consumption and retention source observations, unchanged draft fingerprint and unresolved integration handoff | Existing TC-103SQL01..17/17a..g remain NOT RUN; source/text/regression checks only, no new acceptance condition or execution authority |
+| REQ-10327 | Owner's independent P5 r3.1 review: exact 1063-line/74598-byte document and five SQL blocks approved/frozen at contract level, 2026-10-24 | P5 current status/section 15 and ADR v0.18/index record the exact-source Freeze with original document/SQL fingerprints and unchanged SQL; no execution or full ADR approval inferred | Before/after five-block fingerprint equality and existing regression checks; 17 scenarios + 7 subcases NOT RUN; no runtime/SQL/Migration/Browser authorization |
+| REQ-10328 | Owner continuation; approved Option A additive closed-profile direction, frozen P4 and P5, existing ADR-089/0040/0041 boundaries | v0.19 P6/P7 decision packet identifies the private packet Manifest and publishing-authority compatibility gap; both directions remain proposals, without inventing executable schema, SQL or dispatch | Existing TC-103M01..06 and P4/P5 gates remain unexecuted for P1; generic regression and frozen SQL fingerprint checks are not P1 acceptance |
+| REQ-10329 | Owner P6/P7 direction decision, 2026-11-01: exact P6 first; no approval of local v0.19 text | P6 r1 sections 1..3, full proposed closed Manifest contract and separate authority/status | Source review PENDING; wrong binding/shape/reference/version denial; 0102 preservation; all P6 execution NOT RUN |
+| REQ-10330 | Same owner decision: final UTF-8 packet/hash, exact source page order, 8,388,608-byte cap | P6 r1 sections 2,4,5 | P4/M future cases: source-order preservation, independent hash boundaries, exact cap boundaries; NOT RUN |
+| REQ-10331 | Same owner decision: define validation authority, no circular hash, fail closed on mismatch | P6 r1 sections 4..6 | Canonical encoding, trusted DB/source/script/CSS binding and no consumption on rejection; NOT RUN |
+| REQ-10332 | Same owner decision: no publishing/recovery reissue or ledger bypass | P6 r1 section 6; P7 exact drafting held for P6 review | Existing P5/D6 concurrency, ambiguous commit, response-loss and durable consumed-state observations; NOT RUN |
+| REQ-10333 | Owner's explicit complete P6 r1 contract Freeze and P7 design authorization, 2026-11-01 | P6 status/section 8, parent v0.21 and index record current Freeze without changing normative sections 2..7 | Compare original P6 section fingerprint and five unchanged P5 SQL blocks; P6 runtime cases remain NOT RUN |
+| REQ-10334 | Same owner decision: independent P7 operations and exact proposed signatures | P7 working draft sections 2..4: separate identifiers, command contracts, four fixed Worker operations and closed metadata | Exact payload/profile/session/terminal/duplicate observations proposed; all NOT RUN |
+| REQ-10335 | Same owner decision: minimum ACL and lock order | P7 sections 1,4,5: independent operational claims prevent legacy release targeting; Core authority choice explicitly OPEN | Operational-role/direct-write/legacy-release/lock-order tests and source review required; no implicit new privilege |
+| REQ-10336 | Same owner decision: explicit 0040/P5 compatibility | P7 sections 3,5: closed profile-pair CHECK direction, active Job guard, no old helper/ledger source changes | Mixed-pair rejection, uniqueness/concurrency and legacy regression planned; no DDL executed |
+| REQ-10337 | Same owner decision: idempotency/revoke/recovery without consumed-capability reissue | P7 sections 3,6: command scopes, atomicity, same-ID recovery and immutable issued/consumed state | Revoke/issue/finalization/ambiguous-commit and 24h retention cases planned, NOT RUN |
+| REQ-10338 | Owner selects independent limited Core authority/fixed operations, design only; no direct Worker/anon/authenticated table access | P7 r2 section 8.1/8.4 proposes distinct Core LOGIN caller and NOLOGIN function owner, exact column ACLs and role-specific policies, no schema ownership or escalation | Actual restricted-login/ACL/RLS and legacy denials required after source and execution approval; NOT RUN |
+| REQ-10339 | Same owner authority direction with trusted Identity/Membership and fixed commands | P7 r2 sections 8.2/8.3 propose three exact Core signatures, active Membership/Project revalidation and fixed request fingerprints, no free role/profile/request_hash | Cross-tenant/membership/role/target/key/expiry/fingerprint parity observations; NOT RUN |
+| REQ-10340 | Same owner selection preserves hash-only capability, idempotency and permanent consumption boundary | P7 r2 sections 8.3..8.6 keep raw candidate token in Core memory, no SQL/raw persistence, confirmed-commit disclosure only and no P5 ledger authority | Issue concurrency/ACK loss/replay/24h retention/revoke/consume and leakage-negative cases; NOT RUN |
 
 Additional final gates: real-role revoke/issue races, immutable source byte preservation,
 one-time capability disposal on unmount, cancellation of pending metadata requests, 375/768/1024
@@ -2017,3 +2038,351 @@ absent; no database/Redis integration, SQL compilation/execution, Browser Proof,
 change, commit/push or external-system write occurred. TC-103SQL01..16 remain NOT RUN. Only the two
 tracked ADR Markdown files changed; existing uncommitted MVP assessment was preserved. Regression
 checks do not freeze exact SQL or authorize 0103 implementation.
+
+### v0.16 post-push P5 administrative-authority review — 2026-10-24
+
+The owner's explicit push request was completed: two ADR documents at
+`3e18ba9b21ed027ce31260bd1c5b7eabd8a961e1`, matching local/origin tracking SHA. P4's contract Freeze
+and P5's still-proposed r2 SQL are now remotely reviewable. The old local MVP assessment was not
+included or changed. This separate continuation remains documentation-only, not a release gate.
+
+[P5 section 12](ADR-090-p5-sql-contract.md) records SR-P5-03: r2 lacks an explicit membership
+ADMIN OPTION assertion. Current SET/INHERIT privileges alone do not cover administrative ability
+to change/delegate membership. Proposed r3 adds a fixed pre-commit rejection check for that
+authority on the same already-checked principals and their reachable SET ROLE identities.
+It changes no role/ACL in a live database and does not automatically repair unrelated administrator
+rights. TC-103SQL17 adds planned negative evidence; all P5 actual-DB cases remain NOT RUN.
+This proposed correction needs exact-source review; it is not an independent security PASS.
+
+P4 contract remains FROZEN; P5 exact SQL r3 PENDING OWNER SOURCE REVIEW; full ADR-090 WAIT.
+0103 implementation, SQL execution/Migration, Browser Proof and Hosted/customer use remain NO-GO.
+No new Canonical Drive claim or external write beyond the explicitly authorized Git push. The
+new local revision is not automatically committed/pushed by the earlier push-before-continuation.
+
+v0.16 documentation/regression verification: `npm test` exit 0; Node/Renderer/Web stages passed
+(Web 47/47), API **592 passed / 246 skipped / 2 warnings in 33.00s**, Worker **376 passed /
+67 skipped / 1 warning in 21.56s**. Existing warnings were not suppressed. `npm run validate`
+**23/23 PASS**, Secret Scan **1,237 files PASS**, diff whitespace checks PASS (line-ending
+warnings only). Service-test variables were absent; no PostgreSQL/Redis integration, SQL
+compilation/execution, migration or Browser Proof ran. Three fixed function definitions remain
+textually identical to pushed r2. Only the two ADR Markdown files changed after that push; no
+runtime file or old MVP report changed. r3/v0.16 remain local; TC-103SQL01..17 NOT RUN.
+
+### v0.17 owner R3 review and explicit strict-policy scope — 2026-10-24
+
+Owner review: ADMIN inspection and pg_has_role(..., 'MEMBER WITH ADMIN OPTION') APPROVED IN
+PRINCIPLE; exact SQL EXPRESSION REVIEW REQUIRED. The owner prefers the strict policy provided
+unrelated-role matches are documented as conservative manual-review stops, not demonstrated P5
+escalation. [P5 r3.1 sections 6.1/13](ADR-090-p5-sql-contract.md) now explicitly select that strict
+proposal. Target roles remain unrestricted deliberately; the narrower P5-relevance policy is not
+selected or silently applied.
+
+The contract identifies r as the existing non-Superuser operational-review inventory (ordinary
+LOGIN principals plus named Worker/helper/guest roles), actor as r or an existing SET ROLE
+identity, and target as any role under the strict policy. This inventory is not a claim that every
+included login uses P5. Temporary Superuser Installer is excluded from r by NOT rolsuper but still
+must pass the independent installation/ownership checks. A Superuser Worker/helper/guest fails
+its separate attribute guard; no blanket runtime exception or RLS proof is inferred.
+
+TC-103SQL17a..g adds negative and positive design expectations, including an unrelated ADMIN
+target that must STOP/manual review, a no-ADMIN actor that passes only this sub-gate, Installer
+exclusion and a non-reachable/unassigned NOLOGIN actor. All seventeen top-level SQL cases and
+seven subcases remain NOT RUN. Only comments, contract prose and scenario descriptions change;
+no SQL Boolean predicate, runtime function, grant, schema or retention change is made this turn.
+
+P5 exact SQL PENDING; full ADR-090 WAIT; 0103/SQL execution/Migration/Browser Proof/Hosted/customer
+use and Commit/Push remain NO-GO. No new Canonical Drive read/write or database/compiler
+execution is claimed. Previous uncommitted work and the old MVP assessment report are preserved.
+
+v0.17 documentation/regression verification: `npm test` exit 0; Node/Renderer/Web stages passed
+(Web 47/47), API **592 passed / 246 skipped / 2 warnings in 30.95s**, Worker **376 passed /
+67 skipped / 1 warning in 22.41s**. Existing warnings remain visible. `npm run validate`
+**23/23 PASS**, Secret Scan **1,237 files PASS**, diff whitespace checks PASS (line-ending warnings
+only). The five SQL fences have the same comment-insensitive/whitespace-normalized text fingerprint
+as pre-edit r3; this is not SQL compilation. Service-test variables were absent; no PostgreSQL/
+Redis integration, SQL execution/Migration, Browser Proof or real-role ACL test ran. Seventeen
+top-level cases and seven subcases remain NOT RUN. Only two tracked ADR Markdown files changed;
+runtime sources and old MVP report were preserved. No commit/push/external write occurred.
+
+### r3.1 review handoff — 2026-10-24, no normative revision
+
+The owner's continuation request is recorded as REQ-10326. [P5 section 14](ADR-090-p5-sql-contract.md)
+consolidates the source review of existing owner privileges, Postgres locking/conflict permissions,
+pinning/revalidation, commit-before-disclosure, retention and strict ADMIN scope. The five SQL
+blocks remain unchanged; no further SQL version, D clause or P4 contract change is introduced.
+The source-review packet distinguishes observations from the seventeen top-level and seven
+subcase actual-role tests, all NOT RUN. No additional contradiction was identified in the reviewed
+areas, but owner source approval and later execution evidence are still required separately.
+
+P1 publication remains blocked by the original 0040 v1-only profile and unreviewed additive
+publication/private-Manifest integration; a consumption-only SQL approval cannot clear it.
+Exact P5 r3.1 remains PENDING OWNER SOURCE REVIEW; full ADR-090 WAIT; SQL execution/Migration,
+0103 Runtime/Browser Proof/Hosted/customer use and commit/push remain NO-GO. No fresh Canonical
+Drive read/write is claimed. Structure, source permissions and earlier local work are preserved.
+
+Source-review handoff verification: `npm test` exit 0; existing Node/Renderer/Web passed (Web
+47/47), API **592 passed / 246 skipped / 2 warnings in 32.74s**, Worker **376 passed / 67 skipped /
+1 warning in 21.02s**. Warnings were not suppressed. `npm run validate` **23/23 PASS**, Secret
+Scan **1,237 files PASS**, diff whitespace checks PASS (line-ending warnings only). All five
+SQL blocks are textually unchanged, including comments (LF-normalized fingerprint in P5 section
+14). Service-test variables were absent; no PostgreSQL/Redis integration, SQL compilation/
+execution, migration or Browser Proof. Seventeen top-level scenarios and seven subcases NOT RUN.
+Only the two ADR Markdown files changed; runtime sources and old MVP report preserved; no
+commit/push or external-system write. This source review is not contract approval or 0103 PASS.
+
+### v0.18 exact P5 r3.1 contract Freeze — 2026-10-24
+
+Owner decision: **P5 SQL r3.1 APPROVED / FROZEN AT CONTRACT LEVEL** after independent review of
+the full 1063-line/74598-byte source, matching document SHA-256
+`8703CEA1351D74E2DF9A96E777265508E936C14143FD13C602B1BBF8A13F4D77` and five-block SQL fingerprint
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+[P5 section 15](ADR-090-p5-sql-contract.md) records exact authority and snapshot identity. The new
+metadata/status text changes the whole document's hash, not its frozen SQL blocks. No SQL source
+revision is introduced; changing DDL/functions/policies/grants/assertions requires a new reviewed
+revision. This owner decision, not this agent's prior source observations, closes P5 contract review.
+
+The Freeze covers DDL/immutable ledger, Preflight/Consume and lock/commit boundary, ownership/
+least privilege, independent Installer and the pre-commit ACL/RLS/strict ADMIN OPTION Gate.
+The unrestricted ADMIN target scan remains deliberately conservative; unrelated-role matches
+require manual review and are not automatic proof of P5 vulnerability. The Installer is outside
+the operational ADMIN loop and does not become a substitute for real-role test evidence.
+
+| Gate | Current status |
+|---|---|
+| P4 contract | APPROVED / FROZEN |
+| Exact P5 SQL r3.1 contract | APPROVED / FROZEN AT CONTRACT LEVEL |
+| 17 SQL scenarios + 7 subcases | NOT RUN |
+| P1 Private Packet Manifest / Publishing integration | PENDING |
+| Full ADR-090 Freeze | WAIT |
+| SQL execution / Migration / Browser Proof / 0103 implementation | NO-GO |
+| Hosted Preview / customer content | NO-GO |
+| Commit / Push | NOT AUTHORIZED |
+
+Owner approval is design-only and explicitly not PostgreSQL compilation/installation, actual-role
+ACL/RLS/concurrency PASS or complete P1 integration. Existing 0102 v1-only code/CHECKs/resolver,
+runtime boundaries and structure are preserved. This status update does not weaken any remaining
+D-clause/wireframe/browser/activation gate, authorize a new development increment, alter permissions
+or claim a new Canonical Drive read/write. Prior local work/MVP report are preserved unchanged.
+
+v0.18 status-record verification: `npm test` exit 0; existing Node/Renderer/Web stages passed
+(Web 47/47), API **592 passed / 246 skipped / 2 warnings in 36.18s**, Worker **376 passed /
+67 skipped / 1 warning in 24.75s**. Existing warnings remain visible. `npm run validate`
+**23/23 PASS**, Secret Scan **1,237 files PASS**, whitespace checks PASS (line-ending warnings
+only). The five frozen SQL blocks retain the exact approved fingerprint, including comments;
+only decision/status/prose and index changed. Service-test variables were absent; no PostgreSQL/
+Redis integration, SQL parser/compiler/execution, migration or Browser Proof ran. All 17 SQL
+scenarios + 7 subcases NOT RUN. No runtime edit, commit/push, Drive write or Hosted/customer
+activation occurred; old local work/MVP report preserved. Full ADR Freeze remains WAIT.
+
+### v0.19 P1 Manifest / Publishing decision packet — 2026-10-24
+
+**Status: PROPOSED / OWNER REVIEW REQUIRED.** This is the next bounded contract-design step,
+not approval of new schema fields, SQL, helpers, queue identities or runtime behavior. P4 and
+the five exact P5 r3.1 SQL blocks remain Frozen and unchanged. Canonical source links and the
+2026-10-17 review date above are retained; no new Canonical Drive review/write is claimed.
+
+Source inspection for REQ-10328 identifies two compatibility gaps:
+
+- `preview_delivery_manifest/v1` is a multi-file Manifest. Its `pages` are sorted by path;
+  P4 instead requires one self-contained packet whose initial/ordered pages follow the exact
+  `canonical_ast.pages` order. Reusing the old Manifest would conceal a delivery-contract change.
+- Existing 0040 claim/finalize and 0041 failure helpers explicitly accept the old transformer/
+  policy pair. Finalization fixes the old Manifest reference, and failure accepts only its three
+  existing reason codes. P5 Preflight/Consume authorize delivery; they do not allocate, prepare
+  or finalize a P1 Representation. Widening their purpose would change the Frozen SQL contract.
+
+#### P6 — Separate private packet Manifest (proposed direction)
+
+Recommend a closed, independently versioned P1 Manifest rather than changing
+`preview_delivery_manifest/v1`. The proposed responsibilities are:
+
+1. Bind the Representation to the exact source tenant/project/Artifact/ArtifactVersion/hash
+   and the approved P1 transformer/policy pair, without resolving latest state.
+2. Describe exactly one final UTF-8 HTML packet, its exact byte count and SHA-256. All pages,
+   CSS and permitted media are embedded under P4; there is no public per-file delivery map.
+3. Preserve canonical page order, with the first page as the initial page. Do not inherit
+   0102's path sorting or duplicate canonical AST/content into metadata.
+4. Bind verified script/style provenance and exact final inline hashes to P4's reviewed
+   versioned inputs. Metadata cannot authorize arbitrary scripts, styles or a caller-provided
+   CSP header. Hash format/fields and trusted-source validation still need exact source review.
+5. Remain private and token-free: no raw capability, capability hash, Publication access state,
+   expiry, Host, Cookie, session, credential or browser-visible storage reference. Representation
+   reuse must not couple the immutable packet to a particular Publication's capability.
+
+The exact Manifest identity, field names/types, private filenames/namespace, canonical
+serialization and hash encoding are **not selected by this proposal**. After direction approval,
+provide their complete closed contract for review; no JSON Schema is written beforehand.
+P4 packet bytes, CSP hashes and the Manifest's own integrity hash are distinct boundaries.
+
+#### P7 — P1-specific publishing authority (proposed direction)
+
+Recommend separate, fixed P1 claim/finalize/failure operations, with the narrow release strategy
+explicitly reviewed alongside them. Do not add a caller-controlled profile argument or broaden
+the legacy operations. Exact function count, names, signatures, grants and SQL remain pending.
+This is an additive continuation of Option A, not a new Representation/Publication aggregate.
+
+The proposed review boundary preserves existing short claim/finalization transactions and
+session ownership: verify the pinned source, prepare/validate the complete derivative, write
+immutable private bytes with create-or-verify/read-back checks outside a DB transaction, then
+atomically finalize Representation ready + Publication ready + the same Job succeeded.
+Any ready reuse must prove the same source/profile/Manifest identity; existing bytes are never
+overwritten. Failure must not create access, consume a capability or masquerade as success.
+
+New exact SQL must separately cover graph revalidation, Job -> Publication -> Representation
+lock ordering compatible with current revoke, stale/foreign session denial, and known failure
+handling including the already approved internal `PREVIEW_PACKET_TOO_LARGE` reason. This does
+not expand 0041's allowlist. The least-privilege/short-transaction review informed this proposal;
+it does not authorize new grants or inherit installation approval from P5.
+
+No Job/Outbox/Task name, envelope, command endpoint, dispatch switch or issuance change is
+chosen here. The trusted selection/allocation path for the P1 pair and its idempotency binding
+must be specified before a publishing SQL contract can be Frozen. Existing 0102 v1-only resolver,
+commands, adapters, storage layout and accepted migrations remain unchanged.
+
+**Requested owner decisions:** approve or change (P6) a separate private single-packet Manifest
+contract and (P7) separate closed P1 publishing authority. Approval of these directions would
+permit exact contract drafting only, not SQL execution, Migration, runtime or Browser Proof.
+All existing P1 acceptance cases remain NOT RUN; full ADR Freeze WAIT; Hosted/customer content
+and commit/push remain NO-GO. This is an unfinished design proposal, not a completed increment;
+there are no implementation records or new PASS claims for 0103.
+
+v0.19 documentation verification: `npm test` exit 0; existing Node/Renderer/Web suites PASS
+(Web 47/47), API **592 passed / 246 skipped / 2 warnings in 30.36s**, Worker **376 passed /
+67 skipped / 1 warning in 20.97s**. The deprecation/cache-permission warnings remain disclosed.
+`npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**, `git diff --check` PASS
+(line-ending warnings only). Five Frozen SQL blocks retain fingerprint
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+No service-test environment was present; no SQL, PostgreSQL/Redis integration, migration or
+Browser Proof executed. This continuation edits only this ADR's proposal/trace/status prose;
+prior local P5/index changes and the MVP-readiness report are preserved, with no commit/push.
+
+### v0.20 P6/P7 direction decision and exact P6 handoff — 2026-11-01
+
+The owner explicitly approved both directions **FOR CONTRACT DESIGN ONLY**. This does not
+approve the exact local v0.19 text, new fields, helpers, grants or SQL. Exact P6 is required first;
+P7 drafting follows the independently reviewed P6 identities/constraints. See the complete
+[P6 r1 private packet Manifest proposal](ADR-090-p6-private-packet-manifest-contract.md).
+It specifies a closed shape, private namespace, three separate authority/hash boundaries,
+canonical bytes, page order, size, no-consumption-on-failure and unchanged P5 commit sequencing.
+All exact P6 names/fields/serialization remain proposals pending source review, not Frozen.
+
+| Gate | Current status |
+|---|---|
+| P4 / exact P5 SQL r3.1 contracts | APPROVED / FROZEN; unchanged |
+| P6 / P7 architectural directions | APPROVED FOR CONTRACT DESIGN ONLY |
+| Exact P6 r1 contract | PENDING INDEPENDENT SOURCE REVIEW |
+| Exact P7 contract | NOT DRAFTED; waits for P6 review |
+| Full ADR-090 Freeze | WAIT |
+| SQL execution / Migration / Browser Proof / 0103 implementation | NO-GO |
+| Hosted / customer content / Commit / Push | NO-GO |
+
+No actual script/style/packet, JSON Schema, SQL block, runtime source, dependency or test harness
+is created by this handoff. Existing 0102, Frozen P4/P5 and old local work remain unchanged.
+The new review supplement follows the existing P5 ADR-supplement structure, not a new domain,
+deployable or completed increment. Canonical links/review dates remain explicit; no fresh Drive
+read/write or remote Git operation is claimed.
+
+v0.20 verification: `npm test` exit 0; existing Node/Renderer/Web suites PASS (Web 47/47).
+API **592 passed / 246 skipped / 2 warnings in 39.49s**; Worker **376 passed / 67 skipped /
+1 warning in 32.06s**. Existing deprecation and pytest-cache permission warnings remain disclosed.
+`npm run validate` **23/23 PASS**; Secret Scan **1,238 files PASS**; diff whitespace checks PASS
+(line-ending warnings only). Service-test environment variables were absent; no SQL compiler,
+PostgreSQL/Redis integration, migration or Browser Proof ran. All P6/P7 execution and the existing
+17 SQL scenarios + 7 subcases remain NOT RUN. No P1 runtime/quality acceptance is claimed.
+
+P6 r1 review snapshot: **176 lines / 13,295 bytes**, raw-file SHA-256
+`EB3494A2164B3E38A7DAE8DE498786FFE8B18E97B705A07C2B4065D9A13FB614`.
+The five unchanged Frozen P5 SQL blocks retain
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+Only this parent and the new P6 supplement are edited by this continuation; previous P5/index
+changes and MVP-readiness report are preserved. No Commit/Push or external document change.
+
+### v0.21 exact P6 Freeze and P7 working-design continuation — 2026-11-01
+
+The owner reviewed the complete P6 r1 and explicitly froze its identity/shape/paths/serialization,
+page order, final-byte/hash boundaries and pre-consumption checks at contract level. See
+[P6 section 8](ADR-090-p6-private-packet-manifest-contract.md) for the approved original snapshot
+and unchanged normative section fingerprint. Status/approval prose does not authorize executable
+script/style/Transformer bytes, implementation, SQL, Migration or any P6 execution PASS.
+
+The owner authorized exact P7 design. [P7 r1 working draft](ADR-090-p7-independent-publishing-contract.md)
+proposes fixed Application commands, separate Job/Event/Task identities, four bounded Worker
+helpers, independent P1 execution claims, fixed graph/session checks, short transactions, atomic
+finalization, minimum Worker ACLs, closed profile-pair support and revoke/recovery/idempotency.
+None of those new choices is approved merely by inclusion in the draft.
+
+Source inspection found that legacy release_preview is not profile-scoped and that the existing
+0102 fixture-backed command proof does not establish a restricted Core management DB principal.
+P7 therefore proposes separate P1 claim storage/lock identity, not a legacy helper change, and
+leaves the Core authority design OPEN pending an explicit owner direction. A focused question
+offers separate limited Core operations versus deferring that portion. No new principal,
+authenticated/anon grant or DB-owner runtime is selected silently. P7 cannot be Frozen complete
+while that authority choice remains unresolved.
+
+P4/P5/P6 contracts FROZEN; P7 exact contract PENDING REVIEW; Core DB authority OPEN; full ADR Freeze
+WAIT. All P6/P7 execution and 17 P5 SQL scenarios + 7 subcases remain NOT RUN. SQL execution,
+Migration, Browser Proof, Runtime, Hosted/customer content and Commit/Push remain NO-GO.
+No new Canonical Drive read/write, package, deployable, operational schema or completed increment
+is introduced. Old local work and MVP-readiness report are preserved.
+
+v0.21 documentation verification: `npm test` exit 0; existing Node/Renderer/Web suites PASS
+(Web 47/47). API **592 passed / 246 skipped / 2 warnings in 32.77s**; Worker **376 passed /
+67 skipped / 1 warning in 22.29s**. Deprecation/cache-permission warnings remain disclosed.
+`npm run validate` **23/23 PASS**, Secret Scan **1,239 files PASS**, diff whitespace checks PASS
+(line-ending warnings only). Service-test environment was absent; no SQL compilation/execution,
+PostgreSQL/Redis integration, Migration or Browser Proof ran. All dedicated P6/P7 cases and P5's
+17 scenarios + 7 subcases remain NOT RUN, not covered by these general PASS results.
+
+P6 normative sections 2..7 retain normalized-LF (excluding final newlines) SHA-256
+`B13C75B97982DA1CD69B8FB014BAB7C1E090F67C3CFB53A964852125377C4AFE`.
+Five unchanged P5 SQL blocks retain
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+The P7 working draft is not a complete/Frozen contract and makes no execution PASS claim.
+Only documentation changed; no Runtime, SQL, Migration, dependency, Commit/Push or Drive write.
+
+### v0.22 independent limited Core authority direction and P7 r2 — 2026-11-01
+
+The owner answered the focused authority question by selecting separate limited Core authority
+with fixed operations, without direct Worker/anon/authenticated table access. This authorizes
+contract drafting, not the exact new role names, grants, functions or SQL. The former direction
+question is CLOSED; exact [P7 r2](ADR-090-p7-independent-publishing-contract.md) is PENDING
+INDEPENDENT SOURCE REVIEW and remains NOT FROZEN.
+
+Section 8 proposes a distinct restricted LOGIN Core caller and NOLOGIN definer owner, three
+fixed Core operations, trusted Core Identity plus independent DB Membership/tenant/Project checks,
+column-limited grants and P1-only policies. Raw token generation/disclosure stays in Core memory;
+SQL gets only its candidate digest. Helpers compute fixed semantic fingerprints internally,
+reserve safe idempotency outcomes atomically and preserve issued/revoked/consumed state. P5 is
+not a validation/consumption shortcut for the Core caller. No new JWT/Tenant transport or guest
+session, broad RLS migration, role membership or direct Worker/anon/authenticated grant is chosen.
+
+Source-level review found that Core allocation must not use Representation SELECT FOR UPDATE
+while its proposed definer ACL deliberately has no Representation UPDATE. PostgreSQL 16's SELECT
+documentation confirms the privilege requirement; P7 r2 instead uses the fixed allocation
+transaction advisory key, plain reads/INSERT and DB uniqueness/FK guards, with revalidation by
+Worker. This corrects the unapproved P7 draft, not any Frozen P4/P5/P6 contract or old code.
+No executable SQL was compiled or run to claim this design works.
+
+Core credential compromise remains an explicit trust risk, not solved by accepting actor IDs
+or RLS. Public cannot supply those IDs as trusted identity; Helpers do not pretend to verify JWTs.
+All exact r2 choices await review. Concrete SQL, rollback/installation and real-role evidence
+remain separate future gates. Full ADR Freeze WAIT; 0103/SQL/Migration/Browser Proof/Hosted/customer
+content and Commit/Push NO-GO. Verification is recorded after the general checks; old local work
+and MVP-readiness report are preserved.
+
+v0.22 final documentation checks: `npm test` exit 0; existing Node/Renderer/Web suites PASS
+(Web 47/47). API **592 passed / 246 skipped / 2 warnings in 39.98s**; Worker **376 passed /
+67 skipped / 1 warning in 27.13s**. Existing deprecation/cache-permission warnings are retained.
+`npm run validate` **23/23 PASS**, Secret Scan **1,239 files PASS**, diff whitespace checks PASS
+(line-ending warnings only). Service-test environment was absent. No SQL compilation/execution,
+PostgreSQL/Redis integration, Migration, actual-role P7 test or Browser Proof ran; dedicated
+P6/P7 cases and P5's 17 scenarios + 7 subcases remain NOT RUN. No 0103 completion is claimed.
+
+P7 r2 exact-source handoff is **552 lines / 43,330 bytes**, raw-file SHA-256
+`2B9ACE6945F38A1F8009EE8BB3B7C18F47D8503F100C24397FFF692554E65A01`.
+P6 normative sections retain
+`B13C75B97982DA1CD69B8FB014BAB7C1E090F67C3CFB53A964852125377C4AFE`;
+five unchanged P5 SQL blocks retain
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+Only parent/P7 documentation changes in this continuation. Exact P7 source approval remains
+PENDING, not implied by choosing the Core direction or by these general PASS results.

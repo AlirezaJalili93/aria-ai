@@ -1,15 +1,20 @@
-# ADR-090 P5 — Proposed Bootstrap Consumption SQL Contract
+# ADR-090 P5 — Bootstrap Consumption SQL Contract
 
-**Status: PENDING OWNER SOURCE REVIEW / NOT COMPILED / NOT EXECUTED.**
+**Contract status: APPROVED / FROZEN AT CONTRACT LEVEL — P5-SQL r3.1.**
 
-**SQL review revision: P5-SQL r2, 2026-10-24.** Owner-approved Installer/pre-commit design is
-represented below by proposed guard/assertion text, not approval of this exact SQL or execution.
+**Execution status: NOT COMPILED / NOT EXECUTED; SQL Execution / Migration NO-GO.**
+
+**SQL contract revision: P5-SQL r3.1, 2026-10-24.** The owner reviewed the complete exact source
+and explicitly froze its five SQL blocks as a design contract. This is not permission to run them.
+Section 12 records the r2 administrative-membership finding and proposed r3 assertion refinement.
+Section 13 records the prior R3 review and strict-policy scope clarification. Section 15 records
+the final exact-source approval, superseding earlier proposal/PENDING labels at contract level only.
 
 Date: 2026-10-17. Parent: [ADR-090](ADR-090-controlled-preview-workspace-contract.md).
 Scope: Local/Synthetic SQL design only. This Markdown is not a migration, application module,
-fixture loader or permission to run any statement. P5 logical model and Option A design are
-approved; exact DDL, function signatures, grants and role-owner reuse below are proposals.
-P4 contract FROZEN by owner on 2026-10-24; P5 SQL review/full ADR Freeze still PENDING/WAIT.
+fixture loader or permission to run any statement. P5 logical model, Option A and the exact r3.1
+DDL/function/ACL/assertion text are approved as design, not installed objects or applied privileges.
+P4 and P5 contracts FROZEN by owner on 2026-10-24; full ADR-090 Freeze still WAIT.
 Runtime, Migration, Hosted/customer use and commit/push NO-GO.
 
 ## 1. Authority, dependencies and exclusions
@@ -40,8 +45,8 @@ Technical review: PostgreSQL 16 [SELECT privileges/locks](https://www.postgresql
 The PostgreSQL skill guided short transactions, explicit lock order and minimum new ACLs, not
 timeouts, role redesign or product defaults. New-table RLS is not a redesign of existing Worker SELECT.
 
-**Dependency (owner decision 2026-10-24):** P4's identities and complete delivery-profile contract
-are now FROZEN. This does not approve these SQL statements or implementation. Current 0040
+**Dependency (owner decisions 2026-10-24):** P4's identities/delivery contract and P5's exact r3.1
+SQL design are FROZEN, not implementation or execution approval. Current 0040
 CHECKs still allow only v1. This document deliberately does not alter those CHECKs or old claim/
 finalize/fail/resolve functions. Approval/application of this consumption design alone cannot make
 P1 publishable. Private packet Manifest/integration and additive publishing SQL still need their
@@ -83,8 +88,8 @@ may remain owned by Installer; neither SECURITY DEFINER function may.
 The installation flow is one transaction: create objects -> assign definer ownership -> remove
 PUBLIC/default exposure -> explicit grants -> inspect/assert effective authority -> commit only
 after all assertions pass. Post-commit operational-role verification remains independent and
-must not be run as Superuser. The following revised SQL is a proposal implementing this approved
-design direction, still awaiting exact-source review. It is not a migration or runnable proof.
+must not be run as Superuser. The following r3.1 SQL is frozen at contract level following
+exact-source review. It is not an installed migration or an executed proof.
 
 ## 3. Proposed DDL and ledger protection — review text only
 
@@ -437,6 +442,33 @@ runtime isolation guarantees; Worker/helper/guest may not be Superuser or reach 
 Checks are a point-in-time installation boundary under trusted administration, not protection
 against a malicious Superuser changing roles/ACLs afterward.
 
+**R3 policy: STRICT ADMIN AUTHORITY REVIEW, not P5-specific privilege-reachability detection.**
+Following the owner's review, the proposed Gate intentionally stops on ANY ADMIN OPTION held by
+a checked operational-review principal or an identity it can already SET ROLE to, including ADMIN
+on a target role with no ownership or permission on P5 resources. The unrestricted target-role
+scan is deliberate under this strict policy, not evidence that every matched target can elevate
+P5 access. An unrelated-role match means conservative STOP/manual review, NOT a proved P5
+vulnerability, tenant leak or successful escalation. A narrower P5-relevance filter is NOT selected.
+
+The exact existing review population `r` is the non-Superuser LOGIN principals in this disposable
+cluster plus the named Worker/helper/guest roles (`aria_worker`, `aria_preview_runtime_owner`,
+`anon`, `authenticated`) when present, even if NOLOGIN. This is the installation's conservative
+operational-review inventory, not an assertion that every included login actually uses P5.
+It is not all pg_roles rows: unrelated unassigned NOLOGIN roles are not candidate actors unless
+reachable through SET ROLE from this population. `actor` is only r itself or such an existing
+SET ROLE identity; `target` ranges over all roles because the policy is strict. The temporary
+Superuser Installer is excluded by `NOT rolsuper`, not a role-name exception. Its separate
+installation guard, ownership constraints and final metadata checks still apply. A Worker/helper/
+guest incorrectly made Superuser must fail the earlier explicit role-attribute guard; it cannot
+use this exclusion as a waiver. No Superuser result is operational-role/RLS acceptance evidence.
+
+An initially disabled SET/INHERIT membership could otherwise be changed or delegated using ADMIN.
+This inspection is a proposed installation prerequisite, never a role-management operation. Any
+conflict stops installation for review; do not revoke memberships globally or silently switch to
+the narrower policy to make it pass. With the first administrative edge denied, the gate need not
+simulate chains of future self-grants. Section 15's exact-source contract Freeze supersedes the
+prior in-principle review. It does not approve execution; actual-role tests remain mandatory.
+
 ```sql
 -- LAST installation statement block, in the transaction opened in section 3.
 -- NOT EXECUTED / NOT COMPILED. Any exception requires STOP + ROLLBACK.
@@ -572,11 +604,21 @@ BEGIN
         RAISE EXCEPTION 'Preview ledger protection denied' USING ERRCODE = '42501';
     END IF;
 
+    -- r: existing non-Superuser operational-review population, not Installer.
+    -- Named runtime roles becoming Superuser fail the separate role guard above.
     FOR r IN SELECT oid, rolname FROM pg_catalog.pg_roles
              WHERE NOT rolsuper AND (rolcanlogin OR oid IN (v_owner, v_worker)
                                     OR rolname IN ('anon', 'authenticated')) LOOP
         IF (r.oid <> v_owner AND pg_catalog.pg_has_role(r.oid, v_owner, 'MEMBER'))
            OR (r.oid <> v_worker AND pg_catalog.pg_has_role(r.oid, v_worker, 'MEMBER'))
+           -- STRICT policy: any reachable ADMIN, even on an unrelated target.
+           -- A match is STOP/manual review, not proof of a P5 escalation path.
+           OR EXISTS (
+               SELECT 1 FROM pg_catalog.pg_roles AS actor
+               CROSS JOIN pg_catalog.pg_roles AS target
+               WHERE (actor.oid = r.oid OR pg_catalog.pg_has_role(r.oid, actor.oid, 'SET'))
+                 AND pg_catalog.pg_has_role(actor.oid, target.oid, 'MEMBER WITH ADMIN OPTION')
+           )
            OR EXISTS (
                SELECT 1 FROM pg_catalog.pg_roles AS a
                WHERE (a.oid = r.oid OR pg_catalog.pg_has_role(r.oid, a.oid, 'SET'))
@@ -649,7 +691,8 @@ triggers or helpers as Worker and cannot establish actual RLS behavior. Superuse
 and invoker trigger are installation artifacts; the two runtime SECURITY DEFINER owners must be
 the restricted role, never Installer. Inherited/default ACLs are inspected on the newly created
 objects, not reset globally. No post-commit check may substitute for this in-transaction gate.
-All proposed assertion SQL remains uncompiled/unexecuted and requires exact source review.
+The frozen assertion SQL remains uncompiled/unexecuted. Any change requires a new reviewed
+revision; no catalog assertion or operational-role behavior has been verified by execution.
 
 ## 7. Transaction, crash and error contract
 
@@ -704,6 +747,24 @@ the future local proof must verify diagnostic redaction independently.
 | TC-103SQL14 | Unexpected PUBLIC/default/column grants, inherited privileges or reachable SET ROLE authority abort the install transaction before commit; no global role/default-ACL repair |
 | TC-103SQL15 | Final runtime SECURITY DEFINER owner is the restricted role, not Installer/table owner; no Worker ownership/grant option/direct ledger privilege; safe function settings and FORCE RLS inspected before commit |
 | TC-103SQL16 | Any final catalog assertion failure rolls back all new objects/grants; post-commit actual-role negative/positive tests remain separate and are not replaced by Superuser catalog inspection |
+| TC-103SQL17 | Synthetic role-membership ADMIN authority with SET/INHERIT disabled, both direct and through an already reachable SET ROLE identity, is rejected before installation commit; no self-grant/delegation, automatic membership revocation or privilege repair is performed |
+
+### TC-103SQL17 subcases — strict-policy acceptance design, ALL NOT RUN
+
+These are positive/negative expectations for the ADMIN sub-gate, not permission to create roles,
+grant membership or execute the installation. The existing seventeen top-level SQL scenarios remain
+NOT RUN; subcases below add design coverage, not executed-test counts. Passing this sub-gate alone
+does not pass other role/ACL/RLS assertions or authorize COMMIT.
+
+| Subcase | Proposed synthetic setup / distinction | Expected ADMIN sub-gate result |
+|---|---|---|
+| 17a — negative, P5-relevant ADMIN | Checked Worker has ADMIN on a role with P5 authority while SET/INHERIT are false | STOP before install commit; current lack of usable privileges does not exempt administrative authority |
+| 17b — negative, reachable actor | Checked principal can already SET ROLE to an identity holding ADMIN on a target | STOP before commit; no actual SET ROLE or membership change is performed by the assertion |
+| 17c — negative, unrelated target | Checked operational principal has ADMIN only on a synthetic role with no P5 ownership/permission | STOP/manual review under the strict policy; explicitly NOT proof of a P5 vulnerability; no automatic grant/revoke/repair |
+| 17d — positive, no ADMIN | Valid checked principal and all its existing SET ROLE identities hold no ADMIN on any target; other prerequisites are independently satisfied | No ADMIN-policy stop; remaining installation assertions must still run |
+| 17e — positive, Installer boundary | Independently authorized temporary Superuser Installer owns the installation session and satisfies its separate checks | Installer never becomes r; broad installer authority does not cause an ADMIN-policy stop and does not prove runtime RLS |
+| 17f — positive, unassigned actor | An unrelated NOLOGIN role holds ADMIN but is neither named in r nor SET-reachable from any r; no checked actor has ADMIN | No global actor scan/ADMIN-policy stop solely because that unassigned actor exists; ordinary raw ACL checks remain independent |
+| 17g — negative, fake exemption | Worker/helper/guest is improperly given Superuser attributes | Earlier named-role attribute guard denies installation; exclusion from r cannot hide the invalid runtime role |
 
 Review must also resolve the P1 private packet Manifest/integration and separate additive
 publishing/failure SQL before any execution plan. No SQL was parsed against PostgreSQL, installed,
@@ -820,7 +881,7 @@ SQL blocks unchanged. No database/compiler/Browser Proof or new P5 executable ca
 TC-103SQL01..12 remain NOT RUN. Existing uncommitted MVP assessment report was not modified.
 No commit/push or external-system mutation; P5 acceptance remains PENDING OWNER REVIEW.
 
-## 11. Owner Installer decision and proposed P5-SQL r2 — 2026-10-24
+## 11. Historical owner Installer decision and proposed P5-SQL r2 — 2026-10-24
 
 Authority: owner's explicit **P5 INSTALLATION AUTHORITY — APPROVED FOR SQL CONTRACT DESIGN ONLY**.
 REQ-10323 in the parent ADR traces this revision. SR-P5-01/02 now have approved design direction,
@@ -866,3 +927,182 @@ confirms the three fixed function definitions are identical, not all SQL blocks:
 blocks were intentionally revised as authorized. Only the two tracked ADR Markdown files differ;
 the pre-existing uncommitted MVP report is preserved. No new SQL case was compiled/executed,
 no runtime/migration source changed, and no commit/push/external-system write occurred.
+
+## 12. Post-push r2 source review and proposed r3 refinement — 2026-10-24
+
+The owner explicitly requested push, then continuation. The two ADR documents were committed and
+pushed as `3e18ba9b21ed027ce31260bd1c5b7eabd8a961e1`; local HEAD and origin tracking SHA agree.
+That is the remotely reviewable **r2** checkpoint. This continuation is a local SQL-contract-text
+revision only, not approval or execution. REQ-10324 traces it in the parent ADR. The pre-existing
+MVP planning report is unchanged and was deliberately not included in that two-file push.
+
+**SR-P5-03 — Membership administration is an authority path, not just current SET/INHERIT.**
+r2 checks ordinary privileges and reachable SET ROLE identities but has no explicit ADMIN OPTION
+assertion. As a reasoned counterexample, a Worker membership in pg_read_all_data with ADMIN TRUE,
+SET FALSE and INHERIT FALSE need not have current full-table SELECT or any reachable SET target.
+The predefined role has no superuser/BYPASSRLS/CREATEROLE flag and no explicit ledger ACL entry;
+the inspected r2 checks therefore do not themselves reject that administration authority. PostgreSQL
+allows membership-option changes/delegation using ADMIN; current lack of SET/INHERIT is not a
+stable proof of inability to acquire it. This is a source-level least-privilege gap, not evidence
+that this membership exists, a demonstrated tenant leak, a bypass of all RLS or a successful exploit.
+
+Proposed r3 changes only the final fixed catalog assertion: reject ADMIN authority for each already
+checked principal and its existing SET ROLE identities, using pg_has_role(..., 'MEMBER WITH ADMIN
+OPTION'). The scope of checked principals is not broadened. Any positive result aborts the future
+installation; no role membership, permission, tenant setting or cluster default is changed. This
+conservative prerequisite itself remains part of exact-source review. A conflict does not authorize
+removing another administrator's rights. No runtime helper/table/policy body or retained-data rule
+changed. TC-103SQL17 is a planned negative installation case, not an executed fixture or test.
+
+Primary references rechecked 2026-10-24:
+[role grants and membership-option updates](https://www.postgresql.org/docs/16/sql-grant.html),
+[pg_has_role ADMIN inspection](https://www.postgresql.org/docs/16/functions-info.html),
+[membership catalog options](https://www.postgresql.org/docs/16/catalog-pg-auth-members.html) and
+[predefined data roles without BYPASSRLS](https://www.postgresql.org/docs/16/predefined-roles.html).
+The PostgreSQL skill prompted this distinction between declared/current access and administrative
+authority; none of its generic role-grant examples were executed or adopted as a new runtime grant.
+
+**Status:** SR-P5-03 has a proposed source correction, not independently approved/verified closure.
+Exact r3 SQL remains PENDING OWNER SOURCE REVIEW / NOT COMPILED / NOT EXECUTED; TC-103SQL01..17
+NOT RUN. Full ADR-090 WAIT; 0103 Runtime/SQL/Migration/Browser Proof/Hosted/customer use NO-GO.
+The push authorization was used for the preceding reviewed checkpoint, not automatically extended
+to this later local design revision. No further commit/push is performed in this continuation.
+
+Documentation/regression verification for r3, 2026-10-24: `npm test` exit 0; existing
+Node/Renderer/Web stages passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in
+33.00s**, Worker **376 passed / 67 skipped / 1 warning in 21.56s**. Deprecation/cache-permission
+warnings remain visible. `npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**,
+diff whitespace checks PASS (line-ending warnings only). Service-test environment variables
+were absent, so no PostgreSQL/Redis integration was enabled. Text-only comparison with pushed
+r2 confirms the three fixed function definitions remain identical; only the final proposed
+catalog assertion changed within SQL fences. No SQL parser/compiler/connection, migration,
+Browser Proof or TC-103SQL01..17 execution occurred. Only two tracked ADR Markdown files changed;
+the existing untracked MVP report was preserved. r3 remains local/uncommitted/unpushed.
+
+## 13. Owner R3 review and strict-policy clarification — 2026-10-24
+
+Authority: the owner approved the necessity of ADMIN inspection and the selected PostgreSQL
+function in principle, required an explicit policy choice, and preferred the strict policy with
+conservative unrelated-role stops distinguished from vulnerabilities. The current permission is
+contract-text refinement plus positive/negative acceptance design only. REQ-10325 traces it in
+the parent ADR. No SQL approval, complete ADR Freeze or execution authority follows from this review.
+
+r3.1 explicitly selects STRICT ADMIN AUTHORITY REVIEW for this proposal. Section 6.1 now defines
+r/actor/target, the intentionally unrestricted target scan and the separate Installer/Superuser
+boundary; it does not silently change the candidate population or add a relevance filter. The
+review source's Boolean predicates, GRANTs and function definitions are unchanged by this
+clarification; only SQL comments and contract prose/scenario descriptions change. The protected
+owner/Worker privilege split and the original four-field ledger/retention model remain unchanged.
+
+TC-103SQL17a..g records related/unrelated target denial, existing SET ROLE actor denial, no-ADMIN
+acceptance, Installer exclusion, unassigned NOLOGIN actor exclusion and invalid runtime-Superuser
+denial. Every expectation is planned/NOT RUN. These distinctions follow the owner's review;
+the PostgreSQL skill reinforces least privilege and the separation of installer from runtime
+evidence, without adopting its generic role/grant or tenant-GUC examples. No fresh Drive or
+independent database verification is claimed.
+
+**Current status:** R3 APPROVED IN PRINCIPLE / SQL EXPRESSION REVIEW REQUIRED. Exact P5 SQL r3.1
+PENDING OWNER SOURCE REVIEW; full ADR-090 WAIT; SQL execution/Migration/0103 implementation,
+Browser Proof/Hosted/customer use/Commit/Push NO-GO. Seventeen top-level cases and all seven
+TC-103SQL17 subcases remain NOT RUN; no complete implementation increment is claimed.
+
+Documentation/regression verification for r3.1: `npm test` exit 0; existing Node/Renderer/Web
+stages passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in 30.95s**, Worker
+**376 passed / 67 skipped / 1 warning in 22.41s**. Existing deprecation/cache-permission warnings
+were not suppressed. `npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**, diff
+whitespace checks PASS (line-ending warnings only). A text-only fingerprint of all five SQL
+fences, with full-line comments removed and whitespace normalized, matches the pre-edit r3
+fingerprint: **no SQL expression change this turn**, not a compiler result. Service-test variables
+were absent; no PostgreSQL/Redis integration, SQL parsing/compilation/execution, migration,
+Browser Proof or actual-role case ran. Seventeen top-level scenarios and seven subcases remain
+NOT RUN. Only the two tracked ADR Markdown files changed; old MVP report and runtime sources
+were preserved. All current changes remain local; no commit, push or external-system write.
+
+## 14. r3.1 pre-approval source-review packet — 2026-10-24
+
+REQ-10326 records the owner's instruction to continue within the existing review-only boundary.
+This pass adds observations/evidence pointers, not a new SQL revision, contract Freeze or approval.
+All five SQL blocks, including comments, remain textually unchanged from the start of this pass.
+Review-text fingerprint: SHA-256 of their contents in document order, CRLF normalized to LF and
+joined with one LF (without fences):
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+This identifies the reviewed draft text only, not an ArtifactVersion/packet hash or compiled SQL.
+
+| Review area | Source-level observation | Evidence still required / decision boundary |
+|---|---|---|
+| Parent permissions | Existing 0040 grants the proposed owner Publication SELECT and UPDATE(status); SELECT locking requires an UPDATE privilege on a column; this draft adds no parent grant | Actual catalogs/role path and lock access: TC-103SQL09/11/15, NOT RUN |
+| Ledger conflict privilege | The only ledger read grant is SELECT(publication_id); four explicit INSERT columns match the INSERT; publication_id is the ON CONFLICT target | Actual column ACL, policy evaluation and insertion: TC-103SQL01/03/11, NOT RUN |
+| Pinning and revalidation | Consume first locks the exact hash/Publication, then compares the full graph and pinned Representation/ArtifactVersion/Manifest hash; source parents have existing immutable-ready triggers | Mismatch/revoke/concurrency evidence: TC-103SQL02/04/06, NOT RUN; no latest-selection or success assumption |
+| Lock direction and clock | Current revoke takes Job then Publication; Consume takes Publication and does not subsequently request Job/Representation row locks; wall-clock expiry is checked after the Publication wait | TC-103SQL04/05/07, NOT RUN; this is not a proof of whole-system deadlock freedom or a new timeout policy |
+| Single consumption and disclosure | PK(publication_id), conflict DO NOTHING and ROW_COUNT form the proposed insertion boundary; sending bytes requires confirmed outer commit | TC-103SQL03/07/08, NOT RUN; lost response stays consumed, uncertain commit never triggers automatic retry/disclosure |
+| R3 administrative scope | r is the documented non-Superuser review population; ADMIN on any target is a strict manual-review stop; Installer is separately checked, not r | Owner's exact-source review plus TC-103SQL17a..g, NOT RUN; an unrelated target match is not vulnerability evidence |
+| Retention | Ledger has no Idempotency FK, TTL or purge path; RESTRICT FK and existing parent/new ledger protections preserve consumed identity under restricted runtime authority | TC-103SQL08/10, NOT RUN; privileged destructive administration remains outside runtime guarantees |
+| P1 integration | 0040 still accepts only the original v1 transformer/policy pair; its public commands/runtime dispatch have not been modified for P1 | Private packet Manifest and separately reviewed additive publication/failure SQL remain unresolved; consumption approval alone cannot make P1 publishable |
+
+Technical references rechecked for this pass: PostgreSQL 16
+[SELECT locking privileges](https://www.postgresql.org/docs/16/sql-select.html),
+[INSERT conflict-target privileges](https://www.postgresql.org/docs/16/sql-insert.html),
+[READ COMMITTED conflict behavior](https://www.postgresql.org/docs/16/transaction-iso.html) and
+[SECURITY DEFINER boundary](https://www.postgresql.org/docs/16/sql-createfunction.html).
+Repository source pointers are the 0038/0040/0041 files and scoped revoke repository listed in
+section 1. The PostgreSQL skill guided privilege/lock-order/short-transaction scrutiny; generic
+retry, timeout, log-setting or tenant-GUC examples were not adopted or executed.
+
+No additional contract contradiction was identified in these reviewed areas. That limited
+source observation is NOT SQL validity, independent security certification, owner acceptance,
+RLS PASS, complete browser/0103 acceptance or permission to advance the runtime. Exact SQL
+r3.1 still needs explicit source approval; execution remains a separate authority. Existing
+seventeen top-level cases and seven subcases remain NOT RUN. No new test case or requirement
+for product behavior is introduced by this review packet.
+
+Documentation/regression verification for this source-review pass: `npm test` exit 0;
+Node/Renderer/Web stages passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in
+32.74s**, Worker **376 passed / 67 skipped / 1 warning in 21.02s**. Existing deprecation/cache
+warnings remain visible. `npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**,
+diff whitespace checks PASS (line-ending warnings only). The full five-block SQL text fingerprint
+above matches before/after this review, including comments; no SQL revision was made. Service-test
+environment variables were absent; no PostgreSQL/Redis integration, SQL parser/compiler,
+database connection, migration or Browser Proof ran. TC-103SQL01..17 and 17a..g remain NOT RUN.
+Only two tracked ADR Markdown files changed; old MVP report/runtime source preserved. No
+commit, push or external-system write; exact-source owner review is still the next gate.
+
+## 15. Owner exact-source approval — r3.1 contract FROZEN, 2026-10-24
+
+Authority: owner's explicit **P5 SQL r3.1 — APPROVED / FROZEN AT CONTRACT LEVEL** after receiving
+the complete source and independently matching the document and five-block fingerprints.
+REQ-10327 in the parent ADR traces this status-only record. The approved review snapshot had
+**1063 lines / 74598 UTF-8 bytes**, document SHA-256:
+`8703CEA1351D74E2DF9A96E777265508E936C14143FD13C602B1BBF8A13F4D77`.
+Its five SQL blocks have the section 14 LF-normalized combined-text fingerprint:
+`46A2C6DC1F1A2162BD4FDD48DDBBCBDC4CCE05B82EF1AD97F15A1C5A14296E12`.
+The local file matched both before this update. Recording the decision changes document metadata/
+prose and therefore the whole-file hash/length, not the frozen five SQL blocks or their fingerprint.
+The original document hash above identifies the reviewed snapshot, not this updated decision record.
+
+The Freeze covers the exact r3.1 DDL, four-field append-only ledger, composite FK/PK, Preflight,
+Consume, lock/commit boundary, restricted function ownership, Installer/Worker separation, ACLs,
+RLS policies and pre-commit assertion with strict ADMIN OPTION/manual-review scope. ADMIN on an
+unrelated target remains a conservative stop, not automatically vulnerability evidence. Earlier
+proposal/PENDING/in-principle statements are history where this exact-source decision supersedes
+them. Any change to a frozen SQL block's DDL/function/policy/grant/assertion text requires a new
+revision and source review; this record makes no such change and does not create r3.2.
+
+The owner did NOT approve compilation, installation, migration or runtime behavior. All **17
+top-level SQL scenarios + 7 subcases remain NOT RUN**. Actual PostgreSQL 16 compilation, real-role
+ACL/RLS and concurrency evidence remain future independently authorized gates, never inferred
+from regression tests or Superuser inspection. The private P1 packet Manifest and separate additive
+Publishing integration remain PENDING; existing 0102 v1-only behavior is untouched. Full ADR-090
+Freeze WAIT; SQL execution/Migration/Browser Proof/0103 implementation/Hosted/customer use NO-GO.
+Commit/Push NOT AUTHORIZED. No database connection, role/grant change or fresh Drive write occurs.
+
+Verification for this status-only decision record: `npm test` exit 0; existing Node/Renderer/Web
+stages passed (Web 47/47), API **592 passed / 246 skipped / 2 warnings in 36.18s**, Worker
+**376 passed / 67 skipped / 1 warning in 24.75s**. Existing deprecation/cache-permission warnings
+were not suppressed. `npm run validate` **23/23 PASS**, Secret Scan **1,237 files PASS**, diff
+whitespace checks PASS (line-ending warnings only). Before/after comparison confirms all five
+frozen SQL blocks retain their exact section 14 fingerprint, including comments. No SQL parser/
+compiler, database/Redis integration, migration, runtime change or Browser Proof was invoked;
+service-test environment variables were absent. All 17 SQL scenarios + 7 subcases remain NOT RUN.
+Only ADR-090, this SQL contract's metadata/prose and the ADR index changed; earlier local work/
+MVP report preserved. No commit/push or external-system write. The Freeze is the owner's design
+decision, not a new SQL test result or permission to implement/execute 0103.
